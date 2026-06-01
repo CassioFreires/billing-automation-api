@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Gateway de Pagamento FAKE</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; background: #f4f4f9; }
+        .card { background: white; padding: 30px; border-radius: 10px; display: inline-block; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        button { background: #25D366; color: white; border: none; padding: 15px 30px; font-size: 16px; border-radius: 5px; cursor: pointer; margin-top: 20px; }
+        button:hover { background: #128C7E; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>Checkout PIX (Simulado)</h2>
+    <p>Escaneie o QR Code ou clique no botão abaixo para simular o pagamento.</p>
+    <div style="background: #ccc; width: 200px; height: 200px; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
+        [ QR CODE FAKE ]
+    </div>
+    <br>
+    <button id="btnPagar">Confirmar Pagamento (Simular Banco)</button>
+</div>
+
+<script>
+    // 1. Pega os parâmetros passados na URL do link do WhatsApp
+    const urlParams = new URLSearchParams(window.location.search);
+    const invoiceId = urlParams.get('invoiceId');
+    const value = urlParams.get('value');
+
+    document.getElementById('btnPagar').addEventListener('click', async () => {
+        // 2. URL DO WEBHOOK DO N8N (O n8n vai ficar ouvindo esse clique!)
+        const n8nWebhookUrl = "http://localhost:5678/webhook-test/retorno-pagamento";
+
+        const dadosPagamento = {
+            event: "PAYMENT_CONFIRMED",
+            gatewayId: invoiceId,
+            amount: parseFloat(value)
+        };
+
+        try {
+            // 3. O formulário "empurra" o dado pro n8n avisando que foi pago
+            await fetch(n8nWebhookUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(dadosPagamento)
+            });
+
+            alert("Pagamento Confirmado! O Webhook foi enviado para o n8n.");
+        } catch (error) {
+            alert("Erro ao avisar o n8n: " + error.message);
+        }
+    });
+</script>
+</body>
+</html>

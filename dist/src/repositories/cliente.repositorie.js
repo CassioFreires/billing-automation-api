@@ -1,15 +1,8 @@
-import prisma from "../database/prisma.js";
+import prisma from '../database/prisma.js';
 export class ClientRepository {
-    async findByPhone(phone) {
-        return prisma.client.findUnique({
-            where: {
-                phone,
-            },
-        });
-    }
     async create(data) {
         return prisma.client.create({
-            data,
+            data
         });
     }
     async findAll() {
@@ -18,8 +11,15 @@ export class ClientRepository {
     async findById(id) {
         return prisma.client.findUnique({
             where: {
-                id,
-            },
+                id
+            }
+        });
+    }
+    async findByPhone(phone) {
+        return prisma.client.findUnique({
+            where: {
+                phone
+            }
         });
     }
     async update(id, data) {
@@ -33,8 +33,8 @@ export class ClientRepository {
     async delete(id) {
         return prisma.client.delete({
             where: {
-                id,
-            },
+                id
+            }
         });
     }
 }

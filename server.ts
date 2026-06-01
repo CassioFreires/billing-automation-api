@@ -2,8 +2,19 @@ import express from 'express';
 import cors from 'cors';
 import { appRouter } from './index.js';
 import prisma from './src/database/prisma.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
+app.use(express.json());
+
+
+const publicPath = path.join(process.cwd(), 'public');
+
+app.use(express.static(publicPath));
 
 // Configurações de segurança e requisição
 app.use(cors({
@@ -12,13 +23,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-app.use(express.json());
 
-/**
- * Injeção de todas as rotas da aplicação sob o prefixo global '/api'
- * O endpoint completo para disparo da automação ficará:
- * POST http://localhost:3333/api/notifications/trigger
- */
 app.use('/api', appRouter);
 
 // Tratamento global de erros para evitar que a sua API caia na VPS por exceções não tratadas

@@ -15,4 +15,20 @@ model Client {
   status    String   @default("EM_DIA")
   debtValue Float    @default(0.0)
   createdAt DateTime @default(now())
+  invoices  Invoice[]
+}
+
+model Invoice {
+  id            String    @id @default(uuid())
+  value         Float
+  status        String    @default("PENDING") // PENDING, PAID, OVERDUE, FAILED
+  pixCopyPaste  String?   // Campo para salvar o "Copia e Cola" do PIX gerado pelo Gateway
+  pixQrCode     String?   // Link ou Base64 da imagem do QR Code
+  gatewayId     String?   @unique // ID que a fatura ganha lá no Asaas/Stripe
+  dueDate       DateTime  // Data de vencimento da cobrança
+  paidAt        DateTime? // Data que o webhook confirmou o pagamento
+  createdAt     DateTime  @default(now())
+  
+  clientId      String
+  client        Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
 }
