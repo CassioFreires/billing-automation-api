@@ -1,67 +1,67 @@
 import express from 'express';
 import cors from 'cors';
-import { appRouter } from './index.js';
 import prisma from './src/database/prisma.js';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { rabbitMQ } from './src/config/rabbitmql.config.js';
 import { initInvoiceWorker } from './src/works/invoice.worker.js';
+import { retry } from './src/infrastructure/retry.js';
+import { appRouter } from './index.js';
 
 const app = express();
+
 app.use(express.json());
-
-
-const publicPath = path.join(process.cwd(), 'public');
-
-app.use(express.static(publicPath));
-
-// Configurações de segurança e requisição
-app.use(cors({
-  origin: process.env.FRONTEND_URL || '*', // Em produção, restrinja para a URL do seu painel React
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
-
+app.use(cors());
 
 app.use('/api', appRouter);
-
-// Tratamento global de erros para evitar que a sua API caia na VPS por exceções não tratadas
-app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('❌ Erro interno detectado:', err.message);
-  res.status(500).json({ error: 'Ocorreu um erro interno no servidor de automação.' });
-});
 
 const PORT = process.env.PORT || 3000;
 
 async function bootstrap() {
-
   try {
-
-    console.log('🔄 Conectando ao banco...');
-    await prisma.$connect();
-    console.log('✅ Banco conectado com sucesso');
-
-
-    console.log('🔄 Conectando ao servidor RabbitMQ e criando canais...');
-    await rabbitMQ.connect();
-    console.log('✅ RabbitMQ pronto para uso!');
-
-    console.log('🔄 Conectando worker')
-    await initInvoiceWorker();
-    console.log('✅ Worker conectado com sucesso')
+    // 🔥 API sobe primeiro (não depende de nada)
     app.listen(PORT, () => {
       console.log(`🚀 API rodando na porta ${PORT}`);
     });
 
+    // 🧠 PostgreSQL com retry
+    console.log('🔄 Conectando ao banco...');
+
+    await retry(async () => {
+      await prisma.$connect();
+      await prisma.$queryRaw`SELECT 1`;
+    }, {
+      retries: 15,
+      delayMs: 2000,
+      onRetry: (err, attempt) => {
+        console.log(`⏳ Banco tentativa ${attempt}`);
+      }
+    });
+
+    console.log('✅ Banco conectado');
+
+    // 🐰 RabbitMQ com retry
+    console.log('🔄 Conectando RabbitMQ...');
+
+    await retry(async () => {
+      await rabbitMQ.connect();
+    }, {
+      retries: 15,
+      delayMs: 2000,
+      onRetry: (err, attempt) => {
+        console.log(`⏳ RabbitMQ tentativa ${attempt}`);
+      }
+    });
+
+    console.log('✅ RabbitMQ conectado');
+
+    // 👷 Worker só inicia depois de tudo OK
+    await initInvoiceWorker();
+
+    console.log('✅ Worker iniciado');
+
   } catch (error) {
-
-    console.error('❌ Falha ao conectar no banco');
-
-    console.error(error);
-
+    console.error('❌ Erro fatal no bootstrap:', error);
     process.exit(1);
   }
-
 }
 
 bootstrap();
