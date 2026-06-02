@@ -24,6 +24,7 @@ export function validateTriggerNotification(payload) {
         document: payload.document,
         phone: payload.phone,
         clientName: payload.clientName,
-        debtValue: payload.debtValue ? Number(payload.debtValue) : undefined
+        debtValue: payload.debtValue ? Number(payload.debtValue) : undefined,
+        value: payload.value ? Number(payload.value) : undefined
     };
 }

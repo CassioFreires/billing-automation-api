@@ -1,22 +1,38 @@
 import { Request, Response } from 'express';
-import { validateTriggerNotification } from '../dtos/triggerNotification.dto.js';
 import { NotificationService } from '../services/notication.service.js';
-
 export class NotificationController {
-  async trigger(req: Request, res: Response): Promise<Response> {
+  private notificationService: NotificationService;
+
+  constructor() {
+    this.notificationService = new NotificationService();
+  }
+
+  async triggerOverdueNotifications(req: Request, res: Response): Promise<Response> {
     try {
-      // Validação pelo DTO com nome corrigido
-      const validatedData = validateTriggerNotification(req.body);
+      let overdueInvoices = req.body;
 
-      const service = new NotificationService();
-      const isDispatched = await service.execute(validatedData);
-
-      if (isDispatched) {
-        return res.status(200).json({ message: "Gatilho enviado com sucesso." });
+      if (overdueInvoices && !Array.isArray(overdueInvoices) && typeof overdueInvoices === 'object') {
+        overdueInvoices = [overdueInvoices];
       }
-      return res.status(500).json({ error: "Falha ao processar disparo no n8n." });
+
+      // Validação básica de entrada
+      if (!Array.isArray(overdueInvoices) || overdueInvoices.length === 0) {
+        return res.status(400).json({ error: 'O corpo da requisição deve ser um array de faturas.' });
+      }
+
+      // Apenas despacha para a fila do RabbitMQ
+      const result = await this.notificationService.queueOverdueInvoices(overdueInvoices);
+
+      // Retorna 202 (Accepted) -> Significa "Recebi, vou processar em background"
+      return res.status(202).json({
+        message: 'Faturas recebidas e enviadas para a fila de processamento.',
+        totalEnqueued: result.enqueued
+      });
     } catch (error: any) {
-      return res.status(400).json({ error: error.message });
+      console.error('❌ Erro no Controller de Notificação:', error);
+      return res.status(500).json({ error: 'Erro interno ao enfileirar notificações.' });
     }
   }
+
+
 }

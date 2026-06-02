@@ -5,6 +5,7 @@ export interface TriggerNotificationDTO {
   phone: string;
   clientName: string;
   debtValue?: number;
+  value?:number;
 }
 
 export function validateTriggerNotification(
@@ -46,6 +47,7 @@ export function validateTriggerNotification(
     document: payload.document,
     phone: payload.phone,
     clientName: payload.clientName,
-    debtValue: payload.debtValue ? Number(payload.debtValue) : undefined
+    debtValue: payload.debtValue ? Number(payload.debtValue) : undefined,
+    value: payload.value ? Number(payload.value) : undefined
   };
 }

@@ -30,4 +30,14 @@ export class InvoiceRepository {
             include: { client: true }
         });
     }
+    async updateNotificationData(id, gatewayId, pixCopyPaste) {
+        return prisma.invoice.update({
+            where: { id },
+            data: {
+                gatewayId,
+                pixCopyPaste,
+                notificationSent: true
+            }
+        });
+    }
 }

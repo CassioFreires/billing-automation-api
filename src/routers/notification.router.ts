@@ -4,6 +4,6 @@ import { NotificationController } from '../controllers/notification.controller.j
 const notificationRouter = Router();
 const controller = new NotificationController();
 
-notificationRouter.post('/trigger', controller.trigger.bind(controller));
+notificationRouter.post('/trigger-overdue', controller.triggerOverdueNotifications.bind(controller));
 
 export { notificationRouter };
