@@ -16,12 +16,12 @@ app.use(cors());
 
 app.use('/api', appRouter);
 
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 async function bootstrap() {
   try {
     // 🔥 API sobe primeiro (não depende de nada)
-    app.listen(PORT, () => {
+    app.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 API rodando na porta ${PORT}`);
     });
 
