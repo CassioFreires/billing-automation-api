@@ -52,7 +52,7 @@ services:
 
   worker:
     image: billing-api:latest
-    command: node dist/works/invoice.worker.js # <-- Caminho corrigido com base na sua árvore de arquivos
+    command: node dist/src/works/invoice.worker.js
     env_file:
       - .env
     environment:
