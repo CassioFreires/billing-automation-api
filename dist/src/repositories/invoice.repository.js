@@ -15,7 +15,7 @@ export class InvoiceRepository {
     async findByGatewayId(gatewayId) {
         return prisma.invoice.findUnique({
             where: { gatewayId },
-            include: { client: true } // Já traz os dados do cliente junto se precisar
+            include: { client: true }
         });
     }
     async updateStatus(id, status, paidAt) {
@@ -24,11 +24,56 @@ export class InvoiceRepository {
             data: { status, paidAt }
         });
     }
-    async findPendingInvoices() {
-        return prisma.invoice.findMany({
-            where: { status: "PENDING" },
-            include: { client: true }
-        });
+    // MÉTODO OTIMIZADO: Selecionando apenas os campos cirúrgicos
+    async findPendingInvoices(page = 1, limit = 10) {
+        const skip = (page - 1) * limit;
+        // Executa a busca e a contagem em paralelo para otimizar a performance
+        const [invoices, totalItems] = await prisma.$transaction([
+            prisma.invoice.findMany({
+                where: {
+                    status: "PENDING",
+                    client: { status: 'EM_ATRASO' }
+                },
+                skip,
+                take: limit,
+                select: {
+                    id: true,
+                    value: true,
+                    status: true,
+                    dueDate: true,
+                    notificationSent: true,
+                    paidAt: true,
+                    client: {
+                        select: {
+                            name: true,
+                            phone: true,
+                            document: true,
+                            status: true,
+                            processed: true
+                        }
+                    }
+                },
+                orderBy: {
+                    dueDate: 'asc' // Organiza pelas mais urgentes (vencidas há mais tempo)
+                }
+            }),
+            prisma.invoice.count({
+                where: {
+                    status: "PENDING",
+                    client: { status: 'EM_ATRASO' }
+                }
+            })
+        ]);
+        const totalPages = Math.ceil(totalItems / limit);
+        return {
+            invoices,
+            meta: {
+                totalItems,
+                totalPages,
+                currentPage: page,
+                limit
+            }
+        };
     }
     async updateNotificationData(id, gatewayId, pixCopyPaste) {
         return prisma.invoice.update({

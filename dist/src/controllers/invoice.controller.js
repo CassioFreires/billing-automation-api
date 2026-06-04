@@ -27,4 +27,21 @@ export class InvoiceController {
             res.status(400).json({ error: error.message || "Erro no processamento do webhook" });
         }
     };
+    findPendingInvoices = async (req, res) => {
+        try {
+            // Pega os parâmetros da query string com valores padrão caso não informados
+            const page = parseInt(req.query.page) || 1;
+            const limit = parseInt(req.query.limit) || 10;
+            // Repasse os parâmetros para o seu service (lembre-se de ajustar a assinatura no service também)
+            const result = await this.invoiceService.findPendingInvoices(page, limit);
+            if (!result.invoices || result.invoices.length === 0) {
+                return res.status(404).json({ message: 'Nenhuma fatura pendente encontrada', result: { invoices: [], meta: {} } });
+            }
+            return res.status(200).json({ message: 'OK', result });
+        }
+        catch (error) {
+            console.error(error.message);
+            return res.status(500).json({ message: error.message });
+        }
+    };
 }

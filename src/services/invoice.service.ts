@@ -46,6 +46,10 @@ export class InvoiceService {
     return updatedInvoice;
   }
 
+  async findPendingInvoices(page?:number, limit?:number) {
+    return this.invoiceRepository.findPendingInvoices(page, limit);
+  }
+
   
 
 }

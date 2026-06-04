@@ -28,4 +28,7 @@ export class InvoiceService {
         const updatedInvoice = await this.invoiceRepository.updateStatus(invoice.id, data.status, data.paidAt);
         return updatedInvoice;
     }
+    async findPendingInvoices(page, limit) {
+        return this.invoiceRepository.findPendingInvoices(page, limit);
+    }
 }

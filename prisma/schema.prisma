@@ -18,6 +18,9 @@ model Client {
   lastUpdate    DateTime  @updatedAt
   createdAt DateTime @default(now())
   invoices  Invoice[]
+
+  @@index([status])
+
 }
 
 model Invoice {
@@ -34,4 +37,8 @@ model Invoice {
   
   clientId      String
   client        Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  
+  @@index([clientId])
+  @@index([status])
+  @@index([status, clientId]) // Índice composto para otimizar o método findPendingInvoices
 }
