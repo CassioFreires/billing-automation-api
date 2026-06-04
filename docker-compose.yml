@@ -37,6 +37,12 @@ services:
     image: billing-api:latest
     ports:
       - "3000:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     env_file:
       - .env
     environment:
@@ -49,6 +55,7 @@ services:
       replicas: 1
       restart_policy:
         condition: on-failure
+    
 
   worker:
     image: billing-api:latest
@@ -67,6 +74,7 @@ services:
       restart_policy:
         condition: on-failure
         delay: 5s
+        max_attempts: 10
 
 networks:
   billing-network:
