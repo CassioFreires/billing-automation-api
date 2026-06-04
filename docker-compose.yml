@@ -50,6 +50,24 @@ services:
       restart_policy:
         condition: on-failure
 
+worker:
+    image: billing-api:latest
+    command: node dist/works/invoice.worker.js # <-- Caminho corrigido com base na sua árvore de arquivos
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/billing_db
+      RABBITMQ_URL: amqp://cassio:MinhaSenha123@rabbitmq:5672
+      NODE_ENV: production
+    networks:
+      - billing-network
+    deploy:
+      mode: replicated
+      replicas: 3
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+
 networks:
   billing-network:
     driver: overlay
