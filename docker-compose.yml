@@ -52,7 +52,7 @@ services:
 
   worker:
     image: billing-api:latest
-    command: node dist/src/works/invoice.worker.js
+    command: node dist/src/worker.js
     env_file:
       - .env
     environment:
