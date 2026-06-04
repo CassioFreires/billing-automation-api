@@ -1,9 +1,12 @@
 import { CreateInvoiceDTO } from '../dtos/createInvoice.dto.js';
 import prisma from '../database/prisma.js';
+import { redis } from '../config/redis.config.js';
 
 export class InvoiceRepository {
-  async create(data: CreateInvoiceDTO & { pixCopyPaste?: string; gatewayId?: string }) {
-    return prisma.invoice.create({
+  async create(
+    data: CreateInvoiceDTO & { pixCopyPaste?: string; gatewayId?: string }
+  ) {
+    const invoice = await prisma.invoice.create({
       data: {
         clientId: data.clientId,
         value: data.value,
@@ -13,27 +16,67 @@ export class InvoiceRepository {
         status: "PENDING"
       }
     });
+
+    // 🔥 invalida cache de listas pendentes
+    await this.invalidatePendingCache();
+
+    return invoice;
   }
 
   async findByGatewayId(gatewayId: string) {
-    return prisma.invoice.findUnique({
+    const key = `invoice:gateway:${gatewayId}`;
+
+    // 🔥 1. tenta cache
+    const cached = await redis.get(key);
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
+    // 🔥 2. DB
+    const invoice = await prisma.invoice.findUnique({
       where: { gatewayId },
       include: { client: true }
     });
+
+    // 🔥 3. salva cache
+    if (invoice) {
+      await redis.set(key, JSON.stringify(invoice), {
+        EX: 60 * 10 // 10 min
+      });
+    }
+
+    return invoice;
   }
 
   async updateStatus(id: string, status: string, paidAt?: Date) {
-    return prisma.invoice.update({
+    const result = await prisma.invoice.update({
       where: { id },
       data: { status, paidAt }
     });
+
+    // 🔥 invalida cache individual
+    if (result.gatewayId) {
+      await redis.del(`invoice:gateway:${result.gatewayId}`);
+    }
+
+    // 🔥 invalida listas
+    await this.invalidatePendingCache();
+
+    return result;
   }
 
-  // MÉTODO OTIMIZADO: Selecionando apenas os campos cirúrgicos
   async findPendingInvoices(page: number = 1, limit: number = 10) {
     const skip = (page - 1) * limit;
 
-    // Executa a busca e a contagem em paralelo para otimizar a performance
+    const key = `invoices:pending:${page}:${limit}`;
+
+    // 🔥 1. cache
+    const cached = await redis.get(key);
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
+    // 🔥 2. DB
     const [invoices, totalItems] = await prisma.$transaction([
       prisma.invoice.findMany({
         where: {
@@ -49,6 +92,7 @@ export class InvoiceRepository {
           dueDate: true,
           notificationSent: true,
           paidAt: true,
+          gatewayId: true,
           client: {
             select: {
               name: true,
@@ -60,7 +104,7 @@ export class InvoiceRepository {
           }
         },
         orderBy: {
-          dueDate: 'asc' // Organiza pelas mais urgentes (vencidas há mais tempo)
+          dueDate: 'asc'
         }
       }),
       prisma.invoice.count({
@@ -71,24 +115,30 @@ export class InvoiceRepository {
       })
     ]);
 
-    const totalPages = Math.ceil(totalItems / limit);
-
-    return {
+    const result = {
       invoices,
       meta: {
         totalItems,
-        totalPages,
+        totalPages: Math.ceil(totalItems / limit),
         currentPage: page,
         limit
       }
     };
+
+    // 🔥 3. salva cache
+    await redis.set(key, JSON.stringify(result), {
+      EX: 120 // 2 min
+    });
+
+    return result;
   }
+
   async updateNotificationData(
     id: string,
     gatewayId: string,
     pixCopyPaste: string
   ) {
-    return prisma.invoice.update({
+    const result = await prisma.invoice.update({
       where: { id },
       data: {
         gatewayId,
@@ -96,5 +146,25 @@ export class InvoiceRepository {
         notificationSent: true
       }
     });
+
+    // 🔥 invalida cache individual
+    await redis.del(`invoice:gateway:${gatewayId}`);
+
+    // 🔥 invalida listas
+    await this.invalidatePendingCache();
+
+    return result;
+  }
+
+  // =========================
+  // 🔥 HELPERS DE CACHE
+  // =========================
+
+  private async invalidatePendingCache() {
+    const keys = await redis.keys('invoices:pending:*');
+
+    if (keys.length > 0) {
+      await redis.del(keys);
+    }
   }
 }

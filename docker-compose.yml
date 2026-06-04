@@ -75,6 +75,13 @@ services:
         condition: on-failure
         delay: 5s
         max_attempts: 10
+  
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - billing-network
 
 networks:
   billing-network:

@@ -5,6 +5,9 @@ import { rabbitMQ } from './src/config/rabbitmql.config.js';
 import { initInvoiceWorker } from './src/works/invoice.worker.js';
 import { retry } from './src/infrastructure/retry.js';
 import { appRouter } from './index.js';
+import { connectRedis } from './src/config/redis.config.js';
+
+
 
 const app = express();
 
@@ -37,6 +40,21 @@ async function bootstrap() {
     });
 
     console.log('✅ Banco conectado');
+
+    // 🧠 REDIS (NOVO - encaixado no seu padrão)
+    console.log('🔄 Conectando Redis...');
+
+    await retry(async () => {
+      await connectRedis();
+    }, {
+      retries: 15,
+      delayMs: 2000,
+      onRetry: (err, attempt) => {
+        console.log(`⏳ Redis tentativa ${attempt}`);
+      }
+    });
+
+    console.log('🧠 Redis conectado');
 
     // 🐰 RabbitMQ com retry
     console.log('🔄 Conectando RabbitMQ...');
