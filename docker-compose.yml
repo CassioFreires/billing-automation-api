@@ -50,7 +50,7 @@ services:
       restart_policy:
         condition: on-failure
 
-worker:
+  worker:
     image: billing-api:latest
     command: node dist/works/invoice.worker.js # <-- Caminho corrigido com base na sua árvore de arquivos
     env_file:
