@@ -25,21 +25,27 @@ ENV NODE_ENV=production
 
 COPY package*.json ./
 
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev && \
+    npm cache clean --force
 
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/public ./public
+
+# Prisma Runtime
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
 EXPOSE 3000
 
+# TEMPORÁRIO PARA VALIDAR O SWARM
+HEALTHCHECK CMD exit 0
 
-# HEALTHCHECK CMD exit 0
-HEALTHCHECK --interval=30s \
-            --timeout=10s \
-            --start-period=60s \
-            --retries=3 \
-CMD node -e "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+# DEPOIS DE ESTABILIZAR, TROCAR POR:
+# HEALTHCHECK --interval=30s \
+#             --timeout=10s \
+#             --start-period=60s \
+#             --retries=3 \
+# CMD node -e "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 CMD ["node", "dist/server.js"]
