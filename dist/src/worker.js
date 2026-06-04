@@ -1,26 +1,36 @@
 // src/worker.ts
 import { rabbitMQ } from './config/rabbitmql.config.js';
 import { initInvoiceWorker } from './works/invoice.worker.js';
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 (async () => {
     try {
         console.log('🔌 [Worker Mode] Inicializando conexões...');
-        // 1. Força a inicialização da conexão com o RabbitMQ se o seu arquivo de config tiver um método connect.
-        // Se a sua classe conecta automaticamente ao ser importada, o loop abaixo garante a espera.
+        const MAX_TENTATIVAS = 15;
         let tentativas = 0;
-        while (!rabbitMQ.channel && tentativas < 15) {
-            console.log('⏳ Aguardando conexão com o RabbitMQ...');
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-            tentativas++;
+        while (!rabbitMQ.isConnected && tentativas < MAX_TENTATIVAS) {
+            try {
+                tentativas++;
+                console.log(`⏳ Tentativa ${tentativas}/${MAX_TENTATIVAS} de conexão com RabbitMQ...`);
+                await rabbitMQ.connect();
+                console.log('✅ RabbitMQ conectado com sucesso.');
+            }
+            catch (error) {
+                console.error(`❌ Falha na tentativa ${tentativas}/${MAX_TENTATIVAS}:`, error);
+                if (tentativas >= MAX_TENTATIVAS) {
+                    throw new Error('Não foi possível conectar ao RabbitMQ após várias tentativas.');
+                }
+                await sleep(3000);
+            }
         }
-        if (!rabbitMQ.channel) {
-            throw new Error('Não foi possível obter o canal do RabbitMQ.');
+        if (!rabbitMQ.isConnected) {
+            throw new Error('RabbitMQ não está conectado.');
         }
-        // 2. Inicia o consumo da fila
+        console.log('🚀 Iniciando consumidor da fila...');
         await initInvoiceWorker();
-        console.log('🚀 Worker rodando com sucesso e aguardando mensagens.');
+        console.log('✅ Worker iniciado com sucesso e aguardando mensagens.');
     }
     catch (error) {
-        console.error('❌ Falha crítica no processo do Worker isolado:', error);
+        console.error('❌ Falha crítica no processo do Worker:', error);
         process.exit(1);
     }
 })();
