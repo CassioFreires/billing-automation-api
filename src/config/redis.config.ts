@@ -8,7 +8,7 @@ export const redis = createClient({
     : 'redis://localhost:6379'
 });
 
-redis.on('error', (err) => {
+redis.on('error', (err: Error) => {
   console.error('❌ Redis error:', err);
 });
 
@@ -20,7 +20,7 @@ redis.on('ready', () => {
   console.log('🧠 Redis pronto');
 });
 
-export async function connectRedis() {
+export async function connectRedis(): Promise<void> {
   if (!redis.isOpen) {
     await redis.connect();
   }
