@@ -1,3 +1,4 @@
+// src/works/invoice.worker.ts
 import { rabbitMQ } from '../config/rabbitmql.config.js';
 import { ClientRepository } from '../repositories/cliente.repositorie.js';
 import { InvoiceRepository } from '../repositories/invoice.repository.js';
@@ -9,19 +10,19 @@ const invoiceRepository = new InvoiceRepository();
 const whatsappAPI = new WhatsappAPI();
 
 export async function initInvoiceWorker() {
-  const channel = rabbitMQ.channel;
+  const channel = rabbitMQ.getChannel();
   const queue = 'invoice_processing_queue';
 
   await channel.assertQueue(queue, {
     durable: true,
     arguments: {
-      'x-queue-type': 'quorum'
-    }
+      'x-queue-type': 'quorum',
+    },
   });
 
   channel.prefetch(1);
 
-  console.log(`👂 Worker escutando fila: ${queue}`);
+  console.log(`👂 Consumindo fila: ${queue}`);
 
   channel.consume(
     queue,
@@ -33,84 +34,46 @@ export async function initInvoiceWorker() {
           msg.content.toString()
         );
 
-        console.log(
-          `📥 Recebida invoice ${data.id} para ${data.phone}`
-        );
+        console.log(`📩 Invoice recebida: ${data.id}`);
 
-        const client = await clientRepository.findByPhone(
-          data.phone
-        );
+        const client = await clientRepository.findByPhone(data.phone);
 
         if (!client) {
-          console.error(
-            `❌ Cliente não encontrado para telefone ${data.phone}`
-          );
-
+          console.error(`❌ Cliente não encontrado: ${data.phone}`);
           channel.ack(msg);
           return;
         }
 
-        const fakeGatewayId =
-          'pay_fake_' +
-          Math.random().toString(36).substring(2, 10);
-
-        const fakePixCode =
-          '00020101021226880014br.gov.bcb.pix.COPIA_E_COLA_FAKE_' +
-          client.id;
+        const fakeGatewayId = 'pay_' + Math.random().toString(36).slice(2);
+        const fakePix = '000201FAKEPIX_' + client.id;
 
         await invoiceRepository.updateNotificationData(
           data.id,
           fakeGatewayId,
-          fakePixCode
+          fakePix
         );
 
-        const linkPagamentoFake =
-          `http://localhost:3333/pages/payments.screen.html` +
-          `?invoiceId=${fakeGatewayId}` +
-          `&value=${data.value}`;
+        const link = `http://localhost:3333/pay?invoice=${fakeGatewayId}`;
 
-        const mensagemWhatsapp = {
+        await whatsappAPI.sendMessageWhatsapp(data, {
           targetPhone: client.phone,
           messagePayload:
-            `Olá, ${client.name}!\n\n` +
-            `Identificamos uma cobrança pendente de R$ ${Number(
-              data.value
-            ).toFixed(2)}.\n\n` +
-            `👉 PIX Copia e Cola:\n` +
-            `${fakePixCode}\n\n` +
-            `🔗 Link para pagamento:\n` +
-            `${linkPagamentoFake}`
-        };
+            `Olá ${client.name}\n` +
+            `Valor: R$ ${Number(data.value).toFixed(2)}\n` +
+            `PIX: ${fakePix}\n` +
+            `Link: ${link}`,
+        });
 
-        await whatsappAPI.sendMessageWhatsapp(
-          data,
-          mensagemWhatsapp
-        );
-
-        console.log(
-          `✅ Invoice ${data.id} processada para ${client.name}`
-        );
-
-        console.log(
-          JSON.stringify(mensagemWhatsapp, null, 2)
-        );
+        console.log(`✅ Processado: ${data.id}`);
 
         channel.ack(msg);
-      } catch (error) {
-        console.error(
-          '❌ Erro ao processar mensagem:',
-          error
-        );
+      } catch (err) {
+        console.error('❌ erro worker:', err);
 
-        channel.nack(
-          msg,
-          false,
-          true
-        );
+        // retry com requeue
+        channel.nack(msg, false, true);
       }
     },
-    {
-      noAck: false
-    }
+    { noAck: false }
   );
 }

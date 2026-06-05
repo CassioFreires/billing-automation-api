@@ -69,13 +69,15 @@ services:
     networks:
       - billing-network
     deploy:
-      mode: replicated
       replicas: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
       restart_policy:
         condition: on-failure
         delay: 5s
         max_attempts: 10
-  
+      
   redis:
     image: redis:7-alpine
     ports:

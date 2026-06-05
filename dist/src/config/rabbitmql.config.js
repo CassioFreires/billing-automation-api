@@ -1,28 +1,35 @@
+// src/config/rabbitmql.config.ts
 import amqp from 'amqplib';
 class RabbitMQConfig {
     connection = null;
-    _channel = null;
+    channel = null;
     async connect() {
-        try {
-            this.connection = await amqp.connect(process.env.RABBITMQ_URL);
-            this._channel =
-                await this.connection.createChannel();
-            console.log('🔌 [RabbitMQ] Conectado com sucesso.');
-        }
-        catch (error) {
-            console.error('❌ [RabbitMQ] Erro ao conectar:', error);
-            throw error;
-        }
+        this.connection = await amqp.connect(process.env.RABBITMQ_URL);
+        this.connection.on('error', (err) => {
+            console.error('❌ RabbitMQ connection error:', err);
+        });
+        this.connection.on('close', () => {
+            console.error('⚠️ RabbitMQ connection closed');
+            this.connection = null;
+            this.channel = null;
+        });
+        this.channel = await this.connection.createChannel();
+        this.channel.on('error', (err) => {
+            console.error('❌ RabbitMQ channel error:', err);
+        });
+        this.channel.on('close', () => {
+            console.error('⚠️ RabbitMQ channel closed');
+        });
+        console.log('🔌 RabbitMQ conectado com sucesso');
     }
-    get channel() {
-        if (!this._channel) {
-            throw new Error('Canal RabbitMQ não inicializado.');
+    getChannel() {
+        if (!this.channel || !this.connection) {
+            throw new Error('RabbitMQ não conectado');
         }
-        return this._channel;
+        return this.channel;
     }
-    get isConnected() {
-        return (this.connection !== null &&
-            this._channel !== null);
+    isConnected() {
+        return !!this.connection && !!this.channel;
     }
 }
 export const rabbitMQ = new RabbitMQConfig();

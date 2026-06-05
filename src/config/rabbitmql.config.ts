@@ -1,60 +1,46 @@
-import amqp, {
-  Channel,
-  ChannelModel
-} from 'amqplib';
+// src/config/rabbitmql.config.ts
+import amqp, { Channel, ChannelModel } from 'amqplib';
 
 class RabbitMQConfig {
-
   private connection: ChannelModel | null = null;
-  private _channel: Channel | null = null;
+  private channel: Channel | null = null;
 
   async connect(): Promise<void> {
-    try {
+    this.connection = await amqp.connect(process.env.RABBITMQ_URL!);
 
-      this.connection = await amqp.connect(
-        process.env.RABBITMQ_URL!
-      );
+    this.connection.on('error', (err) => {
+      console.error('❌ RabbitMQ connection error:', err);
+    });
 
-      this._channel =
-        await this.connection.createChannel();
+    this.connection.on('close', () => {
+      console.error('⚠️ RabbitMQ connection closed');
+      this.connection = null;
+      this.channel = null;
+    });
 
-      console.log(
-        '🔌 [RabbitMQ] Conectado com sucesso.'
-      );
+    this.channel = await this.connection.createChannel();
 
-    } catch (error) {
+    this.channel.on('error', (err) => {
+      console.error('❌ RabbitMQ channel error:', err);
+    });
 
-      console.error(
-        '❌ [RabbitMQ] Erro ao conectar:',
-        error
-      );
+    this.channel.on('close', () => {
+      console.error('⚠️ RabbitMQ channel closed');
+    });
 
-      throw error;
-    }
+    console.log('🔌 RabbitMQ conectado com sucesso');
   }
 
-  get channel(): Channel {
-
-    if (!this._channel) {
-
-      throw new Error(
-        'Canal RabbitMQ não inicializado.'
-      );
-
+  getChannel(): Channel {
+    if (!this.channel || !this.connection) {
+      throw new Error('RabbitMQ não conectado');
     }
-
-    return this._channel;
+    return this.channel;
   }
 
-  get isConnected(): boolean {
-
-    return (
-      this.connection !== null &&
-      this._channel !== null
-    );
-
+  isConnected(): boolean {
+    return !!this.connection && !!this.channel;
   }
 }
 
-export const rabbitMQ =
-  new RabbitMQConfig();
+export const rabbitMQ = new RabbitMQConfig();
