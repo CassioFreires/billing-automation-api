@@ -3,9 +3,14 @@ import prisma from '../database/prisma.js';
 import { redis } from '../config/redis.config.js';
 
 export class InvoiceRepository {
+
   async create(
-    data: CreateInvoiceDTO & { pixCopyPaste?: string; gatewayId?: string }
+    data: CreateInvoiceDTO & {
+      pixCopyPaste?: string;
+      gatewayId?: string;
+    }
   ) {
+
     const invoice = await prisma.invoice.create({
       data: {
         clientId: data.clientId,
@@ -13,122 +18,159 @@ export class InvoiceRepository {
         dueDate: data.dueDate,
         pixCopyPaste: data.pixCopyPaste,
         gatewayId: data.gatewayId,
-        status: "PENDING"
+        status: 'PENDING'
       }
     });
-
-    // 🔥 invalida cache de listas pendentes
-    await this.invalidatePendingCache();
 
     return invoice;
   }
 
   async findByGatewayId(gatewayId: string) {
-    const key = `invoice:gateway:${gatewayId}`;
 
-    // 🔥 1. tenta cache
-    const cached = await redis.get(key);
-    if (cached) {
-      return JSON.parse(cached);
-    }
-
-    // 🔥 2. DB
-    const invoice = await prisma.invoice.findUnique({
+    return prisma.invoice.findUnique({
       where: { gatewayId },
       include: { client: true }
     });
 
-    // 🔥 3. salva cache
-    if (invoice) {
-      await redis.set(key, JSON.stringify(invoice), {
-        EX: 60 * 10 // 10 min
-      });
-    }
-
-    return invoice;
   }
 
-  async updateStatus(id: string, status: string, paidAt?: Date) {
+  async updateStatus(
+    id: string,
+    status: string,
+    paidAt?: Date
+  ) {
+
     const result = await prisma.invoice.update({
       where: { id },
       data: { status, paidAt }
     });
 
-    // 🔥 invalida cache individual
-    if (result.gatewayId) {
-      await redis.del(`invoice:gateway:${result.gatewayId}`);
-    }
-
-    // 🔥 invalida listas
-    await this.invalidatePendingCache();
+    await this.clearPendingInvoicesCache();
 
     return result;
   }
 
-  async findPendingInvoices(page: number = 1, limit: number = 10) {
-    const skip = (page - 1) * limit;
+  async findPendingInvoices(
+    page: number = 1,
+    limit: number = 10
+  ) {
 
-    const key = `invoices:pending:${page}:${limit}`;
+    const cacheKey = `pending-invoices:${page}:${limit}`;
 
-    // 🔥 1. cache
-    const cached = await redis.get(key);
-    if (cached) {
-      return JSON.parse(cached);
+    /**
+     * CACHE READ
+     */
+    try {
+
+      if (redis?.isOpen) {
+
+        const cachedData =
+          await redis.get(cacheKey);
+
+        if (cachedData) {
+
+          console.log('🧠 CACHE HIT');
+
+          return JSON.parse(cachedData);
+        }
+
+        console.log('❌ CACHE MISS');
+      }
+
+    } catch (error) {
+
+      console.error(
+        'Erro ao buscar cache:',
+        error
+      );
+
     }
 
-    // 🔥 2. DB
-    const [invoices, totalItems] = await prisma.$transaction([
-      prisma.invoice.findMany({
-        where: {
-          status: "PENDING",
-          client: { status: 'EM_ATRASO' }
-        },
-        skip,
-        take: limit,
-        select: {
-          id: true,
-          value: true,
-          status: true,
-          dueDate: true,
-          notificationSent: true,
-          paidAt: true,
-          gatewayId: true,
-          client: {
-            select: {
-              name: true,
-              phone: true,
-              document: true,
-              status: true,
-              processed: true
+    /**
+     * DATABASE
+     */
+    const skip = (page - 1) * limit;
+
+    const [invoices, totalItems] =
+      await prisma.$transaction([
+        prisma.invoice.findMany({
+          where: {
+            status: 'PENDING',
+            client: {
+              status: 'EM_ATRASO'
+            }
+          },
+          skip,
+          take: limit,
+          select: {
+            id: true,
+            value: true,
+            status: true,
+            dueDate: true,
+            notificationSent: true,
+            paidAt: true,
+            gatewayId: true,
+            client: {
+              select: {
+                name: true,
+                phone: true,
+                document: true,
+                status: true,
+                processed: true
+              }
+            }
+          },
+          orderBy: {
+            dueDate: 'asc'
+          }
+        }),
+        prisma.invoice.count({
+          where: {
+            status: 'PENDING',
+            client: {
+              status: 'EM_ATRASO'
             }
           }
-        },
-        orderBy: {
-          dueDate: 'asc'
-        }
-      }),
-      prisma.invoice.count({
-        where: {
-          status: "PENDING",
-          client: { status: 'EM_ATRASO' }
-        }
-      })
-    ]);
+        })
+      ]);
 
     const result = {
       invoices,
       meta: {
         totalItems,
-        totalPages: Math.ceil(totalItems / limit),
+        totalPages: Math.ceil(
+          totalItems / limit
+        ),
         currentPage: page,
         limit
       }
     };
 
-    // 🔥 3. salva cache
-    await redis.set(key, JSON.stringify(result), {
-      EX: 120 // 2 min
-    });
+    /**
+     * CACHE WRITE
+     */
+    try {
+
+      if (redis?.isOpen) {
+
+        await redis.set(
+          cacheKey,
+          JSON.stringify(result),
+          {
+            EX: 60
+          }
+        );
+
+      }
+
+    } catch (error) {
+
+      console.error(
+        'Erro ao salvar cache:',
+        error
+      );
+
+    }
 
     return result;
   }
@@ -138,6 +180,7 @@ export class InvoiceRepository {
     gatewayId: string,
     pixCopyPaste: string
   ) {
+
     const result = await prisma.invoice.update({
       where: { id },
       data: {
@@ -147,24 +190,35 @@ export class InvoiceRepository {
       }
     });
 
-    // 🔥 invalida cache individual
-    await redis.del(`invoice:gateway:${gatewayId}`);
-
-    // 🔥 invalida listas
-    await this.invalidatePendingCache();
+    await this.clearPendingInvoicesCache();
 
     return result;
   }
 
-  // =========================
-  // 🔥 HELPERS DE CACHE
-  // =========================
+  async clearPendingInvoicesCache() {
 
-  private async invalidatePendingCache() {
-    const keys = await redis.keys('invoices:pending:*');
+    try {
 
-    if (keys.length > 0) {
-      await redis.del(keys);
+      if (!redis?.isOpen) {
+        return;
+      }
+
+      const keys = await redis.keys(
+        'pending-invoices:*'
+      );
+
+      if (keys.length > 0) {
+        await redis.del(keys);
+      }
+
+    } catch (error) {
+
+      console.error(
+        'Erro ao limpar cache:',
+        error
+      );
+
     }
   }
+
 }

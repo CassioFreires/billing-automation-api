@@ -1,27 +1,49 @@
 import { createClient } from 'redis';
 
-const isDocker = process.env.NODE_ENV === 'production';
+const redisEnabled = process.env.REDIS_ENABLED === 'true';
 
-export const redis = createClient({
-  url: isDocker
-    ? 'redis://redis:6379'
-    : 'redis://localhost:6379'
-});
+export const redis = redisEnabled
+  ? createClient({
+      url: process.env.REDIS_URL
+    })
+  : null;
 
-redis.on('error', (err: Error) => {
-  console.error('❌ Redis error:', err);
-});
+if (redis) {
+  redis.on('error', (err) => {
+    console.error('Redis Error:', err);
+  });
 
-redis.on('connect', () => {
-  console.log('🔌 Redis conectando...');
-});
+  redis.on('connect', () => {
+    console.log('🔄 Conectando ao Redis...');
+  });
 
-redis.on('ready', () => {
-  console.log('🧠 Redis pronto');
-});
+  redis.on('ready', () => {
+    console.log('✅ Redis pronto para uso');
+  });
+}
 
-export async function connectRedis(): Promise<void> {
+export async function connectRedis() {
+  if (!redis) {
+    console.log('⚠️ Redis desabilitado');
+    return;
+  }
+
   if (!redis.isOpen) {
-    await redis.connect();
+    try {
+      await redis.connect();
+    } catch (error: any) {
+      console.error(error.message);
+      throw new Error('Erro ao conectar ao Redis');
+    }
+  }
+}
+
+export async function disconnectRedis() {
+  if (!redis) {
+    return;
+  }
+
+  if (redis.isOpen) {
+    await redis.quit();
   }
 }

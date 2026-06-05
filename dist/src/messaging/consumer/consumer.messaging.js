@@ -16,8 +16,6 @@ export async function initRabbitConsumers() {
             const conteudo = msg.content.toString();
             console.log(" [x] Processando tarefa recebida: %s", conteudo);
             // --- AQUI ENTRA A SUA LÓGICA DE NEGÓCIO DO PROJETO ---
-            // Exemplo: const dados = JSON.parse(conteudo);
-            // await notificationService.triggerNotification(dados);
             // Confirmação Manual: Só dá o ACK se tudo deu certo!
             channel.ack(msg);
             console.log(" [x] Tarefa concluída com sucesso!");

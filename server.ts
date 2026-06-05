@@ -1,13 +1,22 @@
 import express from 'express';
 import cors from 'cors';
+
 import prisma from './src/database/prisma.js';
 import { rabbitMQ } from './src/config/rabbitmql.config.js';
+import { connectRedis } from './src/config/redis.config.js';
 import { initInvoiceWorker } from './src/works/invoice.worker.js';
 import { retry } from './src/infrastructure/retry.js';
 import { appRouter } from './index.js';
-import { connectRedis } from './src/config/redis.config.js';
 
+process.on('uncaughtException', (err) => {
+  console.error('❌ UNCAUGHT EXCEPTION');
+  console.error(err);
+});
 
+process.on('unhandledRejection', (err) => {
+  console.error('❌ UNHANDLED REJECTION');
+  console.error(err);
+});
 
 const app = express();
 
@@ -16,70 +25,112 @@ app.use(cors());
 
 app.use('/api', appRouter);
 
+/**
+ * Health Check
+ */
+app.get('/health', (_, res) => {
+  res.status(200).json({
+    status: 'UP',
+    timestamp: new Date().toISOString(),
+  });
+});
+
 const PORT = Number(process.env.PORT) || 3000;
 
 async function bootstrap() {
   try {
-    // 🔥 API sobe primeiro (não depende de nada)
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`🚀 API rodando na porta ${PORT}`);
-    });
-
-    // 🧠 PostgreSQL com retry
+    /**
+     * PostgreSQL
+     */
     console.log('🔄 Conectando ao banco...');
 
-    await retry(async () => {
-      await prisma.$connect();
-      await prisma.$queryRaw`SELECT 1`;
-    }, {
-      retries: 15,
-      delayMs: 2000,
-      onRetry: (err, attempt) => {
-        console.log(`⏳ Banco tentativa ${attempt}`);
+    await retry(
+      async () => {
+        await prisma.$connect();
+        await prisma.$queryRaw`SELECT 1`;
+      },
+      {
+        retries: 15,
+        delayMs: 2000,
+        onRetry: (_, attempt) => {
+          console.log(`⏳ Banco tentativa ${attempt}`);
+        },
       }
-    });
+    );
 
     console.log('✅ Banco conectado');
 
-    // 🧠 REDIS (NOVO - encaixado no seu padrão)
-    console.log('🔄 Conectando Redis...');
+    /**
+     * Redis (Opcional)
+     */
+    if (process.env.REDIS_ENABLED === 'true') {
+      try {
+        console.log('🔄 Conectando Redis...');
 
+        await retry(
+          async () => {
+            await connectRedis();
+          },
+          {
+            retries: 15,
+            delayMs: 2000,
+            onRetry: (_, attempt) => {
+              console.log(`⏳ Redis tentativa ${attempt}`);
+            },
+          }
+        );
 
-    process.env.NODE_ENV == 'production' ?
-      await retry(async () => {
-        await connectRedis();
-      }, {
-        retries: 15,
-        delayMs: 2000,
-        onRetry: (err, attempt) => {
-          console.log(`⏳ Redis tentativa ${attempt}`);
-        }
-      }) : null;
+        console.log('🧠 Redis conectado');
+      } catch (error) {
+        console.warn(
+          '⚠️ Redis indisponível. Aplicação continuará sem cache.'
+        );
 
-    console.log('🧠 Redis conectado');
+        console.error(error);
+      }
+    } else {
+      console.log('⚠️ Redis desabilitado');
+    }
 
-    // 🐰 RabbitMQ com retry
+    /**
+     * RabbitMQ
+     */
     console.log('🔄 Conectando RabbitMQ...');
 
-    await retry(async () => {
-      await rabbitMQ.connect();
-    }, {
-      retries: 15,
-      delayMs: 2000,
-      onRetry: (err, attempt) => {
-        console.log(`⏳ RabbitMQ tentativa ${attempt}`);
+    await retry(
+      async () => {
+        await rabbitMQ.connect();
+      },
+      {
+        retries: 15,
+        delayMs: 2000,
+        onRetry: (_, attempt) => {
+          console.log(`⏳ RabbitMQ tentativa ${attempt}`);
+        },
       }
-    });
+    );
 
     console.log('✅ RabbitMQ conectado');
 
-    // 👷 Worker só inicia depois de tudo OK
+    /**
+     * Worker
+     */
+    console.log('🔄 Inicializando worker...');
+
     await initInvoiceWorker();
 
     console.log('✅ Worker iniciado');
 
+    /**
+     * API
+     */
+    app.listen(PORT, () => {
+      console.log(`🚀 API rodando na porta ${PORT}`);
+    });
   } catch (error) {
-    console.error('❌ Erro fatal no bootstrap:', error);
+    console.error('❌ Erro fatal no bootstrap');
+    console.error(error);
+
     process.exit(1);
   }
 }
