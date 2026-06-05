@@ -1,7 +1,7 @@
 import { rabbitMQ } from '../../config/rabbitmql.config.js';
 
 export async function initRabbitConsumers(): Promise<void> {
-  const channel = rabbitMQ.channel;
+  const channel = rabbitMQ.getChannel();
   const queue = 'task_queue'; // Ou pegue por parâmetro
 
   await channel.assertQueue(queue, {

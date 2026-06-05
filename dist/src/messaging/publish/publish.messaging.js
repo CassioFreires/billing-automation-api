@@ -1,6 +1,6 @@
 import { rabbitMQ } from '../../config/rabbitmql.config.js';
 export async function publishRabbitMql(queue, msg) {
-    const channel = rabbitMQ.channel;
+    const channel = rabbitMQ.getChannel();
     // Garante a fila resiliente (caderno de couro)
     await channel.assertQueue(queue, {
         durable: true,
