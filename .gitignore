@@ -1,6 +1,86 @@
-node_modules
-# Keep environment variables out of version control
+# =========================
+# Dependencies
+# =========================
+node_modules/
+
+# =========================
+# Environment Variables
+# =========================
 .env
-/generated/prisma
-/generated/prisma
-dist
+.env.*
+!.env.example
+
+# =========================
+# Build
+# =========================
+dist/
+build/
+coverage/
+
+# =========================
+# Prisma
+# =========================
+generated/
+generated/prisma/
+
+# Prisma local database (caso utilize SQLite)
+*.db
+*.db-journal
+
+# =========================
+# Logs
+# =========================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# =========================
+# IDEs
+# =========================
+.vscode/
+.idea/
+
+# =========================
+# Operating System
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Docker
+# =========================
+.docker/
+
+# =========================
+# Tests
+# =========================
+coverage/
+.nyc_output/
+
+# =========================
+# Temporary Files
+# =========================
+tmp/
+temp/
+.cache/
+
+# =========================
+# TypeScript
+# =========================
+*.tsbuildinfo
+
+# =========================
+# Runtime
+# =========================
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# =========================
+# Misc
+# =========================
+*.local
