@@ -1,9 +1,10 @@
 import { TriggerNotificationDTO } from '../dtos/triggerNotification.dto.js';
 import { publishRabbitMql } from '../messaging/publish/publish.messaging.js';
+import { INVOICE_QUEUE } from '../messaging/invoice-queue.js';
 import { InvoiceRepository } from '../repositories/invoice.repository.js';
 
 export class NotificationService {
-  private readonly queueName = 'invoice_processing_queue';
+  private readonly queueName = INVOICE_QUEUE;
   private readonly invoiceRepository: InvoiceRepository;
 
   constructor() {

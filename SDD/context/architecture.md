@@ -46,13 +46,15 @@ HTTP  →  Router  →  Controller  →  Service  →  Repository  →  Prisma  
 
 ### Mensageria (RabbitMQ / amqplib)
 - Config singleton: `src/config/rabbitmql.config.ts` (`rabbitMQ` — gerencia conexão e canal).
-- Publish: `src/messaging/publish/publish.messaging.ts` → `publishRabbitMql(queue, msg)`.
-- Fila de trabalho: **`invoice_processing_queue`** (durável, tipo `quorum`, mensagens persistentes).
-- `consumer.messaging.ts` é um **template genérico não usado** (consome `task_queue`) — ver `tech-debt.md`.
+- **Topologia centralizada**: `src/messaging/invoice-queue.ts` — fonte única dos nomes e do `assertInvoiceQueueTopology(channel)`. Declara:
+  - Fila principal **`invoice_processing_queue`** (durável, `quorum`, mensagens persistentes) com `x-delivery-limit = 5` e `x-dead-letter-exchange`.
+  - DLX `invoice_processing_dlx` (fanout) + DLQ `invoice_processing_queue.dlq`.
+- A topologia é declarada **no startup** (`server.ts` sempre; worker também). O publisher (`publish.messaging.ts`) só faz `sendToQueue` — não redeclara (evita `PRECONDITION_FAILED`).
+- `consumer.messaging.ts` é um **template genérico não usado** (consome `task_queue`) — ver `tech-debt.md` (D-10).
 
 ### Worker
-- `initInvoiceWorker()` (`src/works/invoice.worker.ts`): assina `invoice_processing_queue`, `prefetch(1)`, ACK manual, `nack(requeue)` em erro.
-- **Roda em dois lugares**: dentro do `server.js` (bootstrap) **e** como processo isolado (`src/worker.ts`). ⚠️ Isso é uma ambiguidade de design — ver `tech-debt.md`.
+- `initInvoiceWorker()` (`src/works/invoice.worker.ts`): garante a topologia, `prefetch(1)`, ACK manual. Em erro faz `nack(requeue)` — mas agora o retry é **limitado** pelo `x-delivery-limit` da quorum queue: após 5 reentregas a mensagem vai para a DLQ (D-04).
+- **Onde roda (D-03)**: por padrão a API também consome (monólito). Para topologia com worker isolado (`npm run worker`), defina `RUN_WORKER_INLINE=false` na API — assim há um único consumidor.
 
 ### Cache (Redis, opcional)
 - Config: `src/config/redis.config.ts`. Habilitado por `REDIS_ENABLED=true`.
@@ -103,12 +105,13 @@ Worker consome invoice_processing_queue
   → gera fakeGatewayId + fakePix
   → InvoiceRepository.updateNotificationData (notificationSent = true; invalida cache)
   → WhatsappAPI.sendMessageWhatsapp (STUB)
-  → ACK   (ou nack+requeue em erro)
+  → ACK   (em erro: nack+requeue, até x-delivery-limit → DLQ)
 ```
 
 ## Decisões arquiteturais relevantes
 
 - **Desacoplamento por fila**: o disparo HTTP responde `202 Accepted` imediatamente e o envio pesado acontece no worker → resiliência a falhas do WhatsApp e absorção de picos.
 - **Filas quorum + mensagens persistentes**: garante durabilidade das notificações mesmo com restart do broker.
+- **Poison-message via `x-delivery-limit` + DLQ**: erros determinísticos não ficam em requeue infinito; após N tentativas a mensagem é isolada na DLQ para inspeção.
 - **Retry com backoff exponencial** (`src/infrastructure/retry.ts`) usado no bootstrap para conexões (banco, Redis, RabbitMQ).
 - **Cache com fallback**: nunca derruba a request se o Redis cair.

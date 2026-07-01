@@ -17,16 +17,6 @@ Severidade: 🔴 Crítico · 🟠 Alto · 🟡 Médio · 🔵 Baixo/Cosmético
 
 ## 🟠 Altos
 
-### D-03 · Worker roda em dois lugares
-- **O quê**: `initInvoiceWorker()` é chamado tanto no `dist/server.js` (bootstrap da API) quanto no `src/worker.ts` (processo isolado).
-- **Impacto**: Se ambos subirem, há **dois consumidores** — comportamento e escala ambíguos; risco de processamento duplicado/concorrência inesperada.
-- **Ação**: Decidir o modelo (API sem worker + worker isolado, ou monólito). Remover a chamada duplicada e documentar em `architecture.md`.
-
-### D-04 · Requeue infinito em erro permanente
-- **O quê**: `invoice.worker.ts` faz `nack(msg, false, true)` em qualquer erro → mensagem volta pra fila para sempre se o erro for determinístico.
-- **Impacto**: Loop de reprocessamento, consumo de CPU, logs poluídos, possível bloqueio da fila.
-- **Ação**: Implementar Dead Letter Queue (DLQ) + limite de tentativas; distinguir erro transitório de permanente.
-
 ### D-05 · Sem autenticação/autorização
 - **O quê**: Nenhum endpoint tem auth. Webhook `/api/invoices/webhook` é público e sem verificação de assinatura.
 - **Impacto**: Qualquer um pode criar faturas, marcar como pagas, disparar cobranças em massa.
@@ -92,5 +82,13 @@ Severidade: 🔴 Crítico · 🟠 Alto · 🟡 Médio · 🔵 Baixo/Cosmético
 
 ### D-09 · `notification.repository.ts` vazio — ✅ 2026-07-01
 - Arquivo vazio removido (a lógica de notificação usa `InvoiceRepository.findNotificationDataById`). Se um repositório próprio for necessário no futuro, criar já com conteúdo.
+
+### D-03 · Worker rodava em dois lugares — ✅ 2026-07-01
+- Worker inline na API virou **opt-in** via `RUN_WORKER_INLINE` (default: inline ligado). Para topologia com worker isolado (`npm run worker`), setar `RUN_WORKER_INLINE=false` na API → um único consumidor. Topologia da fila passou a ser declarada no startup (`assertInvoiceQueueTopology`), independente do modo.
+
+### D-04 · Requeue infinito em erro permanente — ✅ 2026-07-01
+- Topologia centralizada em `src/messaging/invoice-queue.ts`: fila principal quorum com `x-delivery-limit = 5` + `x-dead-letter-exchange` → após 5 reentregas a mensagem vai para a DLQ `invoice_processing_queue.dlq` (via DLX `invoice_processing_dlx`), sem loop infinito. Worker loga a contagem de entregas.
+- ⚠️ Migração operacional: a fila `invoice_processing_queue` que já existia SEM esses argumentos precisa ser removida uma vez (o broker recusa redeclaração com args diferentes). Ver `skills/run-and-debug.md`.
+- Follow-up: distinguir erro transitório de permanente (hoje todo erro faz requeue até o limite) fica para uma iteração futura.
 
 _(mova novos itens para cá com data e referência do commit/PR quando concluídos)_

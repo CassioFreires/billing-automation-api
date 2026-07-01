@@ -4,6 +4,11 @@ import { ClientRepository } from '../repositories/cliente.repositorie.js';
 import { InvoiceRepository } from '../repositories/invoice.repository.js';
 import { WhatsappAPI } from '../apis/whatsapp.api.js';
 import { TriggerNotificationDTO } from '../dtos/triggerNotification.dto.js';
+import {
+  INVOICE_QUEUE,
+  INVOICE_DELIVERY_LIMIT,
+  assertInvoiceQueueTopology,
+} from '../messaging/invoice-queue.js';
 
 const clientRepository = new ClientRepository();
 const invoiceRepository = new InvoiceRepository();
@@ -11,23 +16,22 @@ const whatsappAPI = new WhatsappAPI();
 
 export async function initInvoiceWorker() {
   const channel = rabbitMQ.getChannel();
-  const queue = 'invoice_processing_queue';
 
-  await channel.assertQueue(queue, {
-    durable: true,
-    arguments: {
-      'x-queue-type': 'quorum',
-    },
-  });
+  await assertInvoiceQueueTopology(channel);
 
   channel.prefetch(1);
 
-  console.log(`👂 Consumindo fila: ${queue}`);
+  console.log(`👂 Consumindo fila: ${INVOICE_QUEUE}`);
 
   channel.consume(
-    queue,
+    INVOICE_QUEUE,
     async (msg) => {
       if (!msg) return;
+
+      // Contagem de entregas exposta pelas quorum queues (1 na 1ª entrega).
+      const deliveryCount = Number(
+        msg.properties.headers?.['x-delivery-count'] ?? 0
+      );
 
       try {
         const data: TriggerNotificationDTO = JSON.parse(
@@ -68,9 +72,14 @@ export async function initInvoiceWorker() {
 
         channel.ack(msg);
       } catch (err) {
-        console.error('❌ erro worker:', err);
+        // Retry limitado: as quorum queues incrementam x-delivery-count a cada
+        // reentrega e, ao passar de INVOICE_DELIVERY_LIMIT, mandam a mensagem
+        // para a DLQ automaticamente — sem loop infinito (dívida D-04).
+        console.error(
+          `❌ erro worker (entrega ${deliveryCount + 1}/${INVOICE_DELIVERY_LIMIT + 1}):`,
+          err
+        );
 
-        // retry com requeue
         channel.nack(msg, false, true);
       }
     },
