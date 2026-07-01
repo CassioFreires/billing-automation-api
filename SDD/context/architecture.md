@@ -106,12 +106,11 @@ POST /api/notifications/trigger-overdue/:invoiceId   (por ID)
 
 ### Fluxo D — Processamento assíncrono (worker)
 ```
-Worker consome invoice_processing_queue
-  → ClientRepository.findByPhone
-  → (se não achar cliente: ACK e descarta)
-  → gera fakeGatewayId + fakePix
-  → InvoiceRepository.updateNotificationData (notificationSent = true; invalida cache)
-  → WhatsappAPI.sendMessageWhatsapp (STUB)
+Worker consome invoice_processing_queue (dentro do runWithTenant do payload)
+  → InvoiceRepository.findNotificationDataById (fatura real, escopada por tenant)
+  → (se não achar a fatura: ACK e descarta)
+  → InvoiceRepository.markNotificationSent (notificationSent = true; invalida cache)
+  → WhatsappAPI.sendMessageWhatsapp (seam log-only) com dados REAIS (checkoutUrl/PIX)
   → ACK   (em erro: nack+requeue, até x-delivery-limit → DLQ)
 ```
 

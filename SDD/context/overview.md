@@ -10,8 +10,8 @@ API de **automação de cobrança**. O sistema gerencia clientes e faturas (invo
 |---|---|---|
 | Autenticação | Login de conta de serviço (`/api/auth/login`) emitindo JWT; rotas internas protegidas por Bearer, webhook por segredo | ✅ Funcional (conta única via env — ver D-16) |
 | CRUD de Clientes | Criar, listar, buscar, atualizar e remover clientes | ✅ Funcional |
-| Criação de Faturas | Gerar cobrança atrelada a um cliente (PIX/gateway mockado) | ✅ Funcional (gateway simulado) |
-| Webhook de Pagamento | Receber confirmação de pagamento e atualizar status da fatura | ✅ Funcional |
+| Criação de Faturas | Gerar cobrança via gateway (`mock` default; Mercado Pago Checkout Pro real) | ✅ Funcional (seam `PAYMENT_PROVIDER`) |
+| Webhook de Pagamento | Receber confirmação e atualizar status, de forma **idempotente** | ✅ Funcional (verificação por provider) |
 | Listagem de inadimplentes | Listar faturas pendentes de clientes `EM_ATRASO`, com paginação e cache | ✅ Funcional |
 | Enfileiramento de notificações | Enfileirar faturas em atraso para processamento assíncrono | ✅ Funcional |
 | Envio de WhatsApp | Worker consome a fila e "envia" a mensagem de cobrança | ⚠️ **Seam log-only** — `WhatsappAPI` tem contrato de provider (D-02); provider padrão só loga, provedor real ainda não plugado |
@@ -25,13 +25,12 @@ API de **automação de cobrança**. O sistema gerencia clientes e faturas (invo
 3. Cliente atrasa ...................... (status vira EM_ATRASO / OVERDUE)
 4. Dispara-se a cobrança ............... POST /api/notifications/trigger-overdue[/:invoiceId]
      └── enfileira em RabbitMQ (invoice_processing_queue)
-5. Worker processa ..................... consome a fila
-     ├── busca cliente pelo telefone
-     ├── gera PIX/gatewayId
+5. Worker processa ..................... consome a fila (no contexto do tenant)
+     ├── busca a fatura real (findNotificationDataById)
      ├── marca notificationSent = true
-     └── envia WhatsApp (stub)
+     └── envia WhatsApp (seam log-only) com checkoutUrl/PIX reais
 6. Cliente paga ........................ gateway chama POST /api/invoices/webhook
-     └── status vira PAID
+     └── webhook idempotente atualiza o status (ex.: PAID)
 ```
 
 ## Público / integrações externas
@@ -42,10 +41,11 @@ API de **automação de cobrança**. O sistema gerencia clientes e faturas (invo
 
 ## O que este sistema **não** faz (ainda)
 
-- Não integra com gateway de pagamento real (IDs de gateway e PIX são gerados fake).
-- Não envia WhatsApp de verdade.
-- Não tem modelo de usuário/multiusuário — a auth usa uma conta de serviço única via env (ver D-16).
-- Não tem testes automatizados.
+- **Não envia WhatsApp de verdade** — o seam está em `log-only` (D-02; falta plugar Meta/Twilio).
+- Gateway real (Mercado Pago) está **implementado mas em modo `mock` por default** — precisa de `MP_ACCESS_TOKEN` de sandbox e teste ponta-a-ponta (spec 0003).
+- Não há LGPD (base legal, política de privacidade, termos) — pré-requisito para comercializar (PR-06).
+- Multiusuário por conta, verificação de e-mail, reset de senha e RBAC ainda não existem (auth cobre signup/login básicos — spec 0002).
 - Não há job/scheduler que detecte atrasos automaticamente — o disparo é acionado externamente.
+- Sem observabilidade/CI-CD de produção ainda (ver `production-readiness.md`).
 
 > Para o mapa completo de lacunas e dívidas, ver [`tech-debt.md`](./tech-debt.md).

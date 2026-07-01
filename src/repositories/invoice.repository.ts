@@ -62,6 +62,9 @@ export class InvoiceRepository {
       phone: invoice.client.phone,
       document: invoice.client.document,
       clientName: invoice.client.name,
+      pixCopyPaste: invoice.pixCopyPaste,
+      checkoutUrl: invoice.checkoutUrl,
+      gatewayId: invoice.gatewayId,
     };
   }
 
@@ -208,17 +211,15 @@ export class InvoiceRepository {
     return result;
   }
 
-  async updateNotificationData(
-    id: string,
-    gatewayId: string,
-    pixCopyPaste: string
-  ) {
+  /**
+   * Marca a fatura como notificada. NÃO sobrescreve os dados de pagamento
+   * (gatewayId/PIX/checkout) — esses vêm do gateway na criação da cobrança.
+   */
+  async markNotificationSent(id: string) {
 
     const result = await prisma.invoice.update({
       where: { id },
       data: {
-        gatewayId,
-        pixCopyPaste,
         notificationSent: true
       }
     });

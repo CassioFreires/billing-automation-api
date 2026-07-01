@@ -53,13 +53,12 @@ _(nenhum item aberto no momento)_
 ### D-14 · Health check duplicado
 - `GET /health` (no server) e `GET /api/health` (router). Definir um canônico.
 
-### D-15 · Dados mockados de gateway/PIX espalhados (parcial)
-- ✅ A criação de cobrança foi centralizada no **seam de gateway** (`src/apis/payment/`, spec 0003) — `InvoiceService.createPayment` usa o provider (`mock`/`mercadopago`).
-- ⚠️ **Resta**: o `invoice.worker.ts` ainda **fabrica** `gatewayId`/PIX fake ao notificar (sobrescreve os dados reais da fatura). Deve passar a **usar** os dados da fatura (`pixCopyPaste`/`checkoutUrl`) em vez de gerar. Follow-up.
-
 ---
 
 ## Resolvidos
+
+### D-15 · Dados mockados de gateway/PIX espalhados — ✅ 2026-07-01
+- Criação de cobrança centralizada no seam de gateway (`src/apis/payment/`). E o `invoice.worker.ts` deixou de **fabricar** PIX/gatewayId: agora busca a fatura real (`findNotificationDataById`), usa `checkoutUrl`/`pixCopyPaste` reais na mensagem e só marca `notificationSent` (`markNotificationSent`). Mensagem extraída em `buildChargeMessage` (função pura testada).
 
 ### PR-02/PR-03 · Gateway real (Mercado Pago) + idempotência do webhook — ✅ 2026-07-01
 - Seam `src/apis/payment/` com provider selecionável (`PAYMENT_PROVIDER`): `mock` (default) e `mercadopago` (Checkout Pro real, sandbox). `InvoiceService.createPayment` usa o provider; webhook normalizado por `verifyAndParseWebhook` e aplicado idempotentemente (`WebhookEvent`). Ver spec 0003.

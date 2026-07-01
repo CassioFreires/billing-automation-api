@@ -1,6 +1,5 @@
 // src/works/invoice.worker.ts
 import { rabbitMQ } from '../config/rabbitmql.config.js';
-import { ClientRepository } from '../repositories/cliente.repositorie.js';
 import { InvoiceRepository } from '../repositories/invoice.repository.js';
 import { WhatsappAPI } from '../apis/whatsapp.api.js';
 import { TriggerNotificationDTO } from '../dtos/triggerNotification.dto.js';
@@ -11,9 +10,31 @@ import {
 } from '../messaging/invoice-queue.js';
 import { runWithTenant } from '../context/tenant-context.js';
 
-const clientRepository = new ClientRepository();
 const invoiceRepository = new InvoiceRepository();
 const whatsappAPI = new WhatsappAPI();
+
+interface ChargeMessageData {
+  clientName: string;
+  value: number | null;
+  checkoutUrl?: string | null;
+  pixCopyPaste?: string | null;
+}
+
+/** Monta a mensagem de cobrança com os dados REAIS da fatura (D-15). */
+export function buildChargeMessage(data: ChargeMessageData): string {
+  const lines = [
+    `Olá ${data.clientName}`,
+    `Valor: R$ ${Number(data.value ?? 0).toFixed(2)}`,
+  ];
+
+  if (data.checkoutUrl) {
+    lines.push(`Pague aqui: ${data.checkoutUrl}`);
+  } else if (data.pixCopyPaste) {
+    lines.push(`PIX: ${data.pixCopyPaste}`);
+  }
+
+  return lines.join('\n');
+}
 
 export async function initInvoiceWorker() {
   const channel = rabbitMQ.getChannel();
@@ -29,7 +50,6 @@ export async function initInvoiceWorker() {
     async (msg) => {
       if (!msg) return;
 
-      // Contagem de entregas exposta pelas quorum queues (1 na 1ª entrega).
       const deliveryCount = Number(
         msg.properties.headers?.['x-delivery-count'] ?? 0
       );
@@ -42,39 +62,30 @@ export async function initInvoiceWorker() {
         console.log(`📩 Invoice recebida: ${data.id}`);
 
         if (!data.tenantId) {
-          // Mensagem sem tenant não é processável (multi-tenancy — spec 0001).
           console.error(`❌ Mensagem sem tenantId, descartada: ${data.id}`);
           channel.ack(msg);
           return;
         }
 
-        // Processa dentro do contexto do tenant vindo no payload (RN-T5).
         await runWithTenant(data.tenantId, async () => {
-          const client = await clientRepository.findByPhone(data.phone);
+          // Usa os dados REAIS da fatura (pix/checkout do gateway), não fabrica.
+          const invoice = await invoiceRepository.findNotificationDataById(data.id);
 
-          if (!client) {
-            console.error(`❌ Cliente não encontrado: ${data.phone}`);
+          if (!invoice) {
+            console.error(`❌ Fatura não encontrada: ${data.id}`);
             return;
           }
 
-          const fakeGatewayId = 'pay_' + Math.random().toString(36).slice(2);
-          const fakePix = '000201FAKEPIX_' + client.id;
-
-          await invoiceRepository.updateNotificationData(
-            data.id,
-            fakeGatewayId,
-            fakePix
-          );
-
-          const link = `http://localhost:3333/pay?invoice=${fakeGatewayId}`;
+          await invoiceRepository.markNotificationSent(data.id);
 
           await whatsappAPI.sendMessageWhatsapp(data, {
-            targetPhone: client.phone,
-            messagePayload:
-              `Olá ${client.name}\n` +
-              `Valor: R$ ${Number(data.value).toFixed(2)}\n` +
-              `PIX: ${fakePix}\n` +
-              `Link: ${link}`,
+            targetPhone: invoice.phone,
+            messagePayload: buildChargeMessage({
+              clientName: invoice.clientName,
+              value: invoice.value,
+              checkoutUrl: invoice.checkoutUrl,
+              pixCopyPaste: invoice.pixCopyPaste,
+            }),
           });
 
           console.log(`✅ Processado: ${data.id}`);
