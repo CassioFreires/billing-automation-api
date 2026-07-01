@@ -43,6 +43,7 @@ HTTP  →  Router  →  Controller  →  Service  →  Repository  →  Prisma  
 | `/api/notifications` | `notification.router.ts` | Disparo de cobranças | JWT |
 | `/api/clients` | `clients.router.ts` | CRUD de clientes | JWT |
 | `/api/invoices` | `invoice.router.ts` | Faturas e webhook | JWT (webhook: verificado pelo provider) |
+| `/api/lgpd` | `lgpd.router.ts` | Direitos do titular (export/anonimização) | JWT |
 | `/api/health` | `health.router.ts` | Health check | Público |
 
 **Segurança (D-05)**: middleware `jwtAuth` (`src/middlewares/auth.middleware.ts`) valida `Authorization: Bearer <jwt>` nas rotas internas. O **webhook** é verificado pelo **provider de pagamento ativo** (spec 0003): `mock` valida `x-webhook-secret`; `mercadopago` valida a assinatura `x-signature`. `AuthService` (async): `register` cria `Account` + `User(OWNER)` com senha em hash (`bcryptjs`) e assina JWT; `login` valida e-mail/senha por hash (fallback: conta de serviço via env). Usuários em `User` (spec 0002); `UserRepository` é global (login/signup resolvem o tenant).

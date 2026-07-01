@@ -92,7 +92,7 @@ src/
 ├── apis/            · integrações externas: whatsapp.api.ts (seam), payment/ (gateway seam: mock + mercadopago)
 ├── config/          · rabbitmql.config.ts, redis.config.ts, auth.config.ts
 ├── context/         · tenant-context.ts (AsyncLocalStorage do tenant)
-├── controllers/     · auth, clients, invoice, notification, health
+├── controllers/     · auth, clients, invoice, notification, lgpd, health
 ├── database/        · prisma.ts (client singleton)
 ├── dtos/            · validação/contratos (Zod + validação manual)
 ├── infrastructure/  · retry.ts
@@ -100,7 +100,7 @@ src/
 ├── middlewares/     · auth.middleware.ts (jwtAuth)
 ├── repositories/    · cliente, invoice, user, webhook-event
 ├── routers/         · um router por domínio (auth, clients, invoice, notification, health)
-├── services/        · regra de negócio por domínio (inclui auth)
+├── services/        · regra de negócio por domínio (inclui auth, lgpd)
 ├── works/           · invoice.worker.ts
 ├── index.ts         · agregador de rotas (appRouter)
 ├── server.ts        · entrypoint da API (bootstrap)

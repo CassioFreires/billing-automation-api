@@ -111,6 +111,14 @@ curl -X POST http://localhost:3000/api/notifications/trigger-overdue/<INVOICE_ID
 curl -X POST http://localhost:3000/api/invoices/webhook \
   -H "Content-Type: application/json" -H "x-webhook-secret: <WEBHOOK_SECRET>" \
   -d '{"gatewayId":"<GATEWAY_ID>","status":"PAID","paidAt":"2026-07-01T12:00:00Z","eventId":"evt-123"}'
+
+# 7) LGPD — exportar dados do titular (portabilidade)
+curl "http://localhost:3000/api/lgpd/clients/<CLIENT_ID>/export" \
+  -H "Authorization: Bearer $TOKEN"
+
+# 8) LGPD — anonimizar o titular (mantém as faturas)
+curl -X POST http://localhost:3000/api/lgpd/clients/<CLIENT_ID>/anonymize \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 > **Mercado Pago (sandbox)**: com `PAYMENT_PROVIDER=mercadopago` + `MP_ACCESS_TOKEN`, `POST /api/invoices` retorna um `checkoutUrl` (Checkout Pro: PIX/crédito/débito/boleto). Pague no sandbox; o MP chama `MP_NOTIFICATION_URL` (o webhook), que valida a assinatura, consulta o pagamento e atualiza a fatura. `MP_NOTIFICATION_URL` precisa ser pública (ex.: ngrok em dev).
