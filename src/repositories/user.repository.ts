@@ -1,0 +1,38 @@
+import prisma from '../database/prisma.js';
+
+/**
+ * Repositório de usuários.
+ *
+ * ⚠️ É GLOBAL (não usa tenant-context): login e signup são as entradas que
+ * resolvem/criam o tenant, então rodam sem escopo (multi-tenancy — spec 0001/0002).
+ */
+export class UserRepository {
+  findByEmail(email: string) {
+    return prisma.user.findUnique({ where: { email } });
+  }
+
+  /** Cria a conta (tenant) e o usuário dono atomicamente (RN-U3). */
+  async createAccountWithOwner(input: {
+    accountName: string;
+    name: string;
+    email: string;
+    passwordHash: string;
+  }) {
+    const account = await prisma.account.create({
+      data: {
+        name: input.accountName,
+        users: {
+          create: {
+            name: input.name,
+            email: input.email,
+            passwordHash: input.passwordHash,
+            role: 'OWNER',
+          },
+        },
+      },
+      include: { users: true },
+    });
+
+    return account.users[0];
+  }
+}
