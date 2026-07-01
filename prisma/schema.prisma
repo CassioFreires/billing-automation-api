@@ -47,6 +47,7 @@ model Client {
   status    String   @default("EM_DIA")
   debtValue Float    @default(0.0)
   processed     Boolean   @default(false)
+  anonymizedAt  DateTime? // LGPD: quando o titular foi anonimizado (spec 0004)
   lastUpdate    DateTime  @updatedAt
   createdAt DateTime @default(now())
   invoices  Invoice[]
