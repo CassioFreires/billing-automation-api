@@ -37,12 +37,15 @@ HTTP  →  Router  →  Controller  →  Service  →  Repository  →  Prisma  
 ### Roteamento
 `appRouter` (`src/index.ts`) agrega os sub-routers:
 
-| Prefixo | Router | Domínio |
-|---|---|---|
-| `/api/notifications` | `notification.router.ts` | Disparo de cobranças |
-| `/api/clients` | `clients.router.ts` | CRUD de clientes |
-| `/api/invoices` | `invoice.router.ts` | Faturas e webhook |
-| `/api/health` | `health.router.ts` | Health check |
+| Prefixo | Router | Domínio | Proteção |
+|---|---|---|---|
+| `/api/auth` | `auth.router.ts` | Login / emissão de JWT | Público |
+| `/api/notifications` | `notification.router.ts` | Disparo de cobranças | JWT |
+| `/api/clients` | `clients.router.ts` | CRUD de clientes | JWT |
+| `/api/invoices` | `invoice.router.ts` | Faturas e webhook | JWT (webhook: segredo) |
+| `/api/health` | `health.router.ts` | Health check | Público |
+
+**Segurança (D-05)**: middleware `jwtAuth` (`src/middlewares/auth.middleware.ts`) valida `Authorization: Bearer <jwt>` nas rotas internas; `webhookAuth` (`src/middlewares/webhook.middleware.ts`) valida `x-webhook-secret` no webhook. Login em `AuthService` valida conta de serviço via env e assina JWT (`jsonwebtoken`).
 
 ### Mensageria (RabbitMQ / amqplib)
 - Config singleton: `src/config/rabbitmql.config.ts` (`rabbitMQ` — gerencia conexão e canal).

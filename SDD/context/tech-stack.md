@@ -17,6 +17,7 @@
 | `amqplib` | ^2.0.1 | Cliente RabbitMQ |
 | `redis` | ^6.0.0 | Cache (node-redis v4+) |
 | `zod` | ^4.4.3 | Validação de schema/DTO |
+| `jsonwebtoken` | ^9.0.3 | Emissão/verificação de JWT (auth) |
 | `cors` | ^2.8.6 | CORS middleware |
 | `dotenv` | ^17.4.2 | Variáveis de ambiente |
 
@@ -58,6 +59,10 @@ Carregadas via `dotenv` — `src/server.ts` e `src/worker.ts` fazem `import 'dot
 | `REDIS_ENABLED` | ➖ | `redis.config.ts` | `"true"` habilita o cache Redis |
 | `REDIS_URL` | condicional | `redis.config.ts` | Necessária se `REDIS_ENABLED=true` |
 | `WHATSAPP_PROVIDER` | ➖ | `whatsapp.api.ts` | Provider de envio. Default `log` (só loga, não envia). Futuros: `cloud`, `twilio` |
+| `JWT_SECRET` | ✅ | `auth.config.ts` | Segredo para assinar/verificar o JWT. Sem ele, rotas internas retornam 500 |
+| `JWT_EXPIRES_IN` | ➖ | `auth.config.ts` | Validade do token (default `1h`) |
+| `AUTH_USERNAME` / `AUTH_PASSWORD` | ✅ | `auth.service.ts` | Credenciais da conta de serviço para o login |
+| `WEBHOOK_SECRET` | ✅ | `webhook.middleware.ts` | Segredo esperado em `x-webhook-secret` no webhook |
 
 > ⚠️ Não existe `.env.example` no repositório. Recomenda-se criar um (ver `tech-debt.md`).
 
@@ -75,12 +80,13 @@ Ver `skills/run-and-debug.md` para o passo a passo.
 ```
 src/
 ├── apis/            · integrações externas (whatsapp.api.ts — stub)
-├── config/          · rabbitmql.config.ts, redis.config.ts
-├── controllers/     · clients, invoice, notification, health
+├── config/          · rabbitmql.config.ts, redis.config.ts, auth.config.ts
+├── controllers/     · auth, clients, invoice, notification, health
 ├── database/        · prisma.ts (client singleton)
 ├── dtos/            · validação/contratos (Zod + validação manual)
 ├── infrastructure/  · retry.ts
-├── messaging/       · publish/ e consumer/
+├── messaging/       · invoice-queue.ts (topologia), publish/ e consumer/
+├── middlewares/     · auth.middleware.ts (jwtAuth), webhook.middleware.ts
 ├── repositories/    · cliente, invoice, notification
 ├── routers/         · um router por domínio
 ├── services/        · regra de negócio por domínio

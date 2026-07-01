@@ -8,6 +8,7 @@ API de **automação de cobrança**. O sistema gerencia clientes e faturas (invo
 
 | Capacidade | Descrição | Estado |
 |---|---|---|
+| Autenticação | Login de conta de serviço (`/api/auth/login`) emitindo JWT; rotas internas protegidas por Bearer, webhook por segredo | ✅ Funcional (conta única via env — ver D-16) |
 | CRUD de Clientes | Criar, listar, buscar, atualizar e remover clientes | ✅ Funcional |
 | Criação de Faturas | Gerar cobrança atrelada a um cliente (PIX/gateway mockado) | ✅ Funcional (gateway simulado) |
 | Webhook de Pagamento | Receber confirmação de pagamento e atualizar status da fatura | ✅ Funcional |
@@ -43,7 +44,7 @@ API de **automação de cobrança**. O sistema gerencia clientes e faturas (invo
 
 - Não integra com gateway de pagamento real (IDs de gateway e PIX são gerados fake).
 - Não envia WhatsApp de verdade.
-- Não tem autenticação/autorização nos endpoints.
+- Não tem modelo de usuário/multiusuário — a auth usa uma conta de serviço única via env (ver D-16).
 - Não tem testes automatizados.
 - Não há job/scheduler que detecte atrasos automaticamente — o disparo é acionado externamente.
 

@@ -57,29 +57,38 @@ Erros no processamento fazem requeue **limitado**: após 5 entregas a mensagem v
 
 ## Smoke test (fluxos principais)
 
+As rotas internas exigem **JWT** (obtido no `/api/auth/login`); o webhook exige o **segredo** em `x-webhook-secret`. `/health` é público.
+
 ```bash
-# Health
+# Health (público)
 curl http://localhost:3000/health
 
-# Criar cliente
-curl -X POST http://localhost:3000/api/clients \
+# 1) Login → pega o token (usa AUTH_USERNAME/AUTH_PASSWORD do .env)
+TOKEN=$(curl -s -X POST http://localhost:3000/api/auth/login \
   -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"troque-esta-senha"}' | sed -E 's/.*"token":"([^"]+)".*/\1/')
+
+# 2) Criar cliente (rota protegida por JWT)
+curl -X POST http://localhost:3000/api/clients \
+  -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" \
   -d '{"name":"Fulano","phone":"11999999999","document":"12345678901"}'
 
-# Criar fatura (use o clientId retornado acima)
+# 3) Criar fatura (use o clientId retornado acima)
 curl -X POST http://localhost:3000/api/invoices \
-  -H "Content-Type: application/json" \
+  -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" \
   -d '{"clientId":"<UUID>","value":150.00,"dueDate":"2026-07-10"}'
 
-# Listar faturas pendentes de inadimplentes
-curl "http://localhost:3000/api/invoices/overdue?page=1&limit=10"
+# 4) Listar faturas pendentes de inadimplentes
+curl "http://localhost:3000/api/invoices/overdue?page=1&limit=10" \
+  -H "Authorization: Bearer $TOKEN"
 
-# Disparar cobrança por ID de fatura (enfileira)
-curl -X POST http://localhost:3000/api/notifications/trigger-overdue/<INVOICE_ID>
+# 5) Disparar cobrança por ID de fatura (enfileira)
+curl -X POST http://localhost:3000/api/notifications/trigger-overdue/<INVOICE_ID> \
+  -H "Authorization: Bearer $TOKEN"
 
-# Webhook de pagamento (use o gatewayId da fatura)
+# 6) Webhook de pagamento (segredo, NÃO JWT — quem chama é o gateway)
 curl -X POST http://localhost:3000/api/invoices/webhook \
-  -H "Content-Type: application/json" \
+  -H "Content-Type: application/json" -H "x-webhook-secret: <WEBHOOK_SECRET>" \
   -d '{"gatewayId":"<GATEWAY_ID>","status":"PAID","paidAt":"2026-07-01T12:00:00Z"}'
 ```
 
@@ -93,6 +102,9 @@ curl -X POST http://localhost:3000/api/invoices/webhook \
 | Mensagens indo parar na DLQ | erro determinístico esgotou as 5 tentativas | `invoice_processing_queue.dlq` no painel; corrija a causa e reenfileire |
 | `PRECONDITION_FAILED` ao subir | fila antiga sem os novos argumentos | recrie a fila (ver seção acima) |
 | Cache não funciona | `REDIS_ENABLED != true` ou Redis fora | `redis.config.ts` (fallback é normal) |
+| `401 Token ausente/inválido` | falta `Authorization: Bearer` ou token expirado | refaça o login em `/api/auth/login` |
+| `401 Assinatura do webhook inválida` | header `x-webhook-secret` errado/ausente | confira `WEBHOOK_SECRET` |
+| `500 Autenticação não configurada` | `JWT_SECRET`/`WEBHOOK_SECRET` ausentes no `.env` | configure os segredos (ver `.env.example`) |
 | `Cannot find module ...` | import sem extensão `.js` | o arquivo que você editou |
 | Mudou o código e não refletiu | `tsc` não recompilou / rodando `dist` antigo | confirme `npm run watch` ativo |
 
