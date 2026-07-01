@@ -25,8 +25,8 @@ Prioridades: **P0** bloqueia ter produto para vender · **P1** necessário para 
 |---|---|---|---|
 | PR-07 | **Logs estruturados** | `console.log` com emoji | Logger (pino) com níveis + correlação de request |
 | PR-08 | **Monitoramento de erros/métricas** | nenhum | Sentry + métricas (DLQ crescendo = alarme de negócio) |
-| PR-09 | **Graceful shutdown** | não fecha conexões no SIGTERM | Encerrar RabbitMQ/Prisma no shutdown (crítico em container/AWS) |
-| PR-10 | **CI/CD + migrations** | `git pull` manual na AWS | Pipeline: `npm test` → build → `prisma migrate deploy` → deploy |
+| PR-09 | **Graceful shutdown** | ✅ Implementado (2026-07-01) | `server.ts`/`worker.ts` tratam SIGTERM/SIGINT (fecham HTTP→RabbitMQ→Redis→Prisma). Dockerfile usa `tini`; compose com `stop_grace_period` |
+| PR-10 | **CI/CD + migrations** | 🟡 Parcial | Docker Swarm stack profissional pronto (serviço `migrate` = `prisma migrate deploy`). Falta o **pipeline** (test→build→push→deploy) |
 | PR-11 | **Rate limiting / anti-abuso** | nenhum | Limitar disparos de cobrança/WhatsApp (custo e abuso) |
 | PR-12 | **Normalização de telefone** | livre | Padronizar E.164 antes de enviar |
 

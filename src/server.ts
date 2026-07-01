@@ -4,7 +4,7 @@ import cors from 'cors';
 
 import prisma from './database/prisma.js';
 import { rabbitMQ } from './config/rabbitmql.config.js';
-import { connectRedis } from './config/redis.config.js';
+import { connectRedis, disconnectRedis } from './config/redis.config.js';
 import { initInvoiceWorker } from './works/invoice.worker.js';
 import { assertInvoiceQueueTopology } from './messaging/invoice-queue.js';
 import { retry } from './infrastructure/retry.js';
@@ -134,9 +134,37 @@ async function bootstrap() {
     /**
      * API
      */
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
       console.log(`🚀 API rodando na porta ${PORT}`);
     });
+
+    /**
+     * Graceful shutdown: fecha HTTP → RabbitMQ → Redis → Prisma.
+     * Acionado por SIGTERM (docker stop / rollout) e SIGINT (Ctrl+C).
+     */
+    let shuttingDown = false;
+    const shutdown = async (signal: string) => {
+      if (shuttingDown) return;
+      shuttingDown = true;
+      console.log(`↩️ ${signal} recebido — encerrando graciosamente...`);
+
+      const timer = setTimeout(() => {
+        console.error('⏱️ Shutdown demorou demais, forçando saída');
+        process.exit(1);
+      }, 25000);
+
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+      await rabbitMQ.close();
+      await disconnectRedis();
+      await prisma.$disconnect();
+
+      clearTimeout(timer);
+      console.log('✅ Encerrado');
+      process.exit(0);
+    };
+
+    process.on('SIGTERM', () => void shutdown('SIGTERM'));
+    process.on('SIGINT', () => void shutdown('SIGINT'));
   } catch (error) {
     console.error('❌ Erro fatal no bootstrap');
     console.error(error);

@@ -1,5 +1,37 @@
+# Dependências e build (reinstalados/recompilados na imagem)
 node_modules
 dist
-npm-debug.log
-.git
+
+# Segredos e ambiente
 .env
+.env.*
+!.env.example
+
+# Git / CI
+.git
+.gitignore
+.github
+
+# Docs e specs (não vão para a imagem)
+SDD
+*.md
+
+# Testes e cobertura
+tests
+vitest.config.ts
+coverage
+.nyc_output
+
+# Artefatos de dev / IDE / logs
+.vscode
+.idea
+*.log
+npm-debug.log
+tmp
+temp
+.cache
+
+# Docker (não precisam entrar no contexto copiado)
+Dockerfile
+docker-compose.yml
+.dockerignore

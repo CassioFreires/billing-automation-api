@@ -1,18 +1,47 @@
-version: "3.9"
+# =============================================================================
+# Billing Automation API — Docker Swarm stack
+#
+# Deploy:
+#   1. Build/push da imagem:  docker build -t $API_IMAGE .   (push p/ ECR se multi-node)
+#   2. Carregue as variáveis:  set -a; . ./.env; set +a
+#   3. Migre o banco:          docker stack deploy -c docker-compose.yml billing
+#                              (o serviço `migrate` roda uma vez e sai)
+#   4. Confira:                docker service ls
+#
+# Segredos/credenciais NUNCA ficam neste arquivo — vêm do .env (ver .env.example).
+# Para produção mais rígida, migre POSTGRES_PASSWORD/RABBITMQ_PASSWORD/JWT_SECRET/
+# WEBHOOK_SECRET para `docker secret` (requer ler de /run/secrets via entrypoint).
+# =============================================================================
+
+x-app-env: &app-env
+  NODE_ENV: production
+  DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}@postgres:5432/${POSTGRES_DB:-billing_db}
+  RABBITMQ_URL: amqp://${RABBITMQ_USER:-billing}:${RABBITMQ_PASSWORD:?defina RABBITMQ_PASSWORD no .env}@rabbitmq:5672
+  REDIS_ENABLED: "true"
+  REDIS_URL: redis://redis:6379
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
 
 services:
   postgres:
     image: postgres:17-alpine
     environment:
-      POSTGRES_DB: billing_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports:
-      - "5432:5432"
+      POSTGRES_DB: ${POSTGRES_DB:-billing_db}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    networks:
-      - billing-network
+    networks: [billing-network]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-billing_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
     deploy:
       restart_policy:
         condition: on-failure
@@ -20,54 +49,99 @@ services:
   rabbitmq:
     image: rabbitmq:4-management-alpine
     environment:
-      RABBITMQ_DEFAULT_USER: cassio
-      RABBITMQ_DEFAULT_PASS: MinhaSenha123
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-billing}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?defina RABBITMQ_PASSWORD no .env}
     ports:
-      - "15672:15672"
-      - "5672:5672"
+      - "15672:15672" # painel de gestão (5672 fica interno à rede overlay)
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
-    networks:
-      - billing-network
+    networks: [billing-network]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    logging: *default-logging
     deploy:
       restart_policy:
         condition: on-failure
 
-  api:
-    image: billing-api:latest
-    ports:
-      - "3000:3000"
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "60", "1", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - redis_data:/data
+    networks: [billing-network]
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    env_file:
-      - .env
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
+    deploy:
+      restart_policy:
+        condition: on-failure
+
+  # Migrações do banco. Roda uma vez e sai — execute ANTES de servir tráfego.
+  migrate:
+    image: ${API_IMAGE:-billing-api:latest}
+    command: ["npx", "prisma", "migrate", "deploy"]
+    env_file: [.env]
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/billing_db
-      RABBITMQ_URL: amqp://cassio:MinhaSenha123@rabbitmq:5672
-      NODE_ENV: production
-    networks:
-      - billing-network
+      <<: *app-env
+    networks: [billing-network]
+    logging: *default-logging
     deploy:
       replicas: 1
       restart_policy:
+        condition: none
+
+  api:
+    image: ${API_IMAGE:-billing-api:latest}
+    env_file: [.env]
+    environment:
+      <<: *app-env
+      RUN_WORKER_INLINE: "false" # worker roda em serviço próprio (evita consumidor duplicado — D-03)
+    ports:
+      - "3000:3000"
+    networks: [billing-network]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    stop_grace_period: 30s
+    logging: *default-logging
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      rollback_config:
+        parallelism: 1
+      restart_policy:
         condition: on-failure
-    
+        delay: 5s
+        max_attempts: 10
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 128M
 
   worker:
-    image: billing-api:latest
-    command: node dist/src/worker.js
-    env_file:
-      - .env
+    image: ${API_IMAGE:-billing-api:latest}
+    command: ["node", "dist/worker.js"]
+    env_file: [.env]
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/billing_db
-      RABBITMQ_URL: amqp://cassio:MinhaSenha123@rabbitmq:5672
-      NODE_ENV: production
-    networks:
-      - billing-network
+      <<: *app-env
+    networks: [billing-network]
+    stop_grace_period: 30s
+    logging: *default-logging
     deploy:
       replicas: 3
       update_config:
@@ -77,13 +151,13 @@ services:
         condition: on-failure
         delay: 5s
         max_attempts: 10
-      
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    networks:
-      - billing-network
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 128M
 
 networks:
   billing-network:
@@ -92,3 +166,4 @@ networks:
 volumes:
   postgres_data:
   rabbitmq_data:
+  redis_data:

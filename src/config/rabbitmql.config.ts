@@ -41,6 +41,29 @@ class RabbitMQConfig {
   isConnected(): boolean {
     return !!this.connection && !!this.channel;
   }
+
+  /** Fecha canal e conexão (graceful shutdown). Idempotente. */
+  async close(): Promise<void> {
+    try {
+      if (this.channel) {
+        await this.channel.close();
+      }
+    } catch (err) {
+      console.error('❌ Erro ao fechar canal RabbitMQ:', err);
+    } finally {
+      this.channel = null;
+    }
+
+    try {
+      if (this.connection) {
+        await this.connection.close();
+      }
+    } catch (err) {
+      console.error('❌ Erro ao fechar conexão RabbitMQ:', err);
+    } finally {
+      this.connection = null;
+    }
+  }
 }
 
 export const rabbitMQ = new RabbitMQConfig();

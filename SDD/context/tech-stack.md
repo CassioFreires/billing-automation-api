@@ -76,6 +76,11 @@ Carregadas via `dotenv` — `src/server.ts` e `src/worker.ts` fazem `import 'dot
 
 > ⚠️ Não existe `.env.example` no repositório. Recomenda-se criar um (ver `tech-debt.md`).
 
+## Containerização / Deploy
+
+- `Dockerfile` — multi-stage (build → produção), roda como usuário `node` (não-root), `tini` como init (sinais), `openssl` p/ Prisma, `HEALTHCHECK` em `/api/health`.
+- `docker-compose.yml` — **stack Docker Swarm** (`postgres`, `rabbitmq`, `redis`, `migrate`, `api`, `worker`): segredos via `.env` (sem hardcode), `api` com `RUN_WORKER_INLINE=false`, `worker` separado, healthchecks, `stop_grace_period`, limites de recurso e rotação de log. Passo a passo em `skills/run-and-debug.md` (seção Deploy).
+
 ## Infraestrutura externa necessária
 
 Para rodar localmente você precisa de:

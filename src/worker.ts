@@ -2,8 +2,32 @@
 import 'dotenv/config';
 import { rabbitMQ } from './config/rabbitmql.config.js';
 import { initInvoiceWorker } from './works/invoice.worker.js';
+import prisma from './database/prisma.js';
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+let shuttingDown = false;
+async function shutdown(signal: string) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`↩️ ${signal} recebido — encerrando worker...`);
+
+  const timer = setTimeout(() => {
+    console.error('⏱️ Shutdown demorou demais, forçando saída');
+    process.exit(1);
+  }, 25000);
+
+  // Fecha o canal (cancela o consumo) e a conexão; desconecta o Prisma.
+  await rabbitMQ.close();
+  await prisma.$disconnect();
+
+  clearTimeout(timer);
+  console.log('✅ Worker encerrado');
+  process.exit(0);
+}
+
+process.on('SIGTERM', () => void shutdown('SIGTERM'));
+process.on('SIGINT', () => void shutdown('SIGINT'));
 
 process.on('uncaughtException', (err) => {
   console.error('💥 uncaughtException:', err);
