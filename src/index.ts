@@ -4,6 +4,7 @@ import { notificationRouter } from './routers/notification.router.js';
 import { clientRouter } from './routers/clients.router.js';
 import { invoiceRouter } from './routers/invoice.router.js';
 import { healthRouter } from './routers/health.router.js';
+import { lgpdRouter } from './routers/lgpd.router.js';
 
 const appRouter = Router();
 
@@ -21,6 +22,7 @@ appRouter.use('/auth', authRouter);
 appRouter.use('/notifications', notificationRouter);
 appRouter.use('/clients', clientRouter);
 appRouter.use('/invoices', invoiceRouter);
+appRouter.use('/lgpd', lgpdRouter);
 appRouter.use('/health', healthRouter);
 
 export { appRouter };
