@@ -28,7 +28,8 @@
 | `nodemon` | Reload do servidor em dev (`dist/server.js`) |
 | `concurrently` | Roda `watch` + `serve` juntos |
 | `tsx` | Execução direta de TS (disponível, não usado nos scripts atuais) |
-| `@types/*` | Tipos de node, express, cors, pg |
+| `vitest` | Framework de testes (ESM/TS nativo). Ver `skills/testing.md` |
+| `@types/*` | Tipos de node, express, cors, pg, jsonwebtoken |
 
 ## Scripts npm
 
@@ -43,8 +44,10 @@
 | `worker` | `node dist/worker.js` | Sobe o worker isolado |
 | `worker:dev` | `concurrently "npm run watch" "nodemon dist/worker.js"` | Dev do worker isolado |
 | `start` | `node dist/server.js` | Executa a API (produção) |
+| `test` | `vitest run` | Roda a suíte de testes uma vez |
+| `test:watch` | `vitest` | Testes em watch |
 
-> ⚠️ Ainda não há scripts de teste/lint. Ver `tech-debt.md`.
+> ⚠️ Ainda não há script de lint. Ver `tech-debt.md`.
 
 ## Variáveis de ambiente
 
@@ -87,13 +90,16 @@ src/
 ├── infrastructure/  · retry.ts
 ├── messaging/       · invoice-queue.ts (topologia), publish/ e consumer/
 ├── middlewares/     · auth.middleware.ts (jwtAuth), webhook.middleware.ts
-├── repositories/    · cliente, invoice, notification
-├── routers/         · um router por domínio
-├── services/        · regra de negócio por domínio
+├── repositories/    · cliente, invoice
+├── routers/         · um router por domínio (auth, clients, invoice, notification, health)
+├── services/        · regra de negócio por domínio (inclui auth)
 ├── works/           · invoice.worker.ts
 ├── index.ts         · agregador de rotas (appRouter)
 ├── server.ts        · entrypoint da API (bootstrap)
 └── worker.ts        · entrypoint do worker isolado
+
+tests/unit/          · testes de services, auth e DTOs (Vitest)
+vitest.config.ts     · configuração do Vitest (include tests/**/*.test.ts)
 
 prisma/
 ├── schema.prisma

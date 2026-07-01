@@ -43,10 +43,11 @@ Implemente da camada mais interna para a externa — cada camada é testável an
 
 ## Depois de implementar
 
-1. **Build**: `npm run build` — não pode haver erro de TS.
-2. **Rodar e testar manualmente**: siga `skills/run-and-debug.md` e exercite o fluxo com `curl`/Insomnia.
-3. **Atualizar contexto**: reflita a feature em `overview.md` (tabela de capacidades) e no que mais mudou.
-4. **Marcar a spec** como implementada e listar o que ficou de fora.
+1. **Testes**: escreva testes da regra de negócio (ver `skills/testing.md`) e rode `npm test`.
+2. **Build**: `npm run build` — não pode haver erro de TS.
+3. **Rodar e testar manualmente**: siga `skills/run-and-debug.md` e exercite o fluxo com `curl`/Insomnia.
+4. **Atualizar contexto**: reflita a feature em `overview.md` (tabela de capacidades) e no que mais mudou.
+5. **Marcar a spec** como implementada e listar o que ficou de fora.
 
 ## Checklist de conclusão
 
@@ -54,6 +55,7 @@ Implemente da camada mais interna para a externa — cada camada é testável an
 - [ ] Imports internos com extensão `.js`
 - [ ] Validação via Zod
 - [ ] Sem regra de negócio no controller / sem Prisma fora do repository
+- [ ] Testes cobrindo a regra (feliz + erro) — `npm test` verde
 - [ ] `npm run build` limpo
 - [ ] Testado manualmente (fluxo feliz + erro)
 - [ ] `SDD/context/` atualizado

@@ -8,7 +8,7 @@ Este projeto usa **Spec-Driven Development**. A base de conhecimento e os playbo
 
 - **Entender o sistema** → `SDD/context/` (`overview` → `architecture` → `domain-model` → `tech-stack` → `conventions`)
 - **Problemas conhecidos / backlog** → `SDD/context/tech-debt.md`
-- **Como fazer algo** → `SDD/skills/` (add-feature, add-endpoint, add-worker-consumer, db-migration, run-and-debug)
+- **Como fazer algo** → `SDD/skills/` (add-feature, add-endpoint, add-worker-consumer, db-migration, run-and-debug, testing)
 - **Nova feature** → escreva a spec a partir de `SDD/specs/_TEMPLATE.md` antes de implementar
 
 ## TL;DR do projeto
