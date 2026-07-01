@@ -170,6 +170,16 @@ docker compose -f docker-compose.free.yml logs -f api
 - Adicione **swap** na instância (1 GiB é apertado) — ver Passo 4 do deploy.
 - **Frontend**: o serviço `web` (nginx) já está previsto (comentado) — sirva o build em `frontend/dist`, descomente e ele serve o SPA + proxy `/api`. Ver `frontend/README.md`.
 
+#### Atualizar a app na VM — `scripts/deploy.sh`
+Depois do primeiro `up`, use o script para atualizar com **downtime mínimo e rollback automático**:
+```bash
+./scripts/deploy.sh              # git pull + build + migrate + recria api/worker
+FORCE_BUILD=1 ./scripts/deploy.sh   # rebuild mesmo sem mudança de código
+```
+Ordem segura embutida: `git pull --ff-only` → **build da imagem nova com a antiga ainda no ar** → `migrate deploy` em container efêmero (**antes** de trocar a app) → recria só `api`+`worker` (`--no-deps --wait`) → health check → **rollback automático** para a imagem anterior se não ficar saudável. Nunca usa `-v` (não apaga dados).
+- **Regra de ouro das migrations**: sejam **aditivas/compatíveis** (expand→contract), pois a app antiga continua no ar durante o `migrate deploy`.
+- **Downtime**: com 1 réplica há um blip de segundos ao recriar a API. Zero-downtime real exige 2 réplicas atrás de um proxy (nginx) — ligar quando o serviço `web` entrar.
+
 ### Produção (multi-nó / Swarm)
 Pontos importantes:
 - **Segredos** vêm do `.env` (interpolado pelo compose): `POSTGRES_PASSWORD`, `RABBITMQ_PASSWORD`, `JWT_SECRET`, `WEBHOOK_SECRET`, etc. O compose falha se faltarem.
