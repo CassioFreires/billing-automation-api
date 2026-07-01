@@ -22,7 +22,8 @@ SDD/
 │   ├── domain-model.md     · entidades, estados e regras de negócio
 │   ├── tech-stack.md       · tecnologias, versões e configuração
 │   ├── conventions.md      · padrões de código e convenções do repo
-│   └── tech-debt.md        · problemas conhecidos e backlog de melhoria
+│   ├── tech-debt.md        · problemas conhecidos e backlog de melhoria
+│   └── production-readiness.md · roadmap para produção e comercialização (P0/P1/P2)
 ├── skills/                ← playbooks passo-a-passo (o COMO)
 │   ├── add-feature.md      · criar uma feature end-to-end
 │   ├── add-endpoint.md     · adicionar um endpoint REST
