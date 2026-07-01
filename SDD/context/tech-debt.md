@@ -17,10 +17,7 @@ Severidade: 🔴 Crítico · 🟠 Alto · 🟡 Médio · 🔵 Baixo/Cosmético
 
 ## 🟠 Altos
 
-### D-06 · Sem testes automatizados
-- **O quê**: Não há testes nem script de teste. Nenhum de unidade, integração ou e2e.
-- **Impacto**: Refatorar/adicionar features é arriscado; regressões silenciosas.
-- **Ação**: Adicionar framework (vitest/jest), começar por services e repositories, e um smoke e2e dos fluxos A–D.
+_(nenhum item aberto no momento)_
 
 ---
 
@@ -95,5 +92,9 @@ Severidade: 🔴 Crítico · 🟠 Alto · 🟡 Médio · 🔵 Baixo/Cosmético
 
 ### D-11 · Sem `.env.example` — ✅ 2026-07-01
 - `.env.example` atualizado com todas as variáveis: API/worker, banco, RabbitMQ, Redis, WhatsApp, JWT e webhook.
+
+### D-06 · Sem testes automatizados — ✅ 2026-07-01
+- **Vitest** configurado (`vitest.config.ts`, scripts `test`/`test:watch`). 36 testes em `tests/unit/` cobrindo services (Client/Invoice/Notification, com repositórios mockados), auth (service + middlewares `jwtAuth`/`webhookAuth`) e validação de DTOs (Zod). Rodam sem infra (DB/RabbitMQ mockados/dispensados).
+- **Follow-up**: faltam testes de **repositório** (precisam de Postgres de teste / testcontainers) e **e2e** dos fluxos A–D com a app de pé. Ver `skills/testing.md`.
 
 _(mova novos itens para cá com data e referência do commit/PR quando concluídos)_

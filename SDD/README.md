@@ -28,7 +28,8 @@ SDD/
 │   ├── add-endpoint.md     · adicionar um endpoint REST
 │   ├── add-worker-consumer.md · adicionar um consumidor de fila
 │   ├── db-migration.md     · alterar o schema e migrar o banco
-│   └── run-and-debug.md    · rodar e depurar localmente
+│   ├── run-and-debug.md    · rodar e depurar localmente
+│   └── testing.md          · escrever e rodar testes (Vitest)
 └── specs/                 ← especificações de features (uma por feature)
     └── _TEMPLATE.md        · modelo para novas specs
 ```
