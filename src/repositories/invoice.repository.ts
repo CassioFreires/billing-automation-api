@@ -8,6 +8,8 @@ export class InvoiceRepository {
   async create(
     data: CreateInvoiceDTO & {
       pixCopyPaste?: string;
+      pixQrCode?: string;
+      checkoutUrl?: string;
       gatewayId?: string;
     }
   ) {
@@ -18,6 +20,8 @@ export class InvoiceRepository {
         value: data.value,
         dueDate: data.dueDate,
         pixCopyPaste: data.pixCopyPaste,
+        pixQrCode: data.pixQrCode,
+        checkoutUrl: data.checkoutUrl,
         gatewayId: data.gatewayId,
         status: 'PENDING',
         tenantId: requireTenantId()

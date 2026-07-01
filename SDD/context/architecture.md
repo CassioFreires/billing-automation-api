@@ -42,10 +42,12 @@ HTTP  →  Router  →  Controller  →  Service  →  Repository  →  Prisma  
 | `/api/auth` | `auth.router.ts` | Signup (`/register`) e login (`/login`) | Público |
 | `/api/notifications` | `notification.router.ts` | Disparo de cobranças | JWT |
 | `/api/clients` | `clients.router.ts` | CRUD de clientes | JWT |
-| `/api/invoices` | `invoice.router.ts` | Faturas e webhook | JWT (webhook: segredo) |
+| `/api/invoices` | `invoice.router.ts` | Faturas e webhook | JWT (webhook: verificado pelo provider) |
 | `/api/health` | `health.router.ts` | Health check | Público |
 
-**Segurança (D-05)**: middleware `jwtAuth` (`src/middlewares/auth.middleware.ts`) valida `Authorization: Bearer <jwt>` nas rotas internas; `webhookAuth` (`src/middlewares/webhook.middleware.ts`) valida `x-webhook-secret` no webhook. `AuthService` (async): `register` cria `Account` + `User(OWNER)` com senha em hash (`bcryptjs`) e assina JWT; `login` valida e-mail/senha por hash (fallback: conta de serviço via env). Usuários em `User` (spec 0002); `UserRepository` é global (login/signup resolvem o tenant).
+**Segurança (D-05)**: middleware `jwtAuth` (`src/middlewares/auth.middleware.ts`) valida `Authorization: Bearer <jwt>` nas rotas internas. O **webhook** é verificado pelo **provider de pagamento ativo** (spec 0003): `mock` valida `x-webhook-secret`; `mercadopago` valida a assinatura `x-signature`. `AuthService` (async): `register` cria `Account` + `User(OWNER)` com senha em hash (`bcryptjs`) e assina JWT; `login` valida e-mail/senha por hash (fallback: conta de serviço via env). Usuários em `User` (spec 0002); `UserRepository` é global (login/signup resolvem o tenant).
+
+**Gateway de pagamento (spec 0003)**: seam `src/apis/payment/` com `PaymentGatewayProvider` selecionável por `PAYMENT_PROVIDER` (default `mock`; `mercadopago` = Checkout Pro real). `InvoiceService.createPayment` cria a cobrança via provider; o webhook é normalizado por `provider.verifyAndParseWebhook` e aplicado de forma **idempotente** (`WebhookEvent.recordIfNew`, RN-P3).
 
 **Multi-tenancy (spec 0001)**: o JWT carrega `tenantId`. `jwtAuth` roda a request dentro de `runWithTenant` (`src/context/tenant-context.ts`, AsyncLocalStorage); os repositórios leem `requireTenantId()` e escopam todas as queries. Na fila, o `tenantId` viaja no payload e o worker abre o mesmo contexto. O webhook resolve o tenant pela fatura (id global do gateway).
 

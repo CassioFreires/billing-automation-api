@@ -18,6 +18,13 @@ model Account {
   users     User[]
 }
 
+// Idempotência de webhooks (spec 0003): guarda os ids de evento já processados.
+model WebhookEvent {
+  id         String   @id // event id do provedor (idempotency key)
+  provider   String
+  receivedAt DateTime @default(now())
+}
+
 model User {
   id           String   @id @default(uuid())
   email        String   @unique
@@ -58,7 +65,8 @@ model Invoice {
   status        String    @default("PENDING") // PENDING, PAID, OVERDUE, FAILED
   pixCopyPaste  String?   // Campo para salvar o "Copia e Cola" do PIX gerado pelo Gateway
   pixQrCode     String?   // Link ou Base64 da imagem do QR Code
-  gatewayId     String?   @unique // ID que a fatura ganha lá no Asaas/Stripe (global entre tenants)
+  checkoutUrl   String?   // URL de checkout hospedado (ex.: Mercado Pago Checkout Pro)
+  gatewayId     String?   @unique // Localizador da fatura no gateway (global entre tenants)
   dueDate       DateTime  // Data de vencimento da cobrança
   paidAt        DateTime? // Data que o webhook confirmou o pagamento
   createdAt     DateTime  @default(now())
