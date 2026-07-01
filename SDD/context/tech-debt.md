@@ -4,6 +4,8 @@ Mapa vivo dos problemas conhecidos. Priorize por severidade. Ao resolver um item
 
 Severidade: 🔴 Crítico · 🟠 Alto · 🟡 Médio · 🔵 Baixo/Cosmético
 
+> 📈 Para o roadmap de **produção e comercialização** (SaaS, multi-tenancy, LGPD, escala), ver [`production-readiness.md`](./production-readiness.md). Este arquivo cobre dívida de código; aquele cobre o caminho de negócio.
+
 ---
 
 ## 🔴 Críticos
