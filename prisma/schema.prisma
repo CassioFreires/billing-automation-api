@@ -7,10 +7,20 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Conta/tenant do SaaS. Todo dado de negócio pertence a um Account (ver SDD/specs/0001-multi-tenancy.md).
+model Account {
+  id        String   @id @default(uuid())
+  name      String
+  status    String   @default("ACTIVE") // ACTIVE, SUSPENDED
+  createdAt DateTime @default(now())
+  clients   Client[]
+  invoices  Invoice[]
+}
+
 model Client {
   id        String   @id @default(uuid())
   name      String
-  phone     String   @unique
+  phone     String
   document  String
   status    String   @default("EM_DIA")
   debtValue Float    @default(0.0)
@@ -19,8 +29,12 @@ model Client {
   createdAt DateTime @default(now())
   invoices  Invoice[]
 
-  @@index([status])
+  tenantId  String
+  account   Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
+  @@unique([tenantId, phone]) // telefone único por tenant (RN-T3)
+  @@index([status])
+  @@index([tenantId, status])
 }
 
 model Invoice {
@@ -29,16 +43,21 @@ model Invoice {
   status        String    @default("PENDING") // PENDING, PAID, OVERDUE, FAILED
   pixCopyPaste  String?   // Campo para salvar o "Copia e Cola" do PIX gerado pelo Gateway
   pixQrCode     String?   // Link ou Base64 da imagem do QR Code
-  gatewayId     String?   @unique // ID que a fatura ganha lá no Asaas/Stripe
+  gatewayId     String?   @unique // ID que a fatura ganha lá no Asaas/Stripe (global entre tenants)
   dueDate       DateTime  // Data de vencimento da cobrança
   paidAt        DateTime? // Data que o webhook confirmou o pagamento
   createdAt     DateTime  @default(now())
   notificationSent  Boolean   @default(false)
-  
+
   clientId      String
   client        Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  
+
+  tenantId      String
+  account       Account   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
   @@index([clientId])
   @@index([status])
   @@index([status, clientId]) // Índice composto para otimizar o método findPendingInvoices
+  @@index([tenantId, status])
+  @@index([tenantId, clientId])
 }

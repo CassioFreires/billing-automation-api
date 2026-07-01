@@ -2,6 +2,7 @@ import { TriggerNotificationDTO } from '../dtos/triggerNotification.dto.js';
 import { publishRabbitMql } from '../messaging/publish/publish.messaging.js';
 import { INVOICE_QUEUE } from '../messaging/invoice-queue.js';
 import { InvoiceRepository } from '../repositories/invoice.repository.js';
+import { requireTenantId } from '../context/tenant-context.js';
 
 export class NotificationService {
   private readonly queueName = INVOICE_QUEUE;
@@ -14,9 +15,15 @@ export class NotificationService {
   private async enqueue(
     invoice: TriggerNotificationDTO
   ): Promise<void> {
+    // Carimba o tenant do contexto no payload para o worker operar no escopo certo (RN-T5).
+    const payload: TriggerNotificationDTO = {
+      ...invoice,
+      tenantId: requireTenantId(),
+    };
+
     await publishRabbitMql(
       this.queueName,
-      JSON.stringify(invoice)
+      JSON.stringify(payload)
     );
   }
 

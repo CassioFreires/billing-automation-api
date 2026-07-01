@@ -1,6 +1,6 @@
 # Spec 0001 — Multi-tenancy (isolamento por cliente/conta)
 
-- **Status**: Rascunho
+- **Status**: Implementada (2026-07-01)
 - **Autor**: —
 - **Data**: 2026-07-01
 - **Roadmap**: PR-04 (e habilita PR-05) em `context/production-readiness.md`
@@ -119,3 +119,18 @@ Authorization: Bearer <jwt com tenantId>
 - **Contexto de request**: `AsyncLocalStorage` para carregar o `tenantId` do JWT sem ter que passá-lo manualmente por todas as assinaturas.
 - **Ordem de implementação** (ver `skills/db-migration.md` e `skills/add-feature.md`): migration em passos → contexto/AsyncLocalStorage → auth inclui `tenantId` → extension do Prisma → ajustar repositórios/serviços → payload da fila → cache por tenant → testes de isolamento.
 - **Follow-up**: esta spec assume um tenant por token. Usuário pertencer a múltiplos tenants (troca de conta) fica para a spec de `User` (PR-05).
+
+---
+
+## Como foi implementado (2026-07-01)
+
+- **Modelo**: shared-DB/shared-schema com `tenantId` (conforme recomendado). `Account` seedado com id fixo `00000000-0000-0000-0000-000000000001` (tenant "default").
+- **Contexto**: `src/context/tenant-context.ts` (AsyncLocalStorage) — `runWithTenant`, `getTenantId`, `requireTenantId`.
+- **Escopo aplicado explicitamente nos repositórios** (via `requireTenantId()`), em vez da Prisma Client Extension. Motivo: mais transparente, testável e de baixo risco agora. A extension/RLS continuam como hardening futuro (defesa em profundidade).
+  - `ClientRepository`: `create` injeta `tenantId`; `findAll`/`findById`/`findByPhone` escopados (findByPhone usa a unique composta `tenantId_phone`). `update`/`delete` por id — escopo garantido pelo `findById` do service antes de mutar.
+  - `InvoiceRepository`: `create` injeta `tenantId`; `findNotificationDataById` e `findPendingInvoices` escopados; cache key inclui o `tenantId`. `findByGatewayId` **não** é escopado (entrada do webhook, id global). `updateStatus`/`updateNotificationData` por id.
+- **Auth**: `login` inclui `tenantId` no JWT (hoje `DEFAULT_TENANT_ID`); `jwtAuth` exige `tenantId` no token e roda a request dentro de `runWithTenant`.
+- **Fila**: `NotificationService.enqueue` carimba `tenantId` no payload; o worker processa dentro de `runWithTenant(data.tenantId, ...)` e descarta (ACK) mensagens sem tenant.
+- **Migração**: `prisma/migrations/20260701000000_multi_tenancy/migration.sql` — idempotente e em passos (Account → seed → coluna nullable → backfill → NOT NULL → unique por tenant → índices → FKs). Seguro sobre dados existentes.
+- **Testes**: `tenant-context.test.ts` + ajustes em notification/auth (payload carrega `tenantId`, token exige tenant). 43 testes verdes.
+- **Não coberto por teste automatizado** (precisa de Postgres): o escopo real nas queries Prisma. Validar em ambiente com banco.

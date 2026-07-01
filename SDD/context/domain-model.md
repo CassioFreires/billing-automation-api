@@ -4,22 +4,35 @@ Fonte da verdade dos dados: `prisma/schema.prisma`. Fonte da verdade das **regra
 
 ## Entidades
 
+### Account (Tenant / Conta do SaaS)
+
+Conta contratante. **Todo dado de negócio pertence a um Account** (multi-tenancy — ver `../specs/0001-multi-tenancy.md`).
+
+| Campo | Tipo | Padrão | Notas |
+|---|---|---|---|
+| `id` | String (uuid) | gerado | PK. Tenant "default" seedado: `00000000-0000-0000-0000-000000000001` |
+| `name` | String | — | Nome da conta |
+| `status` | String | `ACTIVE` | `ACTIVE`, `SUSPENDED` |
+| `createdAt` | DateTime | `now()` | — |
+| `clients` / `invoices` | relações | — | 1-N |
+
 ### Client (Cliente)
 
 | Campo | Tipo | Padrão | Notas |
 |---|---|---|---|
 | `id` | String (uuid) | gerado | PK |
 | `name` | String | — | Mín. 3 caracteres (validação no DTO) |
-| `phone` | String | — | **Único**. Mín. 10 dígitos. Chave de busca do worker |
+| `phone` | String | — | **Único por tenant** (`@@unique([tenantId, phone])`). Mín. 10 dígitos. Chave de busca do worker |
 | `document` | String | — | CPF/CNPJ. Mín. 11 caracteres |
 | `status` | String | `EM_DIA` | Estado de adimplência (ver máquina de estados) |
 | `debtValue` | Float | `0.0` | Valor total em dívida |
 | `processed` | Boolean | `false` | Flag de processamento |
 | `lastUpdate` | DateTime | `@updatedAt` | Atualizado automaticamente |
 | `createdAt` | DateTime | `now()` | — |
+| `tenantId` | String | — | FK → Account (`onDelete: Cascade`). Escopo obrigatório |
 | `invoices` | Invoice[] | — | Relação 1-N |
 
-Índices: `@@index([status])`.
+Índices: `@@unique([tenantId, phone])`, `@@index([status])`, `@@index([tenantId, status])`.
 
 ### Invoice (Fatura)
 
@@ -36,8 +49,9 @@ Fonte da verdade dos dados: `prisma/schema.prisma`. Fonte da verdade das **regra
 | `createdAt` | DateTime | `now()` | — |
 | `notificationSent` | Boolean | `false` | `true` após o worker enviar a cobrança |
 | `clientId` | String | — | FK → Client (`onDelete: Cascade`) |
+| `tenantId` | String | — | FK → Account (`onDelete: Cascade`). Escopo obrigatório |
 
-Índices: `@@index([clientId])`, `@@index([status])`, `@@index([status, clientId])` (otimiza `findPendingInvoices`).
+Índices: `@@index([clientId])`, `@@index([status])`, `@@index([status, clientId])`, `@@index([tenantId, status])`, `@@index([tenantId, clientId])`.
 
 ## Máquinas de estado
 
@@ -64,6 +78,14 @@ PENDING ──► PAID
 - ⚠️ No banco `status` é `String` (não enum Prisma). O enum só existe na validação Zod do webhook.
 
 ## Regras de negócio
+
+### Multi-tenancy (ver `../specs/0001-multi-tenancy.md`)
+- **RN-T1**: Todo `Client`/`Invoice` pertence a exatamente um `Account` (`tenantId` obrigatório).
+- **RN-T2**: Toda leitura/escrita interna é escopada por `tenantId` (via `tenant-context`), exceto entradas globais legítimas (`findByGatewayId` no webhook).
+- **RN-T3**: `Client.phone` é único **por tenant** (dois tenants podem ter o mesmo telefone).
+- **RN-T4**: O `tenantId` vem do JWT (contexto), nunca do corpo/params.
+- **RN-T5**: O `tenantId` viaja no payload da fila; o worker processa no tenant da mensagem.
+- **RN-T6**: O webhook resolve o tenant pela fatura (`gatewayId` → `Invoice.tenantId`).
 
 ### Clientes
 - **RN-C1**: Telefone é único. Criar cliente com telefone existente → erro `"Já existe um cliente com este telefone."`.

@@ -32,9 +32,9 @@ afterEach(() => {
 });
 
 describe('jwtAuth middleware', () => {
-  it('chama next() com token válido', async () => {
+  it('chama next() com token válido (com tenantId)', async () => {
     const jwtAuth = await loadJwtAuth('sec');
-    const token = jwt.sign({ sub: 'admin' }, 'sec');
+    const token = jwt.sign({ sub: 'admin', tenantId: 't1' }, 'sec');
     const req = { headers: { authorization: `Bearer ${token}` } } as Request;
     const res = mockRes();
     const next = vi.fn();
@@ -43,6 +43,19 @@ describe('jwtAuth middleware', () => {
 
     expect(next).toHaveBeenCalledOnce();
     expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it('401 quando o token não tem tenantId', async () => {
+    const jwtAuth = await loadJwtAuth('sec');
+    const token = jwt.sign({ sub: 'admin' }, 'sec');
+    const req = { headers: { authorization: `Bearer ${token}` } } as Request;
+    const res = mockRes();
+    const next = vi.fn();
+
+    jwtAuth(req, res, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.statusCode).toBe(401);
   });
 
   it('401 quando o header está ausente', async () => {

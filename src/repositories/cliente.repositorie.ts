@@ -1,22 +1,30 @@
 import prisma from '../database/prisma.js';
 import { Prisma } from '@prisma/client';
+import { requireTenantId } from '../context/tenant-context.js';
+import { CreateClientDTO } from '../dtos/createClient.dto.js';
 
 export class ClientRepository {
 
-  async create(data: Prisma.ClientCreateInput) {
+  async create(data: CreateClientDTO) {
     return prisma.client.create({
-      data
+      data: {
+        ...data,
+        tenantId: requireTenantId(),
+      }
     });
   }
 
   async findAll() {
-    return prisma.client.findMany();
+    return prisma.client.findMany({
+      where: { tenantId: requireTenantId() }
+    });
   }
 
   async findById(id: string) {
-    return prisma.client.findUnique({
+    return prisma.client.findFirst({
       where: {
-        id
+        id,
+        tenantId: requireTenantId()
       }
     });
   }
@@ -24,7 +32,10 @@ export class ClientRepository {
   async findByPhone(phone: string) {
     return prisma.client.findUnique({
       where: {
-        phone
+        tenantId_phone: {
+          tenantId: requireTenantId(),
+          phone
+        }
       }
     });
   }
@@ -33,6 +44,7 @@ export class ClientRepository {
     id: string,
     data: Prisma.ClientUpdateInput
   ) {
+    // Escopo garantido pelo service (findById por tenant antes de atualizar).
     return prisma.client.update({
       where: {
         id
@@ -42,6 +54,7 @@ export class ClientRepository {
   }
 
   async delete(id: string) {
+    // Escopo garantido pelo service (findById por tenant antes de remover).
     return prisma.client.delete({
       where: {
         id

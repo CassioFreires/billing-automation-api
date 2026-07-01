@@ -6,12 +6,17 @@
  * Quando existir tabela de usuários, basta trocar a validação em AuthService.
  */
 
+/** Tenant da conta de serviço (default = Account seedado na migração 0001). */
+export const DEFAULT_TENANT_ID = '00000000-0000-0000-0000-000000000001';
+
 export const authConfig = {
   jwtSecret: process.env.JWT_SECRET,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '1h',
   serviceUsername: process.env.AUTH_USERNAME,
   servicePassword: process.env.AUTH_PASSWORD,
   webhookSecret: process.env.WEBHOOK_SECRET,
+  // Enquanto não há modelo de usuário, a conta de serviço opera sobre este tenant.
+  defaultTenantId: process.env.DEFAULT_TENANT_ID ?? DEFAULT_TENANT_ID,
 };
 
 /** Garante que o segredo do JWT está presente; senão falha fechado. */
