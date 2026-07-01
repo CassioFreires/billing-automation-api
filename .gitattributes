@@ -1,0 +1,24 @@
+# Normaliza quebras de linha para evitar quebra em Linux/containers.
+# Sem isso, editar no Windows pode gravar CRLF e o bash na VM falha
+# com "bad interpreter: ^M".
+
+# Padrão: o Git decide o EOL no working tree, mas normaliza para LF no repo.
+* text=auto eol=lf
+
+# Scripts e arquivos que RODAM em Linux/containers: sempre LF, nunca CRLF.
+*.sh    text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+Dockerfile text eol=lf
+*.json  text eol=lf
+*.ts    text eol=lf
+*.prisma text eol=lf
+
+# Binários: nunca normalizar.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff  binary
+*.woff2 binary
