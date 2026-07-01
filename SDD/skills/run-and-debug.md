@@ -139,6 +139,32 @@ curl -X POST http://localhost:3000/api/lgpd/clients/<CLIENT_ID>/anonymize \
 | `Cannot find module ...` | import sem extensão `.js` | o arquivo que você editou |
 | Mudou o código e não refletiu | `tsc` não recompilou / rodando `dist` antigo | confirme `npm run watch` ativo |
 
+## Deploy (Docker Swarm / AWS)
+
+O projeto tem `Dockerfile` (multi-stage, não-root, `tini`, healthcheck) e `docker-compose.yml` como **stack Swarm** (`postgres`, `rabbitmq`, `redis`, `migrate`, `api`, `worker`).
+
+```bash
+# 1) Build da imagem (push p/ ECR se o Swarm for multi-node)
+docker build -t billing-api:latest .
+
+# 2) Carregue as variáveis do .env (senhas/segredos — nunca ficam no compose)
+set -a; . ./.env; set +a
+
+# 3) Deploy da stack (o serviço `migrate` roda `prisma migrate deploy` e sai)
+docker stack deploy -c docker-compose.yml billing
+
+# 4) Acompanhe
+docker service ls
+docker service logs -f billing_api
+```
+
+Pontos importantes:
+- **Segredos** vêm do `.env` (interpolado pelo compose): `POSTGRES_PASSWORD`, `RABBITMQ_PASSWORD`, `JWT_SECRET`, `WEBHOOK_SECRET`, etc. O compose falha se faltarem.
+- A `api` roda com `RUN_WORKER_INLINE=false`; o `worker` é serviço próprio (3 réplicas). **Não** há consumidor duplicado (D-03).
+- **Migrações**: rode o serviço `migrate` (ou `docker service` one-off) **antes** de escalar `api`/`worker`. Em Swarm não há `depends_on`, então garanta a ordem (ex.: no pipeline de deploy).
+- **Graceful shutdown** (PR-09): a app trata SIGTERM (fecha HTTP/RabbitMQ/Redis/Prisma); `tini` + `stop_grace_period: 30s` dão a janela.
+- **Segurança**: para produção mais rígida, migrar as senhas para `docker secret` (requer ler de `/run/secrets` via entrypoint). Postgres/Redis não expõem portas externas; só a API (3000) e o painel do RabbitMQ (15672).
+
 ## Logs
 
 O projeto loga bastante com emojis em português. Use-os como âncora: `🔌`/`✅` conexão, `📩` mensagem recebida, `❌` erro, `🧠 CACHE HIT` / `❌ CACHE MISS`.
