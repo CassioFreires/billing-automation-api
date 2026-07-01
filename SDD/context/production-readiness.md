@@ -16,7 +16,7 @@ Prioridades: **P0** bloqueia ter produto para vender · **P1** necessário para 
 | PR-02 | **Gateway de pagamento real** | mock (`Math.random`) (D-15) | Integrar Asaas/Stripe/Mercado Pago; gerar PIX/cobrança real |
 | PR-03 | **Idempotência do webhook** | reprocessa evento duplicado | Guardar `eventId` processado; ignorar repetição |
 | PR-04 | **Multi-tenancy** | ✅ Implementado (2026-07-01) | `Account` + `tenantId` em Client/Invoice, escopo via `tenant-context` + repositórios, tenant no JWT/fila. **Spec `specs/0001-multi-tenancy.md`**. Falta: validar escopo em banco real; migrar clientes reais para tenants próprios (hoje tudo no tenant default) |
-| PR-05 | **Auth real / usuários** | conta de serviço única via env (D-16) | Modelo `User` (hash de senha, papéis), vínculo ao tenant, login/signup |
+| PR-05 | **Auth real / usuários** | ✅ Implementado (2026-07-01) | Modelo `User` + signup/login por e-mail (bcrypt), vínculo ao tenant. Spec `specs/0002`. Falta: verificação de e-mail, reset de senha, convites/multiusuário, RBAC |
 | PR-06 | **LGPD** | inexistente | Base legal, política de privacidade, termos, direito de exclusão, DPA. Processa CPF/telefone/dívida → obrigatório para vender |
 
 ## 🟠 P1 — Necessário para operar em produção

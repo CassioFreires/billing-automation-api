@@ -5,6 +5,7 @@ import {
   updateInvoiceStatusSchema,
 } from '../../src/dtos/createInvoice.dto.js';
 import { loginSchema } from '../../src/dtos/login.dto.js';
+import { registerSchema } from '../../src/dtos/register.dto.js';
 
 describe('createClientSchema', () => {
   it('aceita cliente válido', () => {
@@ -70,5 +71,37 @@ describe('loginSchema', () => {
 
   it('rejeita campos vazios', () => {
     expect(loginSchema.safeParse({ username: '', password: '' }).success).toBe(false);
+  });
+});
+
+describe('registerSchema', () => {
+  it('aceita cadastro válido', () => {
+    const r = registerSchema.safeParse({
+      accountName: 'Acme',
+      name: 'Ana',
+      email: 'ana@acme.com',
+      password: 'segredo123',
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it('rejeita e-mail inválido', () => {
+    const r = registerSchema.safeParse({
+      accountName: 'Acme',
+      name: 'Ana',
+      email: 'nao-email',
+      password: 'segredo123',
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it('rejeita senha curta (< 8) (RN-U2)', () => {
+    const r = registerSchema.safeParse({
+      accountName: 'Acme',
+      name: 'Ana',
+      email: 'ana@acme.com',
+      password: '123',
+    });
+    expect(r.success).toBe(false);
   });
 });

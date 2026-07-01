@@ -64,6 +64,9 @@ npx prisma generate              # atualiza o client
 ```
 Depois, garanta `DEFAULT_TENANT_ID` no `.env` (default já aponta para o tenant seedado). O login passa a emitir JWT com `tenantId`; tokens antigos (sem tenant) recebem 401 — refaça o login.
 
+### Migração do modelo de usuário (spec 0002)
+Aplique também `prisma/migrations/20260701010000_user_model/migration.sql` (aditiva) — cria a tabela `User`. Depois use `POST /api/auth/register` para criar contas/usuários reais. `AUTH_USERNAME`/`AUTH_PASSWORD` viram opcionais (fallback de bootstrap).
+
 ## Smoke test (fluxos principais)
 
 As rotas internas exigem **JWT** (obtido no `/api/auth/login`); o webhook exige o **segredo** em `x-webhook-secret`. `/health` é público.
@@ -72,10 +75,15 @@ As rotas internas exigem **JWT** (obtido no `/api/auth/login`); o webhook exige 
 # Health (público)
 curl http://localhost:3000/health
 
-# 1) Login → pega o token (usa AUTH_USERNAME/AUTH_PASSWORD do .env)
+# 0) (opcional) Cadastrar uma conta + usuário dono
+curl -X POST http://localhost:3000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"accountName":"Acme","name":"Ana","email":"ana@acme.com","password":"segredo123"}'
+
+# 1) Login → pega o token (usuário real por e-mail, ou a conta de serviço de bootstrap)
 TOKEN=$(curl -s -X POST http://localhost:3000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"troque-esta-senha"}' | sed -E 's/.*"token":"([^"]+)".*/\1/')
+  -d '{"username":"ana@acme.com","password":"segredo123"}' | sed -E 's/.*"token":"([^"]+)".*/\1/')
 
 # 2) Criar cliente (rota protegida por JWT)
 curl -X POST http://localhost:3000/api/clients \

@@ -15,6 +15,21 @@ model Account {
   createdAt DateTime @default(now())
   clients   Client[]
   invoices  Invoice[]
+  users     User[]
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         String   @default("OWNER") // OWNER (futuro: ADMIN, MEMBER)
+  createdAt    DateTime @default(now())
+
+  tenantId     String
+  account      Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
 }
 
 model Client {
