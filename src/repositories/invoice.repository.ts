@@ -31,6 +31,16 @@ export class InvoiceRepository {
     return invoice;
   }
 
+  async findByClientId(clientId: string) {
+    return prisma.invoice.findMany({
+      where: {
+        clientId,
+        tenantId: requireTenantId(),
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   async findByGatewayId(gatewayId: string) {
 
     return prisma.invoice.findUnique({

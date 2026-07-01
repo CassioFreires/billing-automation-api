@@ -17,7 +17,7 @@ Prioridades: **P0** bloqueia ter produto para vender · **P1** necessário para 
 | PR-03 | **Idempotência do webhook** | ✅ Implementado (2026-07-01) | `WebhookEvent.recordIfNew` dedup por `eventId`. Falta: hardening transacional |
 | PR-04 | **Multi-tenancy** | ✅ Implementado (2026-07-01) | `Account` + `tenantId` em Client/Invoice, escopo via `tenant-context` + repositórios, tenant no JWT/fila. **Spec `specs/0001-multi-tenancy.md`**. Falta: validar escopo em banco real; migrar clientes reais para tenants próprios (hoje tudo no tenant default) |
 | PR-05 | **Auth real / usuários** | ✅ Implementado (2026-07-01) | Modelo `User` + signup/login por e-mail (bcrypt), vínculo ao tenant. Spec `specs/0002`. Falta: verificação de e-mail, reset de senha, convites/multiusuário, RBAC |
-| PR-06 | **LGPD** | inexistente | Base legal, política de privacidade, termos, direito de exclusão, DPA. Processa CPF/telefone/dívida → obrigatório para vender |
+| PR-06 | **LGPD** | 🟡 Parcial (2026-07-01) | ✅ Código: direitos do titular (`/api/lgpd` — export/portabilidade + anonimização, spec 0004). ⏳ Falta a parte **jurídica/documental**: base legal, política de privacidade, termos, DPA, DPO (ver spec 0004 §11 — precisa de revisão jurídica) |
 
 ## 🟠 P1 — Necessário para operar em produção
 

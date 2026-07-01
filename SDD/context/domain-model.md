@@ -53,6 +53,7 @@ Guarda os ids de evento de webhook já processados (spec 0003).
 | `status` | String | `EM_DIA` | Estado de adimplência (ver máquina de estados) |
 | `debtValue` | Float | `0.0` | Valor total em dívida |
 | `processed` | Boolean | `false` | Flag de processamento |
+| `anonymizedAt` | DateTime? | — | LGPD: quando o titular foi anonimizado (spec 0004) |
 | `lastUpdate` | DateTime | `@updatedAt` | Atualizado automaticamente |
 | `createdAt` | DateTime | `now()` | — |
 | `tenantId` | String | — | FK → Account (`onDelete: Cascade`). Escopo obrigatório |
@@ -137,6 +138,12 @@ PENDING ──► PAID
 - **RN-P3**: Webhook é **idempotente** — evento com `eventId` já processado (em `WebhookEvent`) é no-op.
 - **RN-P4**: Autenticidade do webhook é do provider (`mock`: `x-webhook-secret`; `mercadopago`: assinatura `x-signature`).
 - **RN-P5**: Status MP → fatura: `approved`→`PAID`, `pending`/`in_process`→`PENDING`, `rejected`/`cancelled`/`refunded`→`FAILED`.
+
+### LGPD / Direitos do titular (ver `../specs/0004-lgpd.md`)
+- **RN-L1**: Export retorna cliente + faturas, escopado por tenant.
+- **RN-L2**: Anonimizar remove PII (nome/telefone/documento) e marca `anonymizedAt`, mas **mantém** as faturas (retenção legal).
+- **RN-L3**: Telefone anonimizado usa placeholder único (`anon-<id>`) para respeitar a unique por tenant.
+- **RN-L4**: Anonimização é idempotente.
 
 ### Notificação / Cobrança
 - **RN-N1**: Só entram na listagem de cobrança faturas `PENDING` cujo **cliente** esteja `EM_ATRASO`.

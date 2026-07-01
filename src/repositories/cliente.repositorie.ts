@@ -61,4 +61,21 @@ export class ClientRepository {
       }
     });
   }
+
+  /**
+   * Anonimiza o titular (LGPD — spec 0004): remove os dados pessoais mas
+   * mantém o registro (e suas faturas) para retenção legal. Escopo garantido
+   * pelo service (findById por tenant antes de anonimizar).
+   */
+  async anonymize(id: string) {
+    return prisma.client.update({
+      where: { id },
+      data: {
+        name: 'Titular anonimizado (LGPD)',
+        phone: `anon-${id}`, // placeholder único por tenant (RN-L3)
+        document: 'ANONIMIZADO',
+        anonymizedAt: new Date()
+      }
+    });
+  }
 }
