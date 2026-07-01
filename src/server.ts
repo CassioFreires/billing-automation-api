@@ -6,6 +6,7 @@ import prisma from './database/prisma.js';
 import { rabbitMQ } from './config/rabbitmql.config.js';
 import { connectRedis } from './config/redis.config.js';
 import { initInvoiceWorker } from './works/invoice.worker.js';
+import { assertInvoiceQueueTopology } from './messaging/invoice-queue.js';
 import { retry } from './infrastructure/retry.js';
 import { appRouter } from './index.js';
 
@@ -105,15 +106,30 @@ async function bootstrap() {
     console.log('✅ RabbitMQ conectado');
 
     /**
-     * Worker
-     *
-     * ⚠️ D-03 (SDD/context/tech-debt.md): hoje o worker sobe junto com a API.
-     * Para escalar de forma independente, mover para o processo isolado
-     * `src/worker.ts` e remover esta chamada.
+     * Topologia da fila (DLX/DLQ/limite de entregas).
+     * A API precisa dela para publicar, independentemente de rodar o worker.
      */
-    console.log('🔄 Inicializando worker...');
-    await initInvoiceWorker();
-    console.log('✅ Worker iniciado');
+    await assertInvoiceQueueTopology(rabbitMQ.getChannel());
+    console.log('✅ Topologia da fila garantida');
+
+    /**
+     * Worker (D-03)
+     *
+     * Por padrão a API também consome a fila (monólito, simples de operar).
+     * Numa topologia com worker isolado (`npm run worker`), defina
+     * `RUN_WORKER_INLINE=false` na API para evitar consumidor duplicado.
+     */
+    const runWorkerInline = process.env.RUN_WORKER_INLINE !== 'false';
+
+    if (runWorkerInline) {
+      console.log('🔄 Inicializando worker (inline na API)...');
+      await initInvoiceWorker();
+      console.log('✅ Worker iniciado (inline)');
+    } else {
+      console.log(
+        'ℹ️ Worker inline desabilitado (RUN_WORKER_INLINE=false). Rode `npm run worker` em separado.'
+      );
+    }
 
     /**
      * API
