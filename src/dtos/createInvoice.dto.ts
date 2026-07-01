@@ -12,6 +12,7 @@ export const updateInvoiceStatusSchema = z.object({
   gatewayId: z.string(),
   status: z.enum(["PENDING", "PAID", "OVERDUE", "FAILED"]),
   paidAt: z.string().optional().transform((val) => val ? new Date(val) : undefined),
+  eventId: z.string().optional(), // idempotência do webhook (RN-P3)
 });
 
 export type UpdateInvoiceStatusDTO = z.infer<typeof updateInvoiceStatusSchema>;

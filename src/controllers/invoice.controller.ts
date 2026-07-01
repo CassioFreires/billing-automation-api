@@ -1,45 +1,69 @@
 import { Request, Response } from 'express';
 import { InvoiceService } from '../services/invoice.service.js';
-import { createInvoiceSchema, updateInvoiceStatusSchema } from '../dtos/createInvoice.dto.js';
+import { createInvoiceSchema } from '../dtos/createInvoice.dto.js';
+import { PaymentGatewayAPI } from '../apis/payment/index.js';
 
 export class InvoiceController {
   private invoiceService: InvoiceService;
+  private gateway: PaymentGatewayAPI;
 
   constructor() {
     this.invoiceService = new InvoiceService();
+    this.gateway = new PaymentGatewayAPI();
   }
 
   create = async (req: Request, res: Response): Promise<void> => {
     try {
-      // Camada de Validação do DTO
       const validatedData = createInvoiceSchema.parse(req.body);
-
       const invoice = await this.invoiceService.createPayment(validatedData);
       res.status(201).json(invoice);
     } catch (error: any) {
-      res.status(400).json({ error: error.message || "Erro ao criar cobrança" });
+      res.status(400).json({ error: error.message || 'Erro ao criar cobrança' });
     }
   };
 
   handleWebhook = async (req: Request, res: Response): Promise<void> => {
     try {
-      // Valida se o formato enviado pelo n8n/Gateway está correto
-      const validatedData = updateInvoiceStatusSchema.parse(req.body);
+      // A verificação de autenticidade é do provider ativo (RN-P4).
+      const event = await this.gateway.verifyAndParseWebhook({
+        headers: req.headers as Record<string, unknown>,
+        query: req.query as Record<string, unknown>,
+        body: req.body,
+      });
 
-      const updatedInvoice = await this.invoiceService.receiveWebhookNotification(validatedData);
-      res.status(200).json({ success: true, invoice: updatedInvoice });
+      // Evento não relevante (ex.: notificação que não é de pagamento).
+      if (!event) {
+        res.status(200).json({ success: true, ignored: true });
+        return;
+      }
+
+      const result = await this.invoiceService.applyWebhook(event);
+      res.status(200).json({ success: true, duplicate: result.duplicate });
     } catch (error: any) {
-      res.status(400).json({ error: error.message || "Erro no processamento do webhook" });
+      const msg = error?.message ?? '';
+      if (msg === 'WEBHOOK_INVALID_SIGNATURE') {
+        res.status(401).json({ error: 'Assinatura do webhook inválida' });
+        return;
+      }
+      if (msg.includes('não configurado') || msg === 'WEBHOOK_NOT_CONFIGURED') {
+        console.error('❌ Webhook mal configurado:', msg);
+        res.status(500).json({ error: 'Webhook não configurado' });
+        return;
+      }
+      if (msg.includes('não encontrada')) {
+        res.status(404).json({ error: msg });
+        return;
+      }
+      console.error('❌ Erro no webhook:', error);
+      res.status(400).json({ error: msg || 'Erro no processamento do webhook' });
     }
   };
 
   findPendingInvoices = async (req: Request, res: Response) => {
     try {
-      // Pega os parâmetros da query string com valores padrão caso não informados
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 10;
 
-      // Repasse os parâmetros para o seu service (lembre-se de ajustar a assinatura no service também)
       const result = await this.invoiceService.findPendingInvoices(page, limit);
 
       if (!result.invoices || result.invoices.length === 0) {
@@ -51,5 +75,5 @@ export class InvoiceController {
       console.error(error.message);
       return res.status(500).json({ message: error.message });
     }
-  }
+  };
 }
