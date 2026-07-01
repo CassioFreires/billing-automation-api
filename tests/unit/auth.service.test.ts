@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import jwt from 'jsonwebtoken';
 
-const ENV_KEYS = ['JWT_SECRET', 'JWT_EXPIRES_IN', 'AUTH_USERNAME', 'AUTH_PASSWORD'];
+const ENV_KEYS = ['JWT_SECRET', 'JWT_EXPIRES_IN', 'AUTH_USERNAME', 'AUTH_PASSWORD', 'DEFAULT_TENANT_ID'];
 const original: Record<string, string | undefined> = {};
 for (const k of ENV_KEYS) original[k] = process.env[k];
 
@@ -29,14 +29,15 @@ describe('AuthService.login', () => {
     AUTH_PASSWORD: 's3nha',
   };
 
-  it('emite um JWT verificável com credenciais válidas', async () => {
-    const svc = await loadService(validEnv);
+  it('emite um JWT verificável (com tenantId) com credenciais válidas', async () => {
+    const svc = await loadService({ ...validEnv, DEFAULT_TENANT_ID: 'tenant-xyz' });
     const { token, expiresIn } = svc.login({ username: 'admin', password: 's3nha' });
 
     expect(expiresIn).toBe('1h');
     const payload = jwt.verify(token, 'test-secret') as jwt.JwtPayload;
     expect(payload.sub).toBe('admin');
     expect(payload.role).toBe('service');
+    expect((payload as any).tenantId).toBe('tenant-xyz');
   });
 
   it('lança INVALID_CREDENTIALS com senha errada', async () => {
