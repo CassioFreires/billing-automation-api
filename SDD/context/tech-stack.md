@@ -79,7 +79,9 @@ Carregadas via `dotenv` — `src/server.ts` e `src/worker.ts` fazem `import 'dot
 ## Containerização / Deploy
 
 - `Dockerfile` — multi-stage (build → produção), roda como usuário `node` (não-root), `tini` como init (sinais), `openssl` p/ Prisma, `HEALTHCHECK` em `/api/health`.
-- `docker-compose.yml` — **stack Docker Swarm** (`postgres`, `rabbitmq`, `redis`, `migrate`, `api`, `worker`): segredos via `.env` (sem hardcode), `api` com `RUN_WORKER_INLINE=false`, `worker` separado, healthchecks, `stop_grace_period`, limites de recurso e rotação de log. Passo a passo em `skills/run-and-debug.md` (seção Deploy).
+- `docker-compose.yml` — **stack Docker Swarm** (`postgres`, `rabbitmq`, `redis`, `migrate`, `api`, `worker`): segredos via `.env` (sem hardcode), `api` com `RUN_WORKER_INLINE=false`, `worker` separado, healthchecks, `stop_grace_period`, limites de recurso e rotação de log.
+- `docker-compose.free.yml` — **versão free tier** (1 instância, ~1 GiB): Compose puro (`docker compose up`), 1 réplica de cada, `mem_limit` enxuto, ordem via `depends_on` (migrate antes de api/worker), build embutido. Prevê o serviço `web` (nginx: SPA + proxy `/api`) para o frontend (`frontend/`).
+- Passo a passo (produção e free tier) em `skills/run-and-debug.md` (seção Deploy).
 
 ## Infraestrutura externa necessária
 

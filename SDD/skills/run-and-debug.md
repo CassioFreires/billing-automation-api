@@ -158,6 +158,19 @@ docker service ls
 docker service logs -f billing_api
 ```
 
+### Free tier (1 instância, ~1 GiB) — `docker-compose.free.yml`
+Para uma única EC2 free tier, use o compose **free** (Compose puro, 1 réplica de cada, memória enxuta, ordem garantida por `depends_on` — o `migrate` roda antes da API/worker):
+```bash
+set -a; . ./.env; set +a
+docker compose -f docker-compose.free.yml up -d --build
+docker compose -f docker-compose.free.yml ps
+docker compose -f docker-compose.free.yml logs -f api
+```
+- Não precisa de Swarm nem `docker build` separado (o `--build` já builda).
+- Adicione **swap** na instância (1 GiB é apertado) — ver Passo 4 do deploy.
+- **Frontend**: o serviço `web` (nginx) já está previsto (comentado) — sirva o build em `frontend/dist`, descomente e ele serve o SPA + proxy `/api`. Ver `frontend/README.md`.
+
+### Produção (multi-nó / Swarm)
 Pontos importantes:
 - **Segredos** vêm do `.env` (interpolado pelo compose): `POSTGRES_PASSWORD`, `RABBITMQ_PASSWORD`, `JWT_SECRET`, `WEBHOOK_SECRET`, etc. O compose falha se faltarem.
 - A `api` roda com `RUN_WORKER_INLINE=false`; o `worker` é serviço próprio (3 réplicas). **Não** há consumidor duplicado (D-03).
