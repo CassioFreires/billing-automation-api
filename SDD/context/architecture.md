@@ -47,6 +47,8 @@ HTTP  →  Router  →  Controller  →  Service  →  Repository  →  Prisma  
 
 **Segurança (D-05)**: middleware `jwtAuth` (`src/middlewares/auth.middleware.ts`) valida `Authorization: Bearer <jwt>` nas rotas internas; `webhookAuth` (`src/middlewares/webhook.middleware.ts`) valida `x-webhook-secret` no webhook. Login em `AuthService` valida conta de serviço via env e assina JWT (`jsonwebtoken`).
 
+**Multi-tenancy (spec 0001)**: o JWT carrega `tenantId`. `jwtAuth` roda a request dentro de `runWithTenant` (`src/context/tenant-context.ts`, AsyncLocalStorage); os repositórios leem `requireTenantId()` e escopam todas as queries. Na fila, o `tenantId` viaja no payload e o worker abre o mesmo contexto. O webhook resolve o tenant pela fatura (id global do gateway).
+
 ### Mensageria (RabbitMQ / amqplib)
 - Config singleton: `src/config/rabbitmql.config.ts` (`rabbitMQ` — gerencia conexão e canal).
 - **Topologia centralizada**: `src/messaging/invoice-queue.ts` — fonte única dos nomes e do `assertInvoiceQueueTopology(channel)`. Declara:

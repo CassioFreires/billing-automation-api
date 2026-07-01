@@ -66,6 +66,7 @@ Carregadas via `dotenv` — `src/server.ts` e `src/worker.ts` fazem `import 'dot
 | `JWT_EXPIRES_IN` | ➖ | `auth.config.ts` | Validade do token (default `1h`) |
 | `AUTH_USERNAME` / `AUTH_PASSWORD` | ✅ | `auth.service.ts` | Credenciais da conta de serviço para o login |
 | `WEBHOOK_SECRET` | ✅ | `webhook.middleware.ts` | Segredo esperado em `x-webhook-secret` no webhook |
+| `DEFAULT_TENANT_ID` | ➖ | `auth.config.ts` | Tenant da conta de serviço (default = Account seedado na migração 0001) |
 
 > ⚠️ Não existe `.env.example` no repositório. Recomenda-se criar um (ver `tech-debt.md`).
 
@@ -84,6 +85,7 @@ Ver `skills/run-and-debug.md` para o passo a passo.
 src/
 ├── apis/            · integrações externas (whatsapp.api.ts — stub)
 ├── config/          · rabbitmql.config.ts, redis.config.ts, auth.config.ts
+├── context/         · tenant-context.ts (AsyncLocalStorage do tenant)
 ├── controllers/     · auth, clients, invoice, notification, health
 ├── database/        · prisma.ts (client singleton)
 ├── dtos/            · validação/contratos (Zod + validação manual)

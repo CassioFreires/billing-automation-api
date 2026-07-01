@@ -55,6 +55,15 @@ Na próxima subida a topologia (fila + DLX + DLQ) é recriada automaticamente.
 ### Mensagens "envenenadas" e a DLQ (D-04)
 Erros no processamento fazem requeue **limitado**: após 5 entregas a mensagem vai para `invoice_processing_queue.dlq`. Para inspecionar mensagens paradas, olhe essa fila no painel do RabbitMQ.
 
+### Migração de multi-tenancy (spec 0001)
+Ao dar deploy da multi-tenancy, aplique a migração `prisma/migrations/20260701000000_multi_tenancy/migration.sql` **uma vez** — ela é idempotente e preserva os dados atuais atribuindo-os ao tenant default (`00000000-0000-0000-0000-000000000001`):
+```bash
+npx prisma migrate deploy        # se usa migrations; ou
+psql "$DATABASE_URL" -f prisma/migrations/20260701000000_multi_tenancy/migration.sql   # manual
+npx prisma generate              # atualiza o client
+```
+Depois, garanta `DEFAULT_TENANT_ID` no `.env` (default já aponta para o tenant seedado). O login passa a emitir JWT com `tenantId`; tokens antigos (sem tenant) recebem 401 — refaça o login.
+
 ## Smoke test (fluxos principais)
 
 As rotas internas exigem **JWT** (obtido no `/api/auth/login`); o webhook exige o **segredo** em `x-webhook-secret`. `/health` é público.
