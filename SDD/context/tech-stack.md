@@ -54,6 +54,7 @@ Carregadas via `dotenv` — `src/server.ts` e `src/worker.ts` fazem `import 'dot
 | `DATABASE_URL` | ✅ | `schema.prisma` | String de conexão PostgreSQL |
 | `RABBITMQ_URL` | ✅ | `rabbitmql.config.ts` | String de conexão AMQP |
 | `PORT` | ➖ | `server.ts` | Porta HTTP (default `3000`) |
+| `RUN_WORKER_INLINE` | ➖ | `server.ts` | `"false"` faz a API **não** consumir a fila (use com worker isolado). Default: consome inline |
 | `REDIS_ENABLED` | ➖ | `redis.config.ts` | `"true"` habilita o cache Redis |
 | `REDIS_URL` | condicional | `redis.config.ts` | Necessária se `REDIS_ENABLED=true` |
 | `WHATSAPP_PROVIDER` | ➖ | `whatsapp.api.ts` | Provider de envio. Default `log` (só loga, não envia). Futuros: `cloud`, `twilio` |

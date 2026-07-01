@@ -41,7 +41,19 @@ npm run dev
 ```
 `dev` roda `tsc -w` (watch) + `nodemon dist/server.js` em paralelo. A API sobe em `http://localhost:3000`.
 
-> Observação (dívida **D-03**): o `server.ts` **também inicia o worker** no mesmo processo. Para rodar o worker isolado, use `npm run worker:dev` (dev) ou `npm run worker` (a partir de um build). Enquanto o worker sobe junto da API, evite rodar os dois ao mesmo tempo para não ter consumidores duplicados.
+### Modo do worker (D-03)
+- **Monólito (default)**: a API também consome a fila. Basta `npm run dev`.
+- **Worker isolado**: defina `RUN_WORKER_INLINE=false` no `.env` da API e rode o worker à parte com `npm run worker:dev` (dev) / `npm run worker` (build). Isso evita **consumidor duplicado** — não rode o worker isolado com a API em modo inline.
+
+### Recriar a fila após mudança de topologia (D-04)
+A fila `invoice_processing_queue` agora é declarada com `x-delivery-limit` + `x-dead-letter-exchange`. Se você já tinha a fila criada **sem** esses argumentos, o broker recusa a redeclaração (`PRECONDITION_FAILED`). Remova a fila uma vez:
+- Painel RabbitMQ (http://localhost:15672) → Queues → `invoice_processing_queue` → Delete; ou
+- CLI: `docker exec rabbit rabbitmqctl delete_queue invoice_processing_queue`
+
+Na próxima subida a topologia (fila + DLX + DLQ) é recriada automaticamente.
+
+### Mensagens "envenenadas" e a DLQ (D-04)
+Erros no processamento fazem requeue **limitado**: após 5 entregas a mensagem vai para `invoice_processing_queue.dlq`. Para inspecionar mensagens paradas, olhe essa fila no painel do RabbitMQ.
 
 ## Smoke test (fluxos principais)
 
@@ -78,7 +90,8 @@ curl -X POST http://localhost:3000/api/invoices/webhook \
 | `RabbitMQ não conectado` | broker fora / `RABBITMQ_URL` errada | `rabbitmql.config.ts`, logs de bootstrap |
 | Erro de conexão no boot | Postgres fora / `DATABASE_URL` | logs `⏳ Banco tentativa N` (retry) |
 | Mensagem some sem processar | cliente não encontrado pelo telefone | `invoice.worker.ts` (ACK e descarta — RN-N3) |
-| Fila cresce e reprocessa em loop | erro permanente + requeue | dívida **D-04**, `invoice.worker.ts` |
+| Mensagens indo parar na DLQ | erro determinístico esgotou as 5 tentativas | `invoice_processing_queue.dlq` no painel; corrija a causa e reenfileire |
+| `PRECONDITION_FAILED` ao subir | fila antiga sem os novos argumentos | recrie a fila (ver seção acima) |
 | Cache não funciona | `REDIS_ENABLED != true` ou Redis fora | `redis.config.ts` (fallback é normal) |
 | `Cannot find module ...` | import sem extensão `.js` | o arquivo que você editou |
 | Mudou o código e não refletiu | `tsc` não recompilou / rodando `dist` antigo | confirme `npm run watch` ativo |
