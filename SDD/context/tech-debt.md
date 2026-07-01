@@ -17,11 +17,6 @@ Severidade: 🔴 Crítico · 🟠 Alto · 🟡 Médio · 🔵 Baixo/Cosmético
 
 ## 🟠 Altos
 
-### D-05 · Sem autenticação/autorização
-- **O quê**: Nenhum endpoint tem auth. Webhook `/api/invoices/webhook` é público e sem verificação de assinatura.
-- **Impacto**: Qualquer um pode criar faturas, marcar como pagas, disparar cobranças em massa.
-- **Ação**: Auth para rotas internas (API key/JWT) e verificação de assinatura/segredo no webhook.
-
 ### D-06 · Sem testes automatizados
 - **O quê**: Não há testes nem script de teste. Nenhum de unidade, integração ou e2e.
 - **Impacto**: Refatorar/adicionar features é arriscado; regressões silenciosas.
@@ -46,10 +41,10 @@ Severidade: 🔴 Crítico · 🟠 Alto · 🟡 Médio · 🔵 Baixo/Cosmético
 - **Impacto**: Confunde quem lê; código morto.
 - **Ação**: Remover ou transformar em utilitário genérico de consumo parametrizável.
 
-### D-11 · Sem `.env.example`
-- **O quê**: Variáveis de ambiente não documentadas em arquivo de exemplo.
-- **Impacto**: Onboarding difícil; erros de configuração.
-- **Ação**: Criar `.env.example` com `DATABASE_URL`, `RABBITMQ_URL`, `PORT`, `REDIS_ENABLED`, `REDIS_URL`. (Ver `tech-stack.md`.)
+### D-16 · Auth por conta de serviço única (sem modelo de usuário)
+- **O quê**: A auth JWT (D-05) usa uma única conta de serviço via env (`AUTH_USERNAME`/`AUTH_PASSWORD`), sem tabela de usuários, papéis ou hash de senha no banco.
+- **Impacto**: Não há multiusuário, revogação individual, nem trilha de quem fez o quê.
+- **Ação**: Quando priorizado, escrever spec em `SDD/specs/` para um modelo `User` (Prisma + bcrypt + papéis) e trocar a validação em `AuthService` sem mexer no middleware `jwtAuth`.
 
 ---
 
@@ -90,5 +85,15 @@ Severidade: 🔴 Crítico · 🟠 Alto · 🟡 Médio · 🔵 Baixo/Cosmético
 - Topologia centralizada em `src/messaging/invoice-queue.ts`: fila principal quorum com `x-delivery-limit = 5` + `x-dead-letter-exchange` → após 5 reentregas a mensagem vai para a DLQ `invoice_processing_queue.dlq` (via DLX `invoice_processing_dlx`), sem loop infinito. Worker loga a contagem de entregas.
 - ⚠️ Migração operacional: a fila `invoice_processing_queue` que já existia SEM esses argumentos precisa ser removida uma vez (o broker recusa redeclaração com args diferentes). Ver `skills/run-and-debug.md`.
 - Follow-up: distinguir erro transitório de permanente (hoje todo erro faz requeue até o limite) fica para uma iteração futura.
+
+### D-05 · Sem autenticação/autorização — ✅ 2026-07-01
+- **JWT (Bearer)** nas rotas internas: `POST /api/auth/login` (público) valida uma conta de serviço (`AUTH_USERNAME`/`AUTH_PASSWORD`) e emite um JWT assinado com `JWT_SECRET`. Middleware `jwtAuth` protege `/clients`, `/notifications` e `/invoices` (create/overdue).
+- **Webhook** (`POST /api/invoices/webhook`): middleware `webhookAuth` valida `x-webhook-secret` contra `WEBHOOK_SECRET` (comparação em tempo constante), estruturado para evoluir para HMAC.
+- `/health` e `/auth/login` seguem públicos. Middlewares falham fechado se os segredos não estiverem configurados.
+- Verificado por smoke test de runtime (login, JWT válido/ inválido, webhook ok/negado).
+- **Follow-up (novo)**: hoje é uma conta de serviço única via env. Um modelo de usuário no banco (com hash de senha, papéis) é uma feature futura — escrever spec em `SDD/specs/` quando priorizado. Ver **D-16**.
+
+### D-11 · Sem `.env.example` — ✅ 2026-07-01
+- `.env.example` atualizado com todas as variáveis: API/worker, banco, RabbitMQ, Redis, WhatsApp, JWT e webhook.
 
 _(mova novos itens para cá com data e referência do commit/PR quando concluídos)_

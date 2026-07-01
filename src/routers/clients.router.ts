@@ -1,8 +1,12 @@
 import { Router } from 'express';
 
 import { ClientController } from '../controllers/clients.controller.js';
+import { jwtAuth } from '../middlewares/auth.middleware.js';
 
 const clientRouter = Router();
+
+// Todas as rotas de clientes exigem JWT válido.
+clientRouter.use(jwtAuth);
 
 const controller =
   new ClientController();
