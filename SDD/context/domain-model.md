@@ -14,7 +14,23 @@ Conta contratante. **Todo dado de negócio pertence a um Account** (multi-tenanc
 | `name` | String | — | Nome da conta |
 | `status` | String | `ACTIVE` | `ACTIVE`, `SUSPENDED` |
 | `createdAt` | DateTime | `now()` | — |
-| `clients` / `invoices` | relações | — | 1-N |
+| `clients` / `invoices` / `users` | relações | — | 1-N |
+
+### User (Usuário)
+
+Usuário que loga na plataforma, vinculado a um `Account` (ver `../specs/0002-user-model-signup.md`).
+
+| Campo | Tipo | Padrão | Notas |
+|---|---|---|---|
+| `id` | String (uuid) | gerado | PK |
+| `email` | String | — | **Único global** (identificador de login) |
+| `passwordHash` | String | — | Hash `bcryptjs` (nunca texto puro) |
+| `name` | String | — | — |
+| `role` | String | `OWNER` | `OWNER` (futuro: `ADMIN`, `MEMBER`) |
+| `createdAt` | DateTime | `now()` | — |
+| `tenantId` | String | — | FK → Account (`onDelete: Cascade`) |
+
+Índices: `@@index([tenantId])`, `email @unique`.
 
 ### Client (Cliente)
 
@@ -86,6 +102,13 @@ PENDING ──► PAID
 - **RN-T4**: O `tenantId` vem do JWT (contexto), nunca do corpo/params.
 - **RN-T5**: O `tenantId` viaja no payload da fila; o worker processa no tenant da mensagem.
 - **RN-T6**: O webhook resolve o tenant pela fatura (`gatewayId` → `Invoice.tenantId`).
+
+### Usuários / Autenticação (ver `../specs/0002-user-model-signup.md`)
+- **RN-U1**: `User.email` é único global (login).
+- **RN-U2**: Senha só em hash (bcrypt), nunca texto puro.
+- **RN-U3**: Signup cria atomicamente `Account` + `User(OWNER)`.
+- **RN-U4**: Login emite JWT `{ sub: userId, tenantId, role }`.
+- **RN-U5**: Conta de serviço via env é fallback de bootstrap (opcional).
 
 ### Clientes
 - **RN-C1**: Telefone é único. Criar cliente com telefone existente → erro `"Já existe um cliente com este telefone."`.

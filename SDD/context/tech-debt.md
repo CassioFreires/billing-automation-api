@@ -40,11 +40,6 @@ _(nenhum item aberto no momento)_
 - **Impacto**: Confunde quem lê; código morto.
 - **Ação**: Remover ou transformar em utilitário genérico de consumo parametrizável.
 
-### D-16 · Auth por conta de serviço única (sem modelo de usuário)
-- **O quê**: A auth JWT (D-05) usa uma única conta de serviço via env (`AUTH_USERNAME`/`AUTH_PASSWORD`), sem tabela de usuários, papéis ou hash de senha no banco.
-- **Impacto**: Não há multiusuário, revogação individual, nem trilha de quem fez o quê.
-- **Ação**: Quando priorizado, escrever spec em `SDD/specs/` para um modelo `User` (Prisma + bcrypt + papéis) e trocar a validação em `AuthService` sem mexer no middleware `jwtAuth`.
-
 ---
 
 ## 🔵 Baixos / Cosméticos
@@ -96,7 +91,12 @@ _(nenhum item aberto no momento)_
 - `.env.example` atualizado com todas as variáveis: API/worker, banco, RabbitMQ, Redis, WhatsApp, JWT e webhook.
 
 ### D-06 · Sem testes automatizados — ✅ 2026-07-01
-- **Vitest** configurado (`vitest.config.ts`, scripts `test`/`test:watch`). 36 testes em `tests/unit/` cobrindo services (Client/Invoice/Notification, com repositórios mockados), auth (service + middlewares `jwtAuth`/`webhookAuth`) e validação de DTOs (Zod). Rodam sem infra (DB/RabbitMQ mockados/dispensados).
+- **Vitest** configurado (`vitest.config.ts`, scripts `test`/`test:watch`). Testes em `tests/unit/` cobrindo services (Client/Invoice/Notification, com repositórios mockados), auth (service + middlewares `jwtAuth`/`webhookAuth`), tenant-context e validação de DTOs (Zod). Rodam sem infra (DB/RabbitMQ mockados/dispensados).
 - **Follow-up**: faltam testes de **repositório** (precisam de Postgres de teste / testcontainers) e **e2e** dos fluxos A–D com a app de pé. Ver `skills/testing.md`.
+
+### D-16 · Auth por conta de serviço única — ✅ 2026-07-01
+- Implementado modelo `User` real (spec 0002): signup (`POST /api/auth/register`) cria Account + usuário dono; login por e-mail/senha com hash `bcryptjs`. JWT carrega `sub`/`tenantId`/`role`.
+- A conta de serviço via env permanece como **fallback de bootstrap** (`AUTH_USERNAME`/`AUTH_PASSWORD` agora opcionais) — remover quando houver usuários reais em produção.
+- **Follow-up**: verificação de e-mail, reset de senha, convite de múltiplos usuários por conta, RBAC granular.
 
 _(mova novos itens para cá com data e referência do commit/PR quando concluídos)_

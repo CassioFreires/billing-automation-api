@@ -18,6 +18,7 @@
 | `redis` | ^6.0.0 | Cache (node-redis v4+) |
 | `zod` | ^4.4.3 | Validação de schema/DTO |
 | `jsonwebtoken` | ^9.0.3 | Emissão/verificação de JWT (auth) |
+| `bcryptjs` | ^3.0.3 | Hash de senha (JS puro, sem build nativo) |
 | `cors` | ^2.8.6 | CORS middleware |
 | `dotenv` | ^17.4.2 | Variáveis de ambiente |
 
@@ -92,7 +93,7 @@ src/
 ├── infrastructure/  · retry.ts
 ├── messaging/       · invoice-queue.ts (topologia), publish/ e consumer/
 ├── middlewares/     · auth.middleware.ts (jwtAuth), webhook.middleware.ts
-├── repositories/    · cliente, invoice
+├── repositories/    · cliente, invoice, user
 ├── routers/         · um router por domínio (auth, clients, invoice, notification, health)
 ├── services/        · regra de negócio por domínio (inclui auth)
 ├── works/           · invoice.worker.ts
