@@ -13,8 +13,8 @@ Prioridades: **P0** bloqueia ter produto para vender · **P1** necessário para 
 | # | Item | Situação atual | O que fazer |
 |---|---|---|---|
 | PR-01 | **WhatsApp real** | `log-only` (D-02) — não envia | Plugar Meta Cloud API ou Twilio; templates aprovados; retry/tratamento de falha |
-| PR-02 | **Gateway de pagamento real** | mock (`Math.random`) (D-15) | Integrar Asaas/Stripe/Mercado Pago; gerar PIX/cobrança real |
-| PR-03 | **Idempotência do webhook** | reprocessa evento duplicado | Guardar `eventId` processado; ignorar repetição |
+| PR-02 | **Gateway de pagamento real** | ✅ Implementado (2026-07-01) | Mercado Pago (Checkout Pro: PIX/crédito/débito/boleto) via seam `PAYMENT_PROVIDER`. Spec 0003. Falta: token de sandbox no `.env` + teste ponta-a-ponta; mapear clientes ↔ payer |
+| PR-03 | **Idempotência do webhook** | ✅ Implementado (2026-07-01) | `WebhookEvent.recordIfNew` dedup por `eventId`. Falta: hardening transacional |
 | PR-04 | **Multi-tenancy** | ✅ Implementado (2026-07-01) | `Account` + `tenantId` em Client/Invoice, escopo via `tenant-context` + repositórios, tenant no JWT/fila. **Spec `specs/0001-multi-tenancy.md`**. Falta: validar escopo em banco real; migrar clientes reais para tenants próprios (hoje tudo no tenant default) |
 | PR-05 | **Auth real / usuários** | ✅ Implementado (2026-07-01) | Modelo `User` + signup/login por e-mail (bcrypt), vínculo ao tenant. Spec `specs/0002`. Falta: verificação de e-mail, reset de senha, convites/multiusuário, RBAC |
 | PR-06 | **LGPD** | inexistente | Base legal, política de privacidade, termos, direito de exclusão, DPA. Processa CPF/telefone/dívida → obrigatório para vender |

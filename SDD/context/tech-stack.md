@@ -66,8 +66,13 @@ Carregadas via `dotenv` — `src/server.ts` e `src/worker.ts` fazem `import 'dot
 | `JWT_SECRET` | ✅ | `auth.config.ts` | Segredo para assinar/verificar o JWT. Sem ele, rotas internas retornam 500 |
 | `JWT_EXPIRES_IN` | ➖ | `auth.config.ts` | Validade do token (default `1h`) |
 | `AUTH_USERNAME` / `AUTH_PASSWORD` | ✅ | `auth.service.ts` | Credenciais da conta de serviço para o login |
-| `WEBHOOK_SECRET` | ✅ | `webhook.middleware.ts` | Segredo esperado em `x-webhook-secret` no webhook |
+| `WEBHOOK_SECRET` | condicional | `payment/mock.gateway.ts` | Segredo `x-webhook-secret` do webhook quando `PAYMENT_PROVIDER=mock` |
 | `DEFAULT_TENANT_ID` | ➖ | `auth.config.ts` | Tenant da conta de serviço (default = Account seedado na migração 0001) |
+| `PAYMENT_PROVIDER` | ➖ | `payment/index.ts` | `mock` (default) ou `mercadopago` |
+| `MP_ACCESS_TOKEN` | condicional | `payment/mercadopago.gateway.ts` | Token do Mercado Pago (sandbox) — obrigatório se `PAYMENT_PROVIDER=mercadopago` |
+| `MP_WEBHOOK_SECRET` | condicional | `payment/mercadopago.gateway.ts` | Segredo para validar a assinatura `x-signature` do MP |
+| `MP_NOTIFICATION_URL` | ➖ | `payment/mercadopago.gateway.ts` | URL pública que o MP chama no webhook |
+| `MP_BASE_URL` | ➖ | `payment/mercadopago.gateway.ts` | Base da API do MP (default `https://api.mercadopago.com`) |
 
 > ⚠️ Não existe `.env.example` no repositório. Recomenda-se criar um (ver `tech-debt.md`).
 
@@ -84,7 +89,7 @@ Ver `skills/run-and-debug.md` para o passo a passo.
 
 ```
 src/
-├── apis/            · integrações externas (whatsapp.api.ts — stub)
+├── apis/            · integrações externas: whatsapp.api.ts (seam), payment/ (gateway seam: mock + mercadopago)
 ├── config/          · rabbitmql.config.ts, redis.config.ts, auth.config.ts
 ├── context/         · tenant-context.ts (AsyncLocalStorage do tenant)
 ├── controllers/     · auth, clients, invoice, notification, health
@@ -92,8 +97,8 @@ src/
 ├── dtos/            · validação/contratos (Zod + validação manual)
 ├── infrastructure/  · retry.ts
 ├── messaging/       · invoice-queue.ts (topologia), publish/ e consumer/
-├── middlewares/     · auth.middleware.ts (jwtAuth), webhook.middleware.ts
-├── repositories/    · cliente, invoice, user
+├── middlewares/     · auth.middleware.ts (jwtAuth)
+├── repositories/    · cliente, invoice, user, webhook-event
 ├── routers/         · um router por domínio (auth, clients, invoice, notification, health)
 ├── services/        · regra de negócio por domínio (inclui auth)
 ├── works/           · invoice.worker.ts

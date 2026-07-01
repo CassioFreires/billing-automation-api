@@ -53,13 +53,17 @@ _(nenhum item aberto no momento)_
 ### D-14 · Health check duplicado
 - `GET /health` (no server) e `GET /api/health` (router). Definir um canônico.
 
-### D-15 · Dados mockados de gateway/PIX espalhados
-- `invoice.service.ts` e `invoice.worker.ts` geram `gatewayId`/PIX fake de formas diferentes.
-- **Ação**: Centralizar num serviço de gateway (que depois vira integração real).
+### D-15 · Dados mockados de gateway/PIX espalhados (parcial)
+- ✅ A criação de cobrança foi centralizada no **seam de gateway** (`src/apis/payment/`, spec 0003) — `InvoiceService.createPayment` usa o provider (`mock`/`mercadopago`).
+- ⚠️ **Resta**: o `invoice.worker.ts` ainda **fabrica** `gatewayId`/PIX fake ao notificar (sobrescreve os dados reais da fatura). Deve passar a **usar** os dados da fatura (`pixCopyPaste`/`checkoutUrl`) em vez de gerar. Follow-up.
 
 ---
 
 ## Resolvidos
+
+### PR-02/PR-03 · Gateway real (Mercado Pago) + idempotência do webhook — ✅ 2026-07-01
+- Seam `src/apis/payment/` com provider selecionável (`PAYMENT_PROVIDER`): `mock` (default) e `mercadopago` (Checkout Pro real, sandbox). `InvoiceService.createPayment` usa o provider; webhook normalizado por `verifyAndParseWebhook` e aplicado idempotentemente (`WebhookEvent`). Ver spec 0003.
+- **Follow-up**: mapear clientes ↔ payer do MP; hardening transacional da idempotência; worker usar dados reais da fatura (ver D-15).
 
 ### D-01 · Fontes `server.ts` e `index.ts` ausentes — ✅ 2026-07-01
 - Recriados `src/server.ts` (bootstrap) e `src/index.ts` (agregador `appRouter`) como fontes TypeScript, com `import 'dotenv/config'` explícito.
@@ -82,7 +86,7 @@ _(nenhum item aberto no momento)_
 
 ### D-05 · Sem autenticação/autorização — ✅ 2026-07-01
 - **JWT (Bearer)** nas rotas internas: `POST /api/auth/login` (público) valida uma conta de serviço (`AUTH_USERNAME`/`AUTH_PASSWORD`) e emite um JWT assinado com `JWT_SECRET`. Middleware `jwtAuth` protege `/clients`, `/notifications` e `/invoices` (create/overdue).
-- **Webhook** (`POST /api/invoices/webhook`): middleware `webhookAuth` valida `x-webhook-secret` contra `WEBHOOK_SECRET` (comparação em tempo constante), estruturado para evoluir para HMAC.
+- **Webhook** (`POST /api/invoices/webhook`): originalmente via middleware `webhookAuth` (`x-webhook-secret`). **Superado na spec 0003**: a verificação passou para o provider de pagamento (`mock` = `x-webhook-secret`; `mercadopago` = assinatura `x-signature`).
 - `/health` e `/auth/login` seguem públicos. Middlewares falham fechado se os segredos não estiverem configurados.
 - Verificado por smoke test de runtime (login, JWT válido/ inválido, webhook ok/negado).
 - **Follow-up (novo)**: hoje é uma conta de serviço única via env. Um modelo de usuário no banco (com hash de senha, papéis) é uma feature futura — escrever spec em `SDD/specs/` quando priorizado. Ver **D-16**.

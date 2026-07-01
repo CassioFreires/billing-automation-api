@@ -32,6 +32,16 @@ Usuário que loga na plataforma, vinculado a um `Account` (ver `../specs/0002-us
 
 Índices: `@@index([tenantId])`, `email @unique`.
 
+### WebhookEvent (Idempotência)
+
+Guarda os ids de evento de webhook já processados (spec 0003).
+
+| Campo | Tipo | Padrão | Notas |
+|---|---|---|---|
+| `id` | String | — | PK = id do evento do provider (chave de idempotência) |
+| `provider` | String | — | Origem (ex.: `gateway`) |
+| `receivedAt` | DateTime | `now()` | — |
+
 ### Client (Cliente)
 
 | Campo | Tipo | Padrão | Notas |
@@ -59,7 +69,8 @@ Usuário que loga na plataforma, vinculado a um `Account` (ver `../specs/0002-us
 | `status` | String | `PENDING` | Ver máquina de estados |
 | `pixCopyPaste` | String? | — | "Copia e cola" do PIX gerado pelo gateway |
 | `pixQrCode` | String? | — | Link/Base64 do QR Code |
-| `gatewayId` | String? | — | **Único**. ID da cobrança no gateway (Asaas/Stripe) |
+| `checkoutUrl` | String? | — | URL de checkout hospedado (ex.: Mercado Pago Checkout Pro) |
+| `gatewayId` | String? | — | **Único**. Localizador da cobrança no gateway (para o MP, nosso `external_reference`) |
 | `dueDate` | DateTime | — | Vencimento |
 | `paidAt` | DateTime? | — | Preenchido pelo webhook ao confirmar pagamento |
 | `createdAt` | DateTime | `now()` | — |
@@ -120,6 +131,12 @@ PENDING ──► PAID
 - **RN-I2**: Ao criar, a fatura nasce `PENDING` com `gatewayId`/`pixCopyPaste` gerados (hoje mockados).
 - **RN-I3**: Webhook só atualiza fatura existente (localizada por `gatewayId`); senão erro `"Fatura correspondente ao Gateway não encontrada."`.
 - **RN-I4**: `gatewayId` é único — não pode haver duas faturas com o mesmo ID de gateway.
+
+### Pagamento / Gateway (ver `../specs/0003-payment-gateway-mercadopago.md`)
+- **RN-P1**: `createPayment` cria a cobrança no provider ativo (`PAYMENT_PROVIDER`) e guarda `gatewayId`/`checkoutUrl`/PIX.
+- **RN-P3**: Webhook é **idempotente** — evento com `eventId` já processado (em `WebhookEvent`) é no-op.
+- **RN-P4**: Autenticidade do webhook é do provider (`mock`: `x-webhook-secret`; `mercadopago`: assinatura `x-signature`).
+- **RN-P5**: Status MP → fatura: `approved`→`PAID`, `pending`/`in_process`→`PENDING`, `rejected`/`cancelled`/`refunded`→`FAILED`.
 
 ### Notificação / Cobrança
 - **RN-N1**: Só entram na listagem de cobrança faturas `PENDING` cujo **cliente** esteja `EM_ATRASO`.

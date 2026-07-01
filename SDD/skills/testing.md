@@ -12,7 +12,8 @@ npx vitest run tests/unit/auth.service.test.ts   # um arquivo
 
 `tests/unit/` cobre a **lógica de negócio pura**, sem infra:
 - **Services** (`clients`, `invoice`, `notification`) — regras (RN-*) com o repositório **mockado**.
-- **Auth** — `AuthService.login` e middlewares `jwtAuth`/`webhookAuth`.
+- **Auth** — `AuthService.login`/`register` e middleware `jwtAuth`.
+- **Gateway de pagamento** — `MockPaymentGateway`, mapeamento de status do MP e assinatura do webhook (`fetch` mockado via `vi.stubGlobal`).
 - **DTOs** — schemas Zod (aceite/recusa).
 
 ## Padrões deste projeto

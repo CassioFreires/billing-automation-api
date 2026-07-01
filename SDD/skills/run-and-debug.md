@@ -67,9 +67,12 @@ Depois, garanta `DEFAULT_TENANT_ID` no `.env` (default já aponta para o tenant 
 ### Migração do modelo de usuário (spec 0002)
 Aplique também `prisma/migrations/20260701010000_user_model/migration.sql` (aditiva) — cria a tabela `User`. Depois use `POST /api/auth/register` para criar contas/usuários reais. `AUTH_USERNAME`/`AUTH_PASSWORD` viram opcionais (fallback de bootstrap).
 
+### Migração do gateway de pagamento (spec 0003)
+Aplique `prisma/migrations/20260701020000_payment_gateway/migration.sql` (aditiva) — adiciona `Invoice.checkoutUrl` e a tabela `WebhookEvent` (idempotência). Configure `PAYMENT_PROVIDER` (default `mock`); para o Mercado Pago, defina `MP_ACCESS_TOKEN`/`MP_WEBHOOK_SECRET`/`MP_NOTIFICATION_URL`.
+
 ## Smoke test (fluxos principais)
 
-As rotas internas exigem **JWT** (obtido no `/api/auth/login`); o webhook exige o **segredo** em `x-webhook-secret`. `/health` é público.
+As rotas internas exigem **JWT** (obtido no `/api/auth/login`); o webhook é verificado pelo **provider de pagamento** ativo (`mock`: `x-webhook-secret`; `mercadopago`: assinatura `x-signature`). `/health` é público.
 
 ```bash
 # Health (público)
@@ -103,11 +106,14 @@ curl "http://localhost:3000/api/invoices/overdue?page=1&limit=10" \
 curl -X POST http://localhost:3000/api/notifications/trigger-overdue/<INVOICE_ID> \
   -H "Authorization: Bearer $TOKEN"
 
-# 6) Webhook de pagamento (segredo, NÃO JWT — quem chama é o gateway)
+# 6) Webhook de pagamento (provider MOCK: segredo, NÃO JWT — quem chama é o gateway)
+#    inclua eventId para exercitar a idempotência (reenviar o mesmo → no-op)
 curl -X POST http://localhost:3000/api/invoices/webhook \
   -H "Content-Type: application/json" -H "x-webhook-secret: <WEBHOOK_SECRET>" \
-  -d '{"gatewayId":"<GATEWAY_ID>","status":"PAID","paidAt":"2026-07-01T12:00:00Z"}'
+  -d '{"gatewayId":"<GATEWAY_ID>","status":"PAID","paidAt":"2026-07-01T12:00:00Z","eventId":"evt-123"}'
 ```
+
+> **Mercado Pago (sandbox)**: com `PAYMENT_PROVIDER=mercadopago` + `MP_ACCESS_TOKEN`, `POST /api/invoices` retorna um `checkoutUrl` (Checkout Pro: PIX/crédito/débito/boleto). Pague no sandbox; o MP chama `MP_NOTIFICATION_URL` (o webhook), que valida a assinatura, consulta o pagamento e atualiza a fatura. `MP_NOTIFICATION_URL` precisa ser pública (ex.: ngrok em dev).
 
 ## Onde olhar quando algo falha
 
@@ -120,7 +126,7 @@ curl -X POST http://localhost:3000/api/invoices/webhook \
 | `PRECONDITION_FAILED` ao subir | fila antiga sem os novos argumentos | recrie a fila (ver seção acima) |
 | Cache não funciona | `REDIS_ENABLED != true` ou Redis fora | `redis.config.ts` (fallback é normal) |
 | `401 Token ausente/inválido` | falta `Authorization: Bearer` ou token expirado | refaça o login em `/api/auth/login` |
-| `401 Assinatura do webhook inválida` | header `x-webhook-secret` errado/ausente | confira `WEBHOOK_SECRET` |
+| `401 Assinatura do webhook inválida` | `x-webhook-secret` (mock) ou `x-signature` (MP) errado/ausente | confira `WEBHOOK_SECRET` / `MP_WEBHOOK_SECRET` |
 | `500 Autenticação não configurada` | `JWT_SECRET`/`WEBHOOK_SECRET` ausentes no `.env` | configure os segredos (ver `.env.example`) |
 | `Cannot find module ...` | import sem extensão `.js` | o arquivo que você editou |
 | Mudou o código e não refletiu | `tsc` não recompilou / rodando `dist` antigo | confirme `npm run watch` ativo |
