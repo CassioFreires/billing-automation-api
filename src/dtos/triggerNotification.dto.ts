@@ -6,6 +6,7 @@ export interface TriggerNotificationDTO {
   clientName: string;
   debtValue?: number;
   value?:number;
+  tenantId?: string; // carimbado ao enfileirar; usado pelo worker (RN-T5)
 }
 
 export function validateTriggerNotification(

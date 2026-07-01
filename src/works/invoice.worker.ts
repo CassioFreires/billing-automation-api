@@ -9,6 +9,7 @@ import {
   INVOICE_DELIVERY_LIMIT,
   assertInvoiceQueueTopology,
 } from '../messaging/invoice-queue.js';
+import { runWithTenant } from '../context/tenant-context.js';
 
 const clientRepository = new ClientRepository();
 const invoiceRepository = new InvoiceRepository();
@@ -40,35 +41,44 @@ export async function initInvoiceWorker() {
 
         console.log(`📩 Invoice recebida: ${data.id}`);
 
-        const client = await clientRepository.findByPhone(data.phone);
-
-        if (!client) {
-          console.error(`❌ Cliente não encontrado: ${data.phone}`);
+        if (!data.tenantId) {
+          // Mensagem sem tenant não é processável (multi-tenancy — spec 0001).
+          console.error(`❌ Mensagem sem tenantId, descartada: ${data.id}`);
           channel.ack(msg);
           return;
         }
 
-        const fakeGatewayId = 'pay_' + Math.random().toString(36).slice(2);
-        const fakePix = '000201FAKEPIX_' + client.id;
+        // Processa dentro do contexto do tenant vindo no payload (RN-T5).
+        await runWithTenant(data.tenantId, async () => {
+          const client = await clientRepository.findByPhone(data.phone);
 
-        await invoiceRepository.updateNotificationData(
-          data.id,
-          fakeGatewayId,
-          fakePix
-        );
+          if (!client) {
+            console.error(`❌ Cliente não encontrado: ${data.phone}`);
+            return;
+          }
 
-        const link = `http://localhost:3333/pay?invoice=${fakeGatewayId}`;
+          const fakeGatewayId = 'pay_' + Math.random().toString(36).slice(2);
+          const fakePix = '000201FAKEPIX_' + client.id;
 
-        await whatsappAPI.sendMessageWhatsapp(data, {
-          targetPhone: client.phone,
-          messagePayload:
-            `Olá ${client.name}\n` +
-            `Valor: R$ ${Number(data.value).toFixed(2)}\n` +
-            `PIX: ${fakePix}\n` +
-            `Link: ${link}`,
+          await invoiceRepository.updateNotificationData(
+            data.id,
+            fakeGatewayId,
+            fakePix
+          );
+
+          const link = `http://localhost:3333/pay?invoice=${fakeGatewayId}`;
+
+          await whatsappAPI.sendMessageWhatsapp(data, {
+            targetPhone: client.phone,
+            messagePayload:
+              `Olá ${client.name}\n` +
+              `Valor: R$ ${Number(data.value).toFixed(2)}\n` +
+              `PIX: ${fakePix}\n` +
+              `Link: ${link}`,
+          });
+
+          console.log(`✅ Processado: ${data.id}`);
         });
-
-        console.log(`✅ Processado: ${data.id}`);
 
         channel.ack(msg);
       } catch (err) {

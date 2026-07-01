@@ -1,6 +1,7 @@
 import { CreateInvoiceDTO } from '../dtos/createInvoice.dto.js';
 import prisma from '../database/prisma.js';
 import { redis } from '../config/redis.config.js';
+import { requireTenantId } from '../context/tenant-context.js';
 
 export class InvoiceRepository {
 
@@ -18,7 +19,8 @@ export class InvoiceRepository {
         dueDate: data.dueDate,
         pixCopyPaste: data.pixCopyPaste,
         gatewayId: data.gatewayId,
-        status: 'PENDING'
+        status: 'PENDING',
+        tenantId: requireTenantId()
       }
     });
 
@@ -35,9 +37,10 @@ export class InvoiceRepository {
   }
 
   async findNotificationDataById(id: string) {
-    const invoice = await prisma.invoice.findUnique({
+    const invoice = await prisma.invoice.findFirst({
       where: {
         id,
+        tenantId: requireTenantId(),
       },
       include: {
         client: true,
@@ -79,7 +82,8 @@ export class InvoiceRepository {
     limit: number = 10
   ) {
 
-    const cacheKey = `pending-invoices:${page}:${limit}`;
+    const tenantId = requireTenantId();
+    const cacheKey = `pending-invoices:${tenantId}:${page}:${limit}`;
 
     /**
      * CACHE READ
@@ -119,6 +123,7 @@ export class InvoiceRepository {
       await prisma.$transaction([
         prisma.invoice.findMany({
           where: {
+            tenantId,
             status: 'PENDING',
             client: {
               status: 'EM_ATRASO'

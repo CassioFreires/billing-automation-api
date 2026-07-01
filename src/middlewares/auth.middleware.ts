@@ -1,9 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { authConfig } from '../config/auth.config.js';
+import { runWithTenant } from '../context/tenant-context.js';
 
 export interface AuthPayload extends jwt.JwtPayload {
   role?: string;
+  tenantId?: string;
 }
 
 /**
@@ -30,11 +32,21 @@ export function jwtAuth(
 
   const token = header.slice('Bearer '.length).trim();
 
+  let payload: AuthPayload;
   try {
-    const payload = jwt.verify(token, authConfig.jwtSecret) as AuthPayload;
-    (req as Request & { auth?: AuthPayload }).auth = payload;
-    next();
+    payload = jwt.verify(token, authConfig.jwtSecret) as AuthPayload;
   } catch {
     res.status(401).json({ error: 'Token inválido ou expirado' });
+    return;
   }
+
+  if (!payload.tenantId) {
+    res.status(401).json({ error: 'Token sem tenant' });
+    return;
+  }
+
+  (req as Request & { auth?: AuthPayload }).auth = payload;
+
+  // Toda a request roda dentro do contexto do tenant (multi-tenancy — spec 0001).
+  runWithTenant(payload.tenantId, () => next());
 }

@@ -33,7 +33,11 @@ export class AuthService {
     }
 
     const token = jwt.sign(
-      { sub: authConfig.serviceUsername, role: 'service' },
+      {
+        sub: authConfig.serviceUsername,
+        role: 'service',
+        tenantId: authConfig.defaultTenantId,
+      },
       secret,
       { expiresIn: authConfig.jwtExpiresIn as jwt.SignOptions['expiresIn'] }
     );
