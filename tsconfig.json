@@ -5,7 +5,7 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
 
-    "rootDir": ".",
+    "rootDir": "src",
     "outDir": "./dist",
 
     "strict": true,
@@ -14,5 +14,6 @@
     "skipLibCheck": true
   },
 
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }
