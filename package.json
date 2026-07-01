@@ -2,12 +2,15 @@
   "name": "billing-automation-api",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/server.js",
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
     "serve": "nodemon dist/server.js",
-    "dev": "concurrently \"npm run watch\" \"npm run serve\""
+    "dev": "concurrently \"npm run watch\" \"npm run serve\"",
+    "worker": "node dist/worker.js",
+    "worker:dev": "concurrently \"npm run watch\" \"nodemon dist/worker.js\"",
+    "start": "node dist/server.js"
   },
   "keywords": [],
   "author": "",

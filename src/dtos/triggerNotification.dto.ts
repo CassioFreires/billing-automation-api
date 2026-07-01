@@ -1,6 +1,6 @@
 export interface TriggerNotificationDTO {
   id: string;
-  status: string;
+  status?: string;
   document: string;
   phone: string;
   clientName: string;

@@ -34,6 +34,30 @@ export class InvoiceRepository {
 
   }
 
+  async findNotificationDataById(id: string) {
+    const invoice = await prisma.invoice.findUnique({
+      where: {
+        id,
+      },
+      include: {
+        client: true,
+      },
+    });
+
+    if (!invoice) {
+      return null;
+    }
+
+    return {
+      id: invoice.id,
+      value: invoice.value,
+      dueDate: invoice.dueDate,
+      phone: invoice.client.phone,
+      document: invoice.client.document,
+      clientName: invoice.client.name,
+    };
+  }
+
   async updateStatus(
     id: string,
     status: string,

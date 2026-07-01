@@ -1,4 +1,5 @@
 // src/worker.ts
+import 'dotenv/config';
 import { rabbitMQ } from './config/rabbitmql.config.js';
 import { initInvoiceWorker } from './works/invoice.worker.js';
 
