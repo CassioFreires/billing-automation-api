@@ -36,6 +36,11 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-billing_db}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+    # Publica APENAS no loopback do host (127.0.0.1): o banco NÃO fica exposto
+    # à internet. Acesso externo (DBeaver/pgAdmin) só via túnel SSH. Não requer
+    # regra nova no Security Group.
+    ports:
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks: [billing-network]
