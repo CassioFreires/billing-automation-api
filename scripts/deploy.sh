@@ -105,14 +105,15 @@ fi
 ok "Migrations aplicadas."
 
 # ---------------------------------------------------------------------------
-# 5) Recria só api + worker com a imagem nova e espera ficar healthy.
+# 5) Recria só api + worker com a imagem nova.
 #    --no-deps: não recria postgres/rabbit/redis (menos churn, menos risco).
-#    --wait: bloqueia até o healthcheck do compose passar (ou timeout).
+#    NÃO usa --wait: o worker não tem healthcheck (não é HTTP) e o --wait
+#    falharia por isso. A prontidão real da API é validada pelo curl abaixo.
 #    A app tem graceful shutdown (SIGTERM + stop_grace_period 30s): requisições
 #    em andamento terminam antes do container sair.
 # ---------------------------------------------------------------------------
 log "Recriando api + worker (graceful)…"
-dc up -d --no-deps --wait api worker || warn "compose --wait retornou erro; validando via health check…"
+dc up -d --no-deps api worker || warn "compose up retornou erro; validando via health check…"
 
 # ---------------------------------------------------------------------------
 # 6) Health check da API; rollback se não subir saudável.
