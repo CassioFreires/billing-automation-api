@@ -139,6 +139,10 @@ services:
     env_file: [.env]
     environment:
       <<: *app-env
+    # Worker não é serviço HTTP: desabilita o HEALTHCHECK herdado do Dockerfile
+    # (que testa /api/health), senão fica "unhealthy" à toa.
+    healthcheck:
+      disable: true
     networks: [billing-network]
     stop_grace_period: 30s
     logging: *default-logging
