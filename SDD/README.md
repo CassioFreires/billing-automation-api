@@ -6,7 +6,7 @@ O objetivo é simples: qualquer pessoa (ou agente de IA) que precise **entender*
 
 ## Como usar
 
-1. **Entrar no projeto pela primeira vez?** Leia `context/` na ordem: `overview` → `architecture` → `domain-model` → `tech-stack` → `conventions`.
+1. **Entrar no projeto pela primeira vez?** Leia `context/` na ordem: `overview` → `fluxo-completo` → `architecture` → `domain-model` → `tech-stack` → `conventions`. (`fluxo-completo.md` é a leitura contínua para entender o sistema de ponta a ponta, do n8n ao pagamento.)
 2. **Vai criar uma feature?** Copie `specs/_TEMPLATE.md` para `specs/NNNN-nome-da-feature.md`, preencha, e só então comece a implementar seguindo o playbook `skills/add-feature.md`.
 3. **Vai corrigir/manter algo?** Consulte `context/tech-debt.md` (pode já estar mapeado) e o playbook relevante em `skills/`.
 4. **Terminou algo?** Atualize o contexto afetado e mova o item resolvido em `tech-debt.md`.
@@ -18,6 +18,7 @@ SDD/
 ├── README.md              ← você está aqui
 ├── context/               ← a "verdade" sobre a aplicação (o QUÊ e o PORQUÊ)
 │   ├── overview.md         · propósito e capacidades do sistema
+│   ├── fluxo-completo.md    · fluxo ponta a ponta (n8n → fila → worker → pagamento) — leitura contínua
 │   ├── architecture.md     · camadas, componentes e fluxo de dados
 │   ├── domain-model.md     · entidades, estados e regras de negócio
 │   ├── tech-stack.md       · tecnologias, versões e configuração
