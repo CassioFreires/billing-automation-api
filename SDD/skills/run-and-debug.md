@@ -36,15 +36,20 @@ npx prisma generate         # garante o client
 
 ### Seeds de desenvolvimento
 
-Popula um **tenant demo** completo (conta + usuário + clientes + faturas em vários estados) para testar a API/painel sem cadastrar tudo na mão. Idempotente (recria só os dados do tenant demo).
+Popula um **tenant demo** completo (conta + usuário + clientes + faturas em vários estados) para testar a API/painel sem cadastrar tudo na mão. Idempotente (recria só os dados do tenant demo). Seed em **JS puro** (`prisma/seed.mjs`) — roda com o `node` da imagem de produção, sem `tsx`.
 
+**No container (mais fácil no deploy Docker/EC2):** o `DATABASE_URL` já aponta pro Postgres interno.
 ```bash
-npm run db:seed
-# Login demo criado: demo@autocore.app / demo12345
+docker compose -f docker-compose.free.yml exec api node prisma/seed.mjs
 ```
 
-- Precisa do `DATABASE_URL` acessível (banco local, ou o da EC2 via **túnel SSH** — o mesmo do DBeaver).
-- Roda via `tsx prisma/seed.ts` (config em `package.json > prisma.seed`). **Nunca** rode em produção com dados reais — ele apaga e recria os dados do tenant demo.
+**Local:** com `DATABASE_URL` acessível (banco local ou EC2 via túnel SSH):
+```bash
+npm run db:seed   # = node prisma/seed.mjs
+```
+
+- Login demo criado: **demo@autocore.app / demo12345**.
+- **Nunca** rode em produção com dados reais — ele apaga e recria os dados do tenant demo.
 
 ## Rodar a aplicação
 
