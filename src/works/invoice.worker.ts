@@ -76,9 +76,8 @@ export async function initInvoiceWorker() {
             return;
           }
 
-          await invoiceRepository.markNotificationSent(data.id);
-
-          await whatsappAPI.sendMessageWhatsapp(data, {
+          // Envia PRIMEIRO; só marca como notificada se o envio deu certo.
+          const result = await whatsappAPI.sendMessageWhatsapp(data, {
             targetPhone: invoice.phone,
             messagePayload: buildChargeMessage({
               clientName: invoice.clientName,
@@ -87,6 +86,14 @@ export async function initInvoiceWorker() {
               pixCopyPaste: invoice.pixCopyPaste,
             }),
           });
+
+          // Falha de envio → lança para cair no catch (nack → retry → DLQ),
+          // em vez de "engolir" e perder a cobrança.
+          if (!result.success) {
+            throw new Error(`Falha no envio WhatsApp (${result.provider}): ${result.error}`);
+          }
+
+          await invoiceRepository.markNotificationSent(data.id);
 
           console.log(`✅ Processado: ${data.id}`);
         });

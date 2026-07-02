@@ -12,7 +12,7 @@ Prioridades: **P0** bloqueia ter produto para vender · **P1** necessário para 
 
 | # | Item | Situação atual | O que fazer |
 |---|---|---|---|
-| PR-01 | **WhatsApp real** | `log-only` (D-02) — não envia | Plugar Meta Cloud API ou Twilio; templates aprovados; retry/tratamento de falha |
+| PR-01 | **WhatsApp real** | 🟡 Parcial (2026-07-02) | ✅ Provider Meta Cloud API (`WHATSAPP_PROVIDER=cloud`) envia texto; worker re-tenta em falha (nack→DLQ); testado. Ver `whatsapp-integration.md`. Falta: **template aprovado** (cobrança fora da janela 24h) + webhook de status de entrega |
 | PR-02 | **Gateway de pagamento real** | ✅ Implementado (2026-07-01) | Mercado Pago (Checkout Pro: PIX/crédito/débito/boleto) via seam `PAYMENT_PROVIDER`. Spec 0003. Falta: token de sandbox no `.env` + teste ponta-a-ponta; mapear clientes ↔ payer |
 | PR-03 | **Idempotência do webhook** | ✅ Implementado (2026-07-01) | `WebhookEvent.recordIfNew` dedup por `eventId`. Falta: hardening transacional |
 | PR-04 | **Multi-tenancy** | ✅ Implementado (2026-07-01) | `Account` + `tenantId` em Client/Invoice, escopo via `tenant-context` + repositórios, tenant no JWT/fila. **Spec `specs/0001-multi-tenancy.md`**. Falta: validar escopo em banco real; migrar clientes reais para tenants próprios (hoje tudo no tenant default) |

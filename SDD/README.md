@@ -19,6 +19,7 @@ SDD/
 ├── context/               ← a "verdade" sobre a aplicação (o QUÊ e o PORQUÊ)
 │   ├── overview.md         · propósito e capacidades do sistema
 │   ├── fluxo-completo.md    · fluxo ponta a ponta (n8n → fila → worker → pagamento) — leitura contínua
+│   ├── whatsapp-integration.md · seam WhatsApp, modelo de custo Meta e regra texto×template
 │   ├── architecture.md     · camadas, componentes e fluxo de dados
 │   ├── domain-model.md     · entidades, estados e regras de negócio
 │   ├── tech-stack.md       · tecnologias, versões e configuração
