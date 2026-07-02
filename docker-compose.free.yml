@@ -136,6 +136,11 @@ services:
     env_file: [.env]
     environment:
       <<: *app-env
+    # O worker NÃO é um serviço HTTP. Desabilita o HEALTHCHECK herdado do
+    # Dockerfile (que testa /api/health) — senão o container é marcado
+    # "unhealthy" à toa e o `--wait` do compose fica esperando em vão.
+    healthcheck:
+      disable: true
     depends_on:
       rabbitmq:
         condition: service_healthy
