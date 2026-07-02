@@ -82,4 +82,14 @@ export class InvoiceService {
   async findPendingInvoices(page?: number, limit?: number) {
     return this.invoiceRepository.findPendingInvoices(page, limit);
   }
+
+  /** Lista todas as faturas do tenant (paginado, filtro opcional por status). */
+  async listInvoices(page?: number, limit?: number, status?: string) {
+    return this.invoiceRepository.findAll(page, limit, status);
+  }
+
+  /** Busca uma fatura do tenant pelo id (null se não existir). */
+  async getInvoiceById(id: string) {
+    return this.invoiceRepository.findById(id);
+  }
 }

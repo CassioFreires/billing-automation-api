@@ -59,6 +59,43 @@ export class InvoiceController {
     }
   };
 
+  private static readonly VALID_STATUS = ['PENDING', 'PAID', 'OVERDUE', 'FAILED'];
+
+  findAll = async (req: Request, res: Response) => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+      const status = req.query.status as string | undefined;
+
+      if (status && !InvoiceController.VALID_STATUS.includes(status)) {
+        return res.status(400).json({
+          error: `status inválido. Use um de: ${InvoiceController.VALID_STATUS.join(', ')}`,
+        });
+      }
+
+      const result = await this.invoiceService.listInvoices(page, limit, status);
+      return res.status(200).json({ message: 'OK', result });
+    } catch (error: any) {
+      console.error(error.message);
+      return res.status(500).json({ message: error.message });
+    }
+  };
+
+  findById = async (req: Request<{ id: string }>, res: Response) => {
+    try {
+      const invoice = await this.invoiceService.getInvoiceById(req.params.id);
+
+      if (!invoice) {
+        return res.status(404).json({ error: 'Fatura não encontrada' });
+      }
+
+      return res.status(200).json(invoice);
+    } catch (error: any) {
+      console.error(error.message);
+      return res.status(500).json({ message: error.message });
+    }
+  };
+
   findPendingInvoices = async (req: Request, res: Response) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
