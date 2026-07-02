@@ -102,4 +102,8 @@ O worker (`src/works/invoice.worker.ts`) agora:
 2. **Webhook de status de entrega**: a Meta envia `sent/delivered/read/failed`. Consumir para dar rastreabilidade real (hoje o sistema só sabe que "chamou a API com sucesso").
 3. **Normalização E.164 completa** (PR-12): hoje só removemos não-dígitos; falta garantir DDI/DDD corretos.
 
+## Quem é o remetente? (modelo multi-cliente)
+
+Uma decisão estrutural à parte: a cobrança sai do **nosso** número/CNPJ (Modelo A) ou do número/CNPJ **de cada cliente** (Modelo B, padrão de SaaS)? Isso define se as credenciais são globais (`.env`, hoje) ou **por tenant** (no banco). Está documentado em **`../specs/0005-whatsapp-sender-model.md`** — inclusive a decisão atual (adiar: modo `log` não exige CNPJ; no Modelo B o CNPJ é de cada cliente).
+
 Relacionado: `fluxo-completo.md` (onde o envio se encaixa no fluxo) e `tech-debt.md` (dívida **D-02**).
