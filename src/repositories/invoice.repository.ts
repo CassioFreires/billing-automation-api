@@ -41,6 +41,57 @@ export class InvoiceRepository {
     });
   }
 
+  /** Busca UMA fatura do tenant atual (com dados do cliente). null se não existir. */
+  async findById(id: string) {
+    return prisma.invoice.findFirst({
+      where: {
+        id,
+        tenantId: requireTenantId(),
+      },
+      include: {
+        client: {
+          select: { id: true, name: true, phone: true, document: true, status: true },
+        },
+      },
+    });
+  }
+
+  /** Lista TODAS as faturas do tenant, paginadas, com filtro opcional por status. */
+  async findAll(page: number = 1, limit: number = 10, status?: string) {
+    const tenantId = requireTenantId();
+    const skip = (page - 1) * limit;
+
+    const where = {
+      tenantId,
+      ...(status ? { status } : {}),
+    };
+
+    const [invoices, totalItems] = await prisma.$transaction([
+      prisma.invoice.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          client: {
+            select: { id: true, name: true, phone: true, document: true, status: true },
+          },
+        },
+      }),
+      prisma.invoice.count({ where }),
+    ]);
+
+    return {
+      invoices,
+      meta: {
+        totalItems,
+        totalPages: Math.ceil(totalItems / limit),
+        currentPage: page,
+        limit,
+      },
+    };
+  }
+
   async findByGatewayId(gatewayId: string) {
 
     return prisma.invoice.findUnique({
@@ -172,6 +223,7 @@ export class InvoiceRepository {
         }),
         prisma.invoice.count({
           where: {
+            tenantId, // BUGFIX: sem isso o total contava faturas de TODOS os tenants
             status: 'PENDING',
             client: {
               status: 'EM_ATRASO'

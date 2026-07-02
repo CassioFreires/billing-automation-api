@@ -7,6 +7,8 @@ function makeService() {
     findByGatewayId: vi.fn(),
     updateStatus: vi.fn(),
     findPendingInvoices: vi.fn(),
+    findAll: vi.fn(),
+    findById: vi.fn(),
   };
   const webhookEvents = { recordIfNew: vi.fn() };
   const gateway = { name: 'mock', createCharge: vi.fn(), verifyAndParseWebhook: vi.fn() };
@@ -113,5 +115,31 @@ describe('InvoiceService.findPendingInvoices', () => {
     invoiceRepository.findPendingInvoices.mockResolvedValue({ invoices: [], meta: {} });
     await service.findPendingInvoices(2, 5);
     expect(invoiceRepository.findPendingInvoices).toHaveBeenCalledWith(2, 5);
+  });
+});
+
+describe('InvoiceService.listInvoices', () => {
+  it('delega paginação e filtro de status ao repositório', async () => {
+    const { service, invoiceRepository } = makeService();
+    invoiceRepository.findAll.mockResolvedValue({ invoices: [], meta: {} });
+    await service.listInvoices(2, 5, 'PAID');
+    expect(invoiceRepository.findAll).toHaveBeenCalledWith(2, 5, 'PAID');
+  });
+});
+
+describe('InvoiceService.getInvoiceById', () => {
+  it('retorna a fatura quando existe', async () => {
+    const { service, invoiceRepository } = makeService();
+    invoiceRepository.findById.mockResolvedValue({ id: 'inv1', status: 'PAID' });
+    const result = await service.getInvoiceById('inv1');
+    expect(invoiceRepository.findById).toHaveBeenCalledWith('inv1');
+    expect(result).toEqual({ id: 'inv1', status: 'PAID' });
+  });
+
+  it('retorna null quando não existe', async () => {
+    const { service, invoiceRepository } = makeService();
+    invoiceRepository.findById.mockResolvedValue(null);
+    const result = await service.getInvoiceById('naoexiste');
+    expect(result).toBeNull();
   });
 });

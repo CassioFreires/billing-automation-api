@@ -11,7 +11,12 @@ invoiceRouter.post('/', jwtAuth, invoiceController.create);
 // Webhook do gateway: a verificação de autenticidade é feita pelo provider ativo
 // (mock: x-webhook-secret; mercadopago: assinatura x-signature).
 invoiceRouter.post('/webhook', invoiceController.handleWebhook);
+
+// Consultas (JWT). ATENÇÃO à ordem: rotas literais ('/overdue') ANTES da
+// paramétrica ('/:id'), senão '/overdue' cairia no handler de ':id'.
+invoiceRouter.get('/', jwtAuth, invoiceController.findAll);
 invoiceRouter.get('/overdue', jwtAuth, invoiceController.findPendingInvoices);
+invoiceRouter.get('/:id', jwtAuth, invoiceController.findById);
 
 
 

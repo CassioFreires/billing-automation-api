@@ -168,7 +168,21 @@ curl -X POST http://localhost:3000/api/invoices \
 ```
 > Guarde o `gatewayId` — é ele que o webhook usa. `400` em validação (value ≤ 0, dueDate inválida, clientId não-UUID).
 
-### GET `/api/invoices/overdue?page=1&limit=10` — lista pendentes (exige JWT)
+### GET `/api/invoices?page=1&limit=10` — lista TODAS as faturas do tenant (exige JWT)
+Filtro opcional por status: `?status=PAID` (valores: `PENDING`, `PAID`, `OVERDUE`, `FAILED`).
+```bash
+curl "http://localhost:3000/api/invoices?page=1&limit=10&status=PAID" -H "Authorization: Bearer $TOKEN"
+```
+**Respostas:** `200` `{ message, result: { invoices, meta } }` · `400` se `status` inválido.
+
+### GET `/api/invoices/:id` — busca UMA fatura (exige JWT)
+Útil para ver a fatura que você pagou, já como `PAID`.
+```bash
+curl http://localhost:3000/api/invoices/INVOICE_ID -H "Authorization: Bearer $TOKEN"
+```
+**Respostas:** `200` com a fatura (+ dados do cliente) · `404` se não existir (ou for de outro tenant).
+
+### GET `/api/invoices/overdue?page=1&limit=10` — lista pendentes de clientes EM_ATRASO (exige JWT)
 ```bash
 curl "http://localhost:3000/api/invoices/overdue?page=1&limit=10" -H "Authorization: Bearer $TOKEN"
 ```
@@ -251,6 +265,9 @@ curl -X POST http://localhost:3000/api/lgpd/clients/CLIENT_ID/anonymize \
 - [ ] `GET/PUT/DELETE /api/clients/:id` → OK
 - [ ] `POST /api/invoices` → 201 + `gatewayId`
 - [ ] `POST /api/invoices` com `value:0` → 400
+- [ ] `GET /api/invoices` → 200 lista as faturas do tenant
+- [ ] `GET /api/invoices?status=PAID` → só as pagas · `?status=XPTO` → 400
+- [ ] `GET /api/invoices/:id` existente → 200 · inexistente → 404
 - [ ] `GET /api/invoices/overdue` → 200 ou 404
 - [ ] `POST /api/invoices/webhook` (PAID) → `duplicate:false`
 - [ ] Webhook com **mesmo eventId** → `duplicate:true`
@@ -274,6 +291,8 @@ curl -X POST http://localhost:3000/api/lgpd/clients/CLIENT_ID/anonymize \
 | PUT | `/api/clients/:id` | JWT | `name?, phone?, document?` |
 | DELETE | `/api/clients/:id` | JWT | path `id` |
 | POST | `/api/invoices` | JWT | `clientId, value, dueDate` |
+| GET | `/api/invoices` | JWT | query `page, limit, status?` |
+| GET | `/api/invoices/:id` | JWT | path `id` |
 | GET | `/api/invoices/overdue` | JWT | query `page, limit` |
 | POST | `/api/invoices/webhook` | header `x-webhook-secret` | `gatewayId, status, paidAt?, eventId?` |
 | POST | `/api/notifications/trigger-overdue` | JWT | — |

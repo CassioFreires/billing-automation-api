@@ -236,6 +236,37 @@
           }
         },
         {
+          "name": "List All Invoices (paginado, filtro por status)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/invoices?page=1&limit=10&status=PAID",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "invoices"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "status", "value": "PAID", "description": "opcional: PENDING|PAID|OVERDUE|FAILED" }
+              ]
+            },
+            "description": "JWT. Lista todas as faturas do tenant, paginado. Filtro opcional ?status=. Status inválido → 400."
+          }
+        },
+        {
+          "name": "Get Invoice by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/invoices/{{invoiceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "invoices", "{{invoiceId}}"]
+            },
+            "description": "JWT. Busca uma fatura pelo id (útil para ver a que foi paga, já como PAID). 404 se não existir/for de outro tenant."
+          }
+        },
+        {
           "name": "List Overdue/Pending (paginado)",
           "request": {
             "method": "GET",
