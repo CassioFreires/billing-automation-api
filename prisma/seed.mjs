@@ -1,37 +1,38 @@
 /**
  * Seed de DESENVOLVIMENTO — popula um tenant demo completo para testes.
  *
- * Rodar:  npm run db:seed   (ou: npx prisma db seed)
+ * JS puro (ESM) de propósito: roda com o `node` da imagem de produção, sem
+ * precisar do tsx. Assim dá para semear direto no container:
  *
- * Idempotente: recria os dados do tenant demo a cada execução (upsert do
- * Account/User; recria Clients/Invoices do tenant demo). NÃO toca em outros
- * tenants. Nunca rode em produção com dados reais.
+ *   docker compose -f docker-compose.free.yml exec api node prisma/seed.mjs
  *
- * Login demo:  usuário (e-mail) demo@autocore.app  ·  senha demo12345
+ * Ou local:  npm run db:seed   (usa DATABASE_URL do ambiente/.env)
+ *
+ * Idempotente: recria os dados do tenant demo a cada execução; NÃO toca em
+ * outros tenants. Nunca rode em produção com dados reais.
+ *
+ * Login demo:  demo@autocore.app  ·  senha demo12345
  */
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
-// Tenant demo com id fixo (sufixo "de" de demo) — isola dos tenants reais.
 const DEMO_TENANT_ID = "00000000-0000-0000-0000-0000000000de";
 const DEMO_EMAIL = "demo@autocore.app";
 const DEMO_PASSWORD = "demo12345";
 
-const daysFromNow = (n: number) => new Date(Date.now() + n * 24 * 60 * 60 * 1000);
+const daysFromNow = (n) => new Date(Date.now() + n * 24 * 60 * 60 * 1000);
 
 async function main() {
   console.log("🌱 Seed: iniciando…");
 
-  // 1) Conta (tenant) demo
   const account = await prisma.account.upsert({
     where: { id: DEMO_TENANT_ID },
     update: { name: "Clínica OdontoFit (Demo)", status: "ACTIVE" },
     create: { id: DEMO_TENANT_ID, name: "Clínica OdontoFit (Demo)", status: "ACTIVE" },
   });
 
-  // 2) Usuário dono
   const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
   await prisma.user.upsert({
     where: { email: DEMO_EMAIL },
@@ -45,11 +46,10 @@ async function main() {
     },
   });
 
-  // 3) Limpa clientes/faturas do tenant demo (idempotência) — só do demo!
+  // Idempotência: limpa apenas os dados do tenant demo
   await prisma.invoice.deleteMany({ where: { tenantId: account.id } });
   await prisma.client.deleteMany({ where: { tenantId: account.id } });
 
-  // 4) Clientes + faturas variadas (estados que exercitam a UI e as regras)
   const clients = [
     {
       name: "Rodrigo Silva",
@@ -57,9 +57,7 @@ async function main() {
       document: "11122233344",
       status: "EM_ATRASO",
       debtValue: 320.5,
-      invoices: [
-        { value: 320.5, dueDate: daysFromNow(-8), status: "OVERDUE", notificationSent: true },
-      ],
+      invoices: [{ value: 320.5, dueDate: daysFromNow(-8), status: "OVERDUE", notificationSent: true }],
     },
     {
       name: "Mariana Costa",
@@ -67,9 +65,7 @@ async function main() {
       document: "22233344455",
       status: "EM_ATRASO",
       debtValue: 150.0,
-      invoices: [
-        { value: 150.0, dueDate: daysFromNow(-3), status: "PENDING", notificationSent: false },
-      ],
+      invoices: [{ value: 150.0, dueDate: daysFromNow(-3), status: "PENDING", notificationSent: false }],
     },
     {
       name: "João Pereira",
