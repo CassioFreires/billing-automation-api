@@ -1,0 +1,365 @@
+{
+  "info": {
+    "name": "Billing Automation API",
+    "_postman_id": "b1a11111-0000-4000-8000-000000000001",
+    "description": "Coleção de testes da Billing Automation API.\n\nFluxo sugerido (roda de cima pra baixo):\n1. Auth > Register (opcional) ou Login  -> salva {{token}} automaticamente\n2. Clients > Create Client               -> salva {{clientId}}\n3. Invoices > Create Invoice             -> salva {{invoiceId}} e {{gatewayId}}\n4. Invoices > Webhook (PAID)             -> confirma pagamento (usa {{webhookSecret}})\n5. Notifications / LGPD\n\nVariáveis a preencher em Variables (ou num Environment):\n- baseUrl        (default http://localhost:3000 — troque pelo IP da EC2)\n- username/password (login; default admin — casa com AUTH_USERNAME/PASSWORD do .env)\n- webhookSecret  (= WEBHOOK_SECRET do .env, só para o webhook do provider mock)\n\ntoken/clientId/invoiceId/gatewayId são preenchidos automaticamente pelos testes.\n\nDocumentação completa das rotas: postman/GUIA-DE-TESTES.md",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000", "type": "string" },
+    { "key": "username", "value": "admin", "type": "string" },
+    { "key": "password", "value": "troque-pela-senha-do-.env", "type": "string" },
+    { "key": "webhookSecret", "value": "cole-o-WEBHOOK_SECRET-do-.env", "type": "string" },
+    { "key": "token", "value": "", "type": "string" },
+    { "key": "clientId", "value": "", "type": "string" },
+    { "key": "invoiceId", "value": "", "type": "string" },
+    { "key": "gatewayId", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register (cria conta + usuário dono)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201 ou 409', () => pm.response.code === 201 || pm.response.code === 409);",
+                  "if (pm.response.code === 201) {",
+                  "  const b = pm.response.json();",
+                  "  if (b.token) { pm.collectionVariables.set('token', b.token); console.log('token salvo (register)'); }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accountName\": \"Minha Empresa\",\n  \"name\": \"Cassio\",\n  \"email\": \"cassio@exemplo.com\",\n  \"password\": \"senha-forte-123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            },
+            "description": "Público. Cria um Account (tenant) + User dono e retorna { token, expiresIn }. Retorna 409 se o e-mail já existe."
+          }
+        },
+        {
+          "name": "Login (emite JWT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.code === 200);",
+                  "const b = pm.response.json();",
+                  "pm.test('tem token', () => !!b.token);",
+                  "if (b.token) { pm.collectionVariables.set('token', b.token); console.log('token salvo (login)'); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Público. username = e-mail de um User real OU o AUTH_USERNAME (conta de serviço do .env). Retorna { token, expiresIn }. O token é salvo em {{token}} e usado nas demais rotas (Bearer)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health check",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health"]
+            },
+            "description": "Público. Usado pelo HEALTHCHECK do container e pelo deploy.sh."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Clients",
+      "item": [
+        {
+          "name": "Create Client",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.code === 201);",
+                  "const b = pm.response.json();",
+                  "const id = b.id || (b.client && b.client.id) || (b.data && b.data.id);",
+                  "if (id) { pm.collectionVariables.set('clientId', id); console.log('clientId salvo:', id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Cliente Teste\",\n  \"phone\": \"11999998888\",\n  \"document\": \"12345678901\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/clients",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "clients"]
+            },
+            "description": "JWT. Cria um cliente no tenant do token. name>=3, phone>=10, document>=11."
+          }
+        },
+        {
+          "name": "List Clients",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/clients",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "clients"]
+            },
+            "description": "JWT. Lista os clientes do tenant."
+          }
+        },
+        {
+          "name": "Get Client by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/clients/{{clientId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "clients", "{{clientId}}"]
+            },
+            "description": "JWT."
+          }
+        },
+        {
+          "name": "Update Client",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Cliente Teste (editado)\",\n  \"phone\": \"11988887777\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/clients/{{clientId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "clients", "{{clientId}}"]
+            },
+            "description": "JWT. Campos opcionais: name, phone, document."
+          }
+        },
+        {
+          "name": "Delete Client",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/clients/{{clientId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "clients", "{{clientId}}"]
+            },
+            "description": "JWT."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Invoices",
+      "item": [
+        {
+          "name": "Create Invoice (gera cobrança)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.code === 201);",
+                  "const b = pm.response.json();",
+                  "if (b.id) { pm.collectionVariables.set('invoiceId', b.id); console.log('invoiceId salvo:', b.id); }",
+                  "if (b.gatewayId) { pm.collectionVariables.set('gatewayId', b.gatewayId); console.log('gatewayId salvo:', b.gatewayId); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": \"{{clientId}}\",\n  \"value\": 150.90,\n  \"dueDate\": \"2026-08-01\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/invoices",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "invoices"]
+            },
+            "description": "JWT. Cria a fatura e gera a cobrança no gateway ativo (mock por padrão). Salva invoiceId e gatewayId. value > 0; dueDate em ISO (YYYY-MM-DD)."
+          }
+        },
+        {
+          "name": "List Overdue/Pending (paginado)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/invoices/overdue?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "invoices", "overdue"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            },
+            "description": "JWT. Lista faturas pendentes do tenant. 404 quando não há nenhuma."
+          }
+        },
+        {
+          "name": "Webhook: pagamento PAID (mock)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-webhook-secret", "value": "{{webhookSecret}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"gatewayId\": \"{{gatewayId}}\",\n  \"status\": \"PAID\",\n  \"paidAt\": \"2026-07-15T12:00:00.000Z\",\n  \"eventId\": \"evt-teste-001\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/invoices/webhook",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "invoices", "webhook"]
+            },
+            "description": "Provider mock: autentica por header x-webhook-secret (= WEBHOOK_SECRET do .env). Corpo: { gatewayId, status, paidAt?, eventId? }. eventId dá idempotência (repetir = duplicate:true). status válidos: PENDING, PAID, OVERDUE, FAILED."
+          }
+        },
+        {
+          "name": "Webhook: idempotência (repetir PAID)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-webhook-secret", "value": "{{webhookSecret}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"gatewayId\": \"{{gatewayId}}\",\n  \"status\": \"PAID\",\n  \"paidAt\": \"2026-07-15T12:00:00.000Z\",\n  \"eventId\": \"evt-teste-001\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/invoices/webhook",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "invoices", "webhook"]
+            },
+            "description": "Mesma requisição com o mesmo eventId. Deve responder { success:true, duplicate:true } sem reprocessar (RN-P3)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "Trigger overdue (todas)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications/trigger-overdue",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "notifications", "trigger-overdue"]
+            },
+            "description": "JWT. Enfileira cobranças das faturas vencidas do tenant na fila do RabbitMQ. O worker consome e (com WHATSAPP_PROVIDER=log) apenas loga."
+          }
+        },
+        {
+          "name": "Trigger overdue por invoice",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications/trigger-overdue/{{invoiceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "notifications", "trigger-overdue", "{{invoiceId}}"]
+            },
+            "description": "JWT. Enfileira a cobrança de uma fatura específica."
+          }
+        }
+      ]
+    },
+    {
+      "name": "LGPD",
+      "item": [
+        {
+          "name": "Export client data (portabilidade)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/lgpd/clients/{{clientId}}/export",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "lgpd", "clients", "{{clientId}}", "export"]
+            },
+            "description": "JWT. Exporta os dados do titular (cliente + faturas) para portabilidade (spec 0004)."
+          }
+        },
+        {
+          "name": "Anonymize client (direito ao esquecimento)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": {
+              "raw": "{{baseUrl}}/api/lgpd/clients/{{clientId}}/anonymize",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "lgpd", "clients", "{{clientId}}", "anonymize"]
+            },
+            "description": "JWT. Anonimiza o titular preservando os registros financeiros (retenção legal). Idempotente."
+          }
+        }
+      ]
+    }
+  ]
+}
