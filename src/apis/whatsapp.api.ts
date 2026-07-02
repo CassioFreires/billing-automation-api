@@ -54,47 +54,105 @@ export class LogOnlyWhatsappProvider implements WhatsappProvider {
   }
 }
 
-/*
- * ─────────────────────────────────────────────────────────────────────────
- * COMO PLUGAR UM PROVEDOR REAL (dívida D-02)
- * ─────────────────────────────────────────────────────────────────────────
- * 1. Crie uma classe que implemente `WhatsappProvider`, ex.:
+/** Remove tudo que não é dígito. A Cloud API espera o número só com dígitos
+ *  no padrão internacional (ex.: 5511999998888), sem '+', espaços ou traços. */
+export function normalizePhoneDigits(phone: string): string {
+  return phone.replace(/\D/g, '');
+}
+
+export interface CloudWhatsappConfig {
+  token: string;
+  phoneNumberId: string;
+  apiVersion: string;
+  baseUrl: string;
+}
+
+/** Lê e valida as credenciais da Cloud API. Falha alto se faltar algo — melhor
+ *  quebrar no boot com mensagem clara do que enviar silenciosamente errado. */
+export function requireCloudWhatsappConfig(): CloudWhatsappConfig {
+  const token = process.env.WHATSAPP_TOKEN;
+  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+
+  if (!token || !phoneNumberId) {
+    throw new Error(
+      "WHATSAPP_PROVIDER=cloud requer WHATSAPP_TOKEN e WHATSAPP_PHONE_NUMBER_ID no .env"
+    );
+  }
+
+  return {
+    token,
+    phoneNumberId,
+    apiVersion: process.env.WHATSAPP_API_VERSION ?? 'v20.0',
+    baseUrl: process.env.WHATSAPP_BASE_URL ?? 'https://graph.facebook.com',
+  };
+}
+
+/**
+ * Provider real: WhatsApp Cloud API (Meta). Envia mensagem de TEXTO.
  *
- *      export class CloudApiWhatsappProvider implements WhatsappProvider {
- *        readonly name = 'cloud';
- *        async send(message: WhatsappMessage): Promise<WhatsappSendResult> {
- *          const res = await fetch(
- *            `https://graph.facebook.com/v20.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`,
- *            {
- *              method: 'POST',
- *              headers: {
- *                Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
- *                'Content-Type': 'application/json',
- *              },
- *              body: JSON.stringify({
- *                messaging_product: 'whatsapp',
- *                to: message.targetPhone,
- *                type: 'text',
- *                text: { body: message.messagePayload },
- *              }),
- *            }
- *          );
- *          if (!res.ok) {
- *            return { success: false, provider: this.name,
- *                     targetPhone: message.targetPhone, error: await res.text() };
- *          }
- *          const body = await res.json();
- *          return { success: true, provider: this.name,
- *                   targetPhone: message.targetPhone,
- *                   providerMessageId: body.messages?.[0]?.id };
- *        }
- *      }
- *
- * 2. Registre-a no `resolveProviderFromEnv()` abaixo (case 'cloud').
- * 3. Defina `WHATSAPP_PROVIDER=cloud` e as credenciais no `.env`.
- * 4. Atualize SDD/context/tech-stack.md e mova D-02 para "Resolvidos".
- * ─────────────────────────────────────────────────────────────────────────
+ * ⚠️ LIMITE IMPORTANTE (regra da Meta): mensagem de texto livre só é entregue
+ * a) para o número de TESTE da Meta (grátis, até 5 destinos), ou
+ * b) dentro da janela de atendimento de 24h (o cliente te mandou msg antes).
+ * Para cobrança iniciada por você fora dessa janela, a Meta EXIGE um
+ * *template* aprovado (type: 'template'). Ver SDD/context/whatsapp-integration.md.
+ * Suporte a template fica como próximo passo — este provider cobre teste/demo
+ * e a janela de 24h.
  */
+export class CloudApiWhatsappProvider implements WhatsappProvider {
+  readonly name = 'cloud';
+  private readonly config: CloudWhatsappConfig;
+
+  constructor(config?: CloudWhatsappConfig) {
+    this.config = config ?? requireCloudWhatsappConfig();
+  }
+
+  async send(message: WhatsappMessage): Promise<WhatsappSendResult> {
+    const to = normalizePhoneDigits(message.targetPhone);
+    const url = `${this.config.baseUrl}/${this.config.apiVersion}/${this.config.phoneNumberId}/messages`;
+
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${this.config.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to,
+          type: 'text',
+          text: { preview_url: false, body: message.messagePayload },
+        }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        return {
+          success: false,
+          provider: this.name,
+          targetPhone: to,
+          error: `HTTP ${res.status}: ${errText}`,
+        };
+      }
+
+      const body: any = await res.json().catch(() => ({}));
+      return {
+        success: true,
+        provider: this.name,
+        targetPhone: to,
+        providerMessageId: body?.messages?.[0]?.id,
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        provider: this.name,
+        targetPhone: to,
+        error: err?.message ?? 'erro de rede ao chamar a Cloud API',
+      };
+    }
+  }
+}
 
 /**
  * Resolve o provider a partir da env `WHATSAPP_PROVIDER`.
@@ -107,8 +165,9 @@ export function resolveProviderFromEnv(): WhatsappProvider {
     case 'log':
       return new LogOnlyWhatsappProvider();
 
-    // case 'cloud':
-    //   return new CloudApiWhatsappProvider();
+    case 'cloud':
+      return new CloudApiWhatsappProvider();
+
     // case 'twilio':
     //   return new TwilioWhatsappProvider();
 

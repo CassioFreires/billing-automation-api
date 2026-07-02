@@ -10,16 +10,16 @@ Severidade: 🔴 Crítico · 🟠 Alto · 🟡 Médio · 🔵 Baixo/Cosmético
 
 ## 🔴 Críticos
 
-### D-02 · Integração WhatsApp não envia de verdade (seam pronto, provedor pendente)
-- **O quê**: `src/apis/whatsapp.api.ts` foi refatorado (2026-07-01) de stub cru para um **seam** com contrato `WhatsappProvider` e provider padrão `LogOnlyWhatsappProvider` (só loga). Seleção por env `WHATSAPP_PROVIDER` (default `log`).
-- **O que falta**: implementar um provider real (ex.: Meta Cloud API — há esqueleto comentado no arquivo — ou Twilio), registrar no `resolveProviderFromEnv()`, configurar credenciais e adicionar retry/tratamento de falha. Ver `skills/add-worker-consumer.md` para o padrão de retry.
-- **Impacto atual**: cobranças ainda **não são entregues** — apenas logadas. Mas o hardcode saiu e plugar o provedor é isolado.
+_(nenhum item aberto no momento)_
 
 ---
 
 ## 🟠 Altos
 
-_(nenhum item aberto no momento)_
+### D-02 · WhatsApp: falta suporte a *template* (texto/teste/janela 24h já enviam)
+- **O quê**: `src/apis/whatsapp.api.ts` tem o **seam** (`WhatsappProvider`) e agora um provider real `CloudApiWhatsappProvider` (Meta Cloud API), selecionado por `WHATSAPP_PROVIDER=cloud`. Envia mensagem de **texto** e o worker re-tenta em falha (nack→DLQ). Testado (unit). Ver `whatsapp-integration.md`.
+- **O que falta**: **mensagem de template** (`type: 'template'`), obrigatória pela Meta para cobrança iniciada por você **fora da janela de 24h**. Hoje o texto livre só entrega ao número de teste ou dentro da janela. Falta também consumir o webhook de status de entrega (sent/delivered/failed).
+- **Impacto atual**: já dá para testar/demonstrar de graça (número de teste) e enviar na janela de 24h; disparo em massa business-initiated depende do template.
 
 ---
 

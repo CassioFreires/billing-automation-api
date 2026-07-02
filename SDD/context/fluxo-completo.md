@@ -13,7 +13,7 @@ Uma empresa (tenant) cadastra clientes devedores e gera cobranças. Um **agendad
 **Os 3 atores externos:**
 - **n8n** — o "relógio" que dispara o ciclo (agendador/orquestrador).
 - **Gateway de pagamento** (mock hoje; Mercado Pago no futuro) — gera a cobrança e avisa quando foi paga.
-- **WhatsApp** — canal de entrega da mensagem (⚠️ hoje em modo `log`, não envia de verdade — dívida D-02).
+- **WhatsApp** — canal de entrega. Default `log` (não envia); com `WHATSAPP_PROVIDER=cloud` envia de verdade via Meta Cloud API. Regra texto×template e custo em `whatsapp-integration.md`.
 
 ---
 
@@ -96,7 +96,7 @@ O **worker** (`src/worker.ts`, um processo/container separado da API) fica escut
 - Busca os **dados reais e atuais** da fatura no banco (`findNotificationDataById`) — inclusive o `pixCopyPaste`/`checkoutUrl` que vieram do gateway. Ele **não fabrica** a mensagem com dados do payload; relê do banco para garantir que está atualizado (dívida D-15 resolvida).
 - Marca `notificationSent = true`.
 - Monta a mensagem (`buildChargeMessage`) e chama `WhatsappAPI.sendMessage`.
-  - ⚠️ **Hoje o provider de WhatsApp é `log`**: ele apenas escreve a mensagem no log, **não envia de verdade** (evita custo em testes — dívida **D-02**). Trocar para envio real é plugar um provider (Meta/Twilio) via `WHATSAPP_PROVIDER`.
+  - Com `WHATSAPP_PROVIDER=log` (default) só loga; com `=cloud` envia via Meta Cloud API. **Só marca `notificationSent` se o envio deu certo**; se falhar, lança para re-tentar (nack→DLQ). Regra texto×template em `whatsapp-integration.md`.
 - Confirma o processamento (`ack`).
 
 **Se der erro:** o worker faz `nack` e a mensagem volta para a fila. As *quorum queues* contam as reentregas (`x-delivery-count`); ao passar de `INVOICE_DELIVERY_LIMIT`, a mensagem vai automaticamente para a **DLQ** (dead-letter queue) — sem loop infinito (dívida D-04 resolvida).

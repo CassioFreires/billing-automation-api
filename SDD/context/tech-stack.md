@@ -62,7 +62,11 @@ Carregadas via `dotenv` — `src/server.ts` e `src/worker.ts` fazem `import 'dot
 | `RUN_WORKER_INLINE` | ➖ | `server.ts` | `"false"` faz a API **não** consumir a fila (use com worker isolado). Default: consome inline |
 | `REDIS_ENABLED` | ➖ | `redis.config.ts` | `"true"` habilita o cache Redis |
 | `REDIS_URL` | condicional | `redis.config.ts` | Necessária se `REDIS_ENABLED=true` |
-| `WHATSAPP_PROVIDER` | ➖ | `whatsapp.api.ts` | Provider de envio. Default `log` (só loga, não envia). Futuros: `cloud`, `twilio` |
+| `WHATSAPP_PROVIDER` | ➖ | `whatsapp.api.ts` | Provider de envio. `log` (default, só loga) ou `cloud` (Meta Cloud API). Ver `whatsapp-integration.md` |
+| `WHATSAPP_TOKEN` | condicional | `whatsapp.api.ts` | Token da Meta Cloud API — obrigatório se `WHATSAPP_PROVIDER=cloud` |
+| `WHATSAPP_PHONE_NUMBER_ID` | condicional | `whatsapp.api.ts` | Phone number ID da Meta — obrigatório se `WHATSAPP_PROVIDER=cloud` |
+| `WHATSAPP_API_VERSION` | ➖ | `whatsapp.api.ts` | Versão da Graph API (default `v20.0`) |
+| `WHATSAPP_BASE_URL` | ➖ | `whatsapp.api.ts` | Base da Graph API (default `https://graph.facebook.com`) |
 | `JWT_SECRET` | ✅ | `auth.config.ts` | Segredo para assinar/verificar o JWT. Sem ele, rotas internas retornam 500 |
 | `JWT_EXPIRES_IN` | ➖ | `auth.config.ts` | Validade do token (default `1h`) |
 | `AUTH_USERNAME` / `AUTH_PASSWORD` | ✅ | `auth.service.ts` | Credenciais da conta de serviço para o login |
