@@ -12,7 +12,11 @@
     "worker:dev": "concurrently \"npm run watch\" \"nodemon dist/worker.js\"",
     "start": "node dist/server.js",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "db:seed": "prisma db seed"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   },
   "keywords": [],
   "author": "",

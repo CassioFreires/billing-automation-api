@@ -34,6 +34,18 @@ npx prisma migrate deploy   # aplica migrations existentes
 npx prisma generate         # garante o client
 ```
 
+### Seeds de desenvolvimento
+
+Popula um **tenant demo** completo (conta + usuário + clientes + faturas em vários estados) para testar a API/painel sem cadastrar tudo na mão. Idempotente (recria só os dados do tenant demo).
+
+```bash
+npm run db:seed
+# Login demo criado: demo@autocore.app / demo12345
+```
+
+- Precisa do `DATABASE_URL` acessível (banco local, ou o da EC2 via **túnel SSH** — o mesmo do DBeaver).
+- Roda via `tsx prisma/seed.ts` (config em `package.json > prisma.seed`). **Nunca** rode em produção com dados reais — ele apaga e recria os dados do tenant demo.
+
 ## Rodar a aplicação
 
 ```bash
