@@ -143,14 +143,20 @@ Cria a fatura e gera a cobrança no gateway ativo (mock por padrão).
 | Campo | Tipo | Regra |
 |---|---|---|
 | `clientId` | string | UUID de um cliente existente |
-| `value` | number | > 0 |
+| `value` | number | > 0 — **opcional se enviar `items`** |
 | `dueDate` | string | data ISO (`YYYY-MM-DD` ou ISO completo) |
+| `items` | array? | itens `{ description, quantity?, unitPrice }`; total = soma (spec 0007) |
 
 ```bash
+# Simples (só valor):
 curl -X POST http://localhost:3000/api/invoices \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" \
   -d '{"clientId":"CLIENT_ID","value":150.90,"dueDate":"2026-08-01"}'
+
+# Com itens (total calculado = 2*50 + 1*90.90 = 190.90):
+curl -X POST http://localhost:3000/api/invoices \
+  -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" \
+  -d '{"clientId":"CLIENT_ID","dueDate":"2026-08-01","items":[{"description":"Aula avulsa","quantity":2,"unitPrice":50},{"description":"Taxa","quantity":1,"unitPrice":90.90}]}'
 ```
 **Resposta `201`** (campos principais):
 ```json

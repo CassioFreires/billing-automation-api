@@ -124,6 +124,11 @@ async function main() {
           clientId: client.id,
           gatewayId: `seed_${seq}_${client.id.slice(0, 8)}`,
           pixCopyPaste: `00020101021226880014br.gov.bcb.pix_SEED_${seq}`,
+          items: {
+            create: [
+              { description: "Mensalidade", quantity: 1, unitPrice: inv.value },
+            ],
+          },
         },
       });
       invoiceCount += 1;
