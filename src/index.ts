@@ -3,6 +3,7 @@ import { authRouter } from './routers/auth.router.js';
 import { notificationRouter } from './routers/notification.router.js';
 import { clientRouter } from './routers/clients.router.js';
 import { invoiceRouter } from './routers/invoice.router.js';
+import { subscriptionRouter } from './routers/subscription.router.js';
 import { healthRouter } from './routers/health.router.js';
 import { lgpdRouter } from './routers/lgpd.router.js';
 
@@ -22,6 +23,7 @@ appRouter.use('/auth', authRouter);
 appRouter.use('/notifications', notificationRouter);
 appRouter.use('/clients', clientRouter);
 appRouter.use('/invoices', invoiceRouter);
+appRouter.use('/subscriptions', subscriptionRouter);
 appRouter.use('/lgpd', lgpdRouter);
 appRouter.use('/health', healthRouter);
 

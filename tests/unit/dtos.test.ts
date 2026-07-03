@@ -7,6 +7,10 @@ import {
 import { loginSchema } from '../../src/dtos/login.dto.js';
 import { registerSchema } from '../../src/dtos/register.dto.js';
 import { importClientsSchema } from '../../src/dtos/importClients.dto.js';
+import {
+  createSubscriptionSchema,
+  updateSubscriptionSchema,
+} from '../../src/dtos/subscription.dto.js';
 
 describe('createClientSchema', () => {
   it('aceita cliente válido', () => {
@@ -92,6 +96,47 @@ describe('importClientsSchema', () => {
       clients: [{ name: 'Ana', phone: '11999999999', document: '12345678901', status: 'PENDENTE' }],
     });
     expect(r.success).toBe(false);
+  });
+});
+
+describe('createSubscriptionSchema', () => {
+  it('aceita assinatura válida e aplica default dayOfMonth=10', () => {
+    const r = createSubscriptionSchema.safeParse({
+      clientId: '550e8400-e29b-41d4-a716-446655440000',
+      description: 'Plano Pro',
+      amount: 99.9,
+    });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.dayOfMonth).toBe(10);
+  });
+
+  it('rejeita dayOfMonth fora de 1..28', () => {
+    const r = createSubscriptionSchema.safeParse({
+      clientId: '550e8400-e29b-41d4-a716-446655440000',
+      description: 'Plano Pro',
+      amount: 99.9,
+      dayOfMonth: 31,
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it('rejeita amount não-positivo', () => {
+    const r = createSubscriptionSchema.safeParse({
+      clientId: '550e8400-e29b-41d4-a716-446655440000',
+      description: 'Plano Pro',
+      amount: 0,
+    });
+    expect(r.success).toBe(false);
+  });
+});
+
+describe('updateSubscriptionSchema', () => {
+  it('aceita transição de status do enum', () => {
+    expect(updateSubscriptionSchema.safeParse({ status: 'PAUSED' }).success).toBe(true);
+  });
+
+  it('rejeita status fora do enum', () => {
+    expect(updateSubscriptionSchema.safeParse({ status: 'ARQUIVADA' }).success).toBe(false);
   });
 });
 

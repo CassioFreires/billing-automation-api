@@ -244,6 +244,56 @@ curl -X POST http://localhost:3000/api/invoices/webhook \
 
 ---
 
+## 4.1) Subscriptions — cobrança recorrente (exige JWT) · spec 0009
+
+Um "molde" de mensalidade por cliente. O agendador (n8n) chama `POST /run` diariamente e gera as faturas das assinaturas vencidas, **sem duplicar por competência**.
+
+### POST `/api/subscriptions` — cria assinatura
+**Body**
+| Campo | Tipo | Regra |
+|---|---|---|
+| `clientId` | string | UUID de cliente existente |
+| `description` | string | vira o item da fatura gerada |
+| `amount` | number | > 0 (valor mensal) |
+| `dayOfMonth` | number? | 1..28 (default 10) |
+| `startDate` | string? | ISO; default agora |
+
+```bash
+curl -X POST http://localhost:3000/api/subscriptions \
+  -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" \
+  -d '{"clientId":"CLIENT_ID","description":"Plano Pro","amount":99.90,"dayOfMonth":10}'
+```
+**Resposta `201`** com a assinatura (guarde o `id`). O `nextRunDate` é o dia `dayOfMonth` do mês corrente (se ainda não passou) ou do mês seguinte.
+
+### GET `/api/subscriptions` · GET `/api/subscriptions/:id`
+```bash
+curl http://localhost:3000/api/subscriptions -H "Authorization: Bearer $TOKEN"
+curl http://localhost:3000/api/subscriptions/SUB_ID -H "Authorization: Bearer $TOKEN"
+```
+
+### PUT `/api/subscriptions/:id` — pausar / retomar / cancelar / editar
+Campos opcionais: `description`, `amount`, `dayOfMonth`, `status` (`ACTIVE` | `PAUSED` | `CANCELED`).
+```bash
+curl -X PUT http://localhost:3000/api/subscriptions/SUB_ID \
+  -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" \
+  -d '{"status":"PAUSED"}'
+```
+
+### POST `/api/subscriptions/run` — geração recorrente (o que o n8n chama)
+```bash
+curl -X POST http://localhost:3000/api/subscriptions/run -H "Authorization: Bearer $TOKEN"
+```
+**Resposta `200`** `{ processadas, geradas, ignoradas }`.
+> **Teste de idempotência:** rode 2x seguidas. Na 1ª a competência vem em `geradas`; na 2ª, em `ignoradas` (não duplica). As faturas geradas aparecem em `GET /api/invoices`.
+
+### DELETE `/api/subscriptions/:id`
+```bash
+curl -X DELETE http://localhost:3000/api/subscriptions/SUB_ID -H "Authorization: Bearer $TOKEN"
+```
+> Remove só a assinatura; as faturas já geradas permanecem (histórico).
+
+---
+
 ## 5) Notifications (exige JWT)
 
 Enfileiram cobranças no RabbitMQ; o worker consome e (com `WHATSAPP_PROVIDER=log`) apenas **loga** — não envia de verdade.
@@ -297,6 +347,10 @@ curl -X POST http://localhost:3000/api/lgpd/clients/CLIENT_ID/anonymize \
 - [ ] `GET /api/invoices?status=PAID` → só as pagas · `?status=XPTO` → 400
 - [ ] `GET /api/invoices/:id` existente → 200 · inexistente → 404
 - [ ] `GET /api/invoices/overdue` → 200 ou 404
+- [ ] `POST /api/subscriptions` → 201 (guarda `id`, `nextRunDate` no dayOfMonth)
+- [ ] `POST /api/subscriptions/run` → 200; rodar 2× prova idempotência (geradas→ignoradas)
+- [ ] `PUT /api/subscriptions/:id {status:PAUSED}` → não gera no próximo `run`
+- [ ] `DELETE /api/subscriptions/:id` → 204; faturas geradas continuam em `GET /api/invoices`
 - [ ] `POST /api/invoices/webhook` (PAID) → `duplicate:false`
 - [ ] Webhook com **mesmo eventId** → `duplicate:true`
 - [ ] Webhook com segredo errado → 401
@@ -324,6 +378,12 @@ curl -X POST http://localhost:3000/api/lgpd/clients/CLIENT_ID/anonymize \
 | GET | `/api/invoices/:id` | JWT | path `id` |
 | GET | `/api/invoices/overdue` | JWT | query `page, limit` |
 | POST | `/api/invoices/webhook` | header `x-webhook-secret` | `gatewayId, status, paidAt?, eventId?` |
+| POST | `/api/subscriptions` | JWT | `clientId, description, amount, dayOfMonth?, startDate?` |
+| GET | `/api/subscriptions` | JWT | — |
+| GET | `/api/subscriptions/:id` | JWT | path `id` |
+| PUT | `/api/subscriptions/:id` | JWT | `description?, amount?, dayOfMonth?, status?` |
+| POST | `/api/subscriptions/run` | JWT | — (agendador n8n) |
+| DELETE | `/api/subscriptions/:id` | JWT | path `id` |
 | POST | `/api/notifications/trigger-overdue` | JWT | — |
 | POST | `/api/notifications/trigger-overdue/:invoiceId` | JWT | path `invoiceId` |
 | GET | `/api/lgpd/clients/:clientId/export` | JWT | path `clientId` |

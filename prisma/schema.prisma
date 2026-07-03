@@ -16,6 +16,7 @@ model Account {
   clients   Client[]
   invoices  Invoice[]
   users     User[]
+  subscriptions Subscription[]
 }
 
 // Idempotência de webhooks (spec 0003): guarda os ids de evento já processados.
@@ -51,6 +52,7 @@ model Client {
   lastUpdate    DateTime  @updatedAt
   createdAt DateTime @default(now())
   invoices  Invoice[]
+  subscriptions Subscription[]
 
   tenantId  String
   account   Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -81,11 +83,44 @@ model Invoice {
 
   items         InvoiceItem[] // detalhe do que está sendo cobrado (spec 0007)
 
+  // Origem recorrente (spec 0009): quando a fatura foi gerada por uma assinatura.
+  // period = "YYYY-MM" da competência; o par garante 1 fatura por assinatura/mês.
+  subscriptionId String?
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  period         String?       // competência YYYY-MM (apenas para faturas recorrentes)
+
+  @@unique([subscriptionId, period]) // idempotência da geração recorrente (RN-R3)
   @@index([clientId])
   @@index([status])
   @@index([status, clientId]) // Índice composto para otimizar o método findPendingInvoices
   @@index([tenantId, status])
   @@index([tenantId, clientId])
+}
+
+// Assinatura / mensalidade recorrente (spec 0009). Um "molde" de cobrança que,
+// a cada competência (mês), gera uma Invoice via POST /api/subscriptions/run.
+model Subscription {
+  id          String   @id @default(uuid())
+  description String   // o que é cobrado (vira o item da fatura gerada)
+  amount      Float    // valor mensal
+  dayOfMonth  Int      @default(10) // dia de vencimento (1..28, evita fim de mês)
+  status      String   @default("ACTIVE") // ACTIVE, PAUSED, CANCELED
+  startDate   DateTime @default(now())
+  nextRunDate DateTime // quando a próxima fatura deve ser gerada
+  createdAt   DateTime @default(now())
+  lastUpdate  DateTime @updatedAt
+
+  clientId    String
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  tenantId    String
+  account     Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  invoices    Invoice[]
+
+  @@index([clientId])
+  @@index([tenantId, status])
+  @@index([status, nextRunDate]) // varredura da geração: ACTIVE com nextRunDate vencido
 }
 
 // Item/linha de uma fatura: o QUE está sendo cobrado (produto/serviço).
