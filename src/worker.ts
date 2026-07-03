@@ -2,6 +2,7 @@
 import 'dotenv/config';
 import { rabbitMQ } from './config/rabbitmql.config.js';
 import { initInvoiceWorker } from './works/invoice.worker.js';
+import { initBillingWorker } from './works/billing.worker.js';
 import prisma from './database/prisma.js';
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
@@ -61,8 +62,9 @@ async function bootstrapWorker() {
   }
 
   await initInvoiceWorker();
+  await initBillingWorker();
 
-  console.log('👂 Worker rodando e consumindo fila');
+  console.log('👂 Worker rodando e consumindo filas');
 
   // mantém container vivo (Swarm-safe)
   setInterval(() => {

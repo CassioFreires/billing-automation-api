@@ -15,6 +15,9 @@ export const authConfig = {
   serviceUsername: process.env.AUTH_USERNAME,
   servicePassword: process.env.AUTH_PASSWORD,
   webhookSecret: process.env.WEBHOOK_SECRET,
+  // Segredo de operações de SISTEMA/cron (cross-tenant) — ex.: agendador de
+  // cobrança (spec 0010). Não é JWT de tenant.
+  cronSecret: process.env.CRON_SECRET,
   // Enquanto não há modelo de usuário, a conta de serviço opera sobre este tenant.
   defaultTenantId: process.env.DEFAULT_TENANT_ID ?? DEFAULT_TENANT_ID,
 };
@@ -33,4 +36,12 @@ export function requireWebhookSecret(): string {
     throw new Error('WEBHOOK_SECRET não configurado');
   }
   return authConfig.webhookSecret;
+}
+
+/** Garante que o segredo de sistema (cron) está presente; senão falha fechado. */
+export function requireCronSecret(): string {
+  if (!authConfig.cronSecret) {
+    throw new Error('CRON_SECRET não configurado');
+  }
+  return authConfig.cronSecret;
 }

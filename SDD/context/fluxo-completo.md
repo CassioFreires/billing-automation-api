@@ -116,6 +116,27 @@ Pronto — a fatura sai da lista de "a cobrar" e o ciclo se fecha.
 
 ---
 
+## O segundo ciclo: cobrança recorrente (specs 0009 + 0010)
+
+O fluxo acima é o de **cobrança avulsa** (fatura criada à mão → cobrada → paga). Existe um **segundo ciclo, automático**, que *gera* as faturas sozinho:
+
+```
+[cron/EventBridge — 1 disparo/dia]
+   │ POST /api/system/billing/run   (auth: x-cron-secret, NÃO JWT — é cross-tenant)
+   ▼
+[BillingScheduler] lista tenants ATIVOS → publica 1 job por tenant  ──► RabbitMQ (billing_scheduler_queue)
+   │ responde 202 na hora
+   ▼
+[Worker] consome 1 tenant/vez → runWithTenant → SubscriptionService.run()
+   → para cada assinatura ATIVA vencida, gera a Invoice da competência (idempotente por [subscriptionId, period])
+   ▼
+   a partir daí, a fatura entra no ciclo normal acima (overdue → notificação → webhook → PAID)
+```
+
+Ou seja: **Assinatura** (molde mensal, spec 0009) + **Agendador de sistema** (fan-out cross-tenant, spec 0010) alimentam o mesmo pipeline de cobrança. O `POST /api/subscriptions/run` (por tenant, JWT) é o disparo **manual**; o `POST /api/system/billing/run` (todos os tenants, segredo) é o **automático**. Ambos convergem no `SubscriptionService.run()`.
+
+---
+
 ## ⚠️ Divergência entre o README e o código (importante)
 
 O `README.md` descreve o envio assim: *"a API consome a fila e dispara um webhook para o **n8n**; o n8n aciona o WhatsApp"*. **No código atual não é assim.** O **worker chama o `WhatsappAPI` diretamente** (hoje em modo `log`). O n8n é o **agendador/orquestrador de entrada** (passos 1–3), não o destino final do worker.

@@ -14,10 +14,12 @@
     { "key": "username", "value": "admin", "type": "string" },
     { "key": "password", "value": "troque-pela-senha-do-.env", "type": "string" },
     { "key": "webhookSecret", "value": "cole-o-WEBHOOK_SECRET-do-.env", "type": "string" },
+    { "key": "cronSecret", "value": "cole-o-CRON_SECRET-do-.env", "type": "string" },
     { "key": "token", "value": "", "type": "string" },
     { "key": "clientId", "value": "", "type": "string" },
     { "key": "invoiceId", "value": "", "type": "string" },
-    { "key": "gatewayId", "value": "", "type": "string" }
+    { "key": "gatewayId", "value": "", "type": "string" },
+    { "key": "subscriptionId", "value": "", "type": "string" }
   ],
   "item": [
     {
@@ -445,6 +447,29 @@
               "path": ["api", "subscriptions", "{{subscriptionId}}"]
             },
             "description": "JWT. Remove a assinatura. As faturas já geradas permanecem (FK SET NULL)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "System (cron)",
+      "item": [
+        {
+          "name": "Run billing (todos os tenants)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-cron-secret", "value": "{{cronSecret}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": {
+              "raw": "{{baseUrl}}/api/system/billing/run",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "system", "billing", "run"]
+            },
+            "description": "Operação de SISTEMA (cross-tenant, spec 0010). NÃO usa JWT: autentica por header x-cron-secret (= CRON_SECRET do .env). Faz fan-out: enfileira a geração recorrente de TODOS os tenants ativos e responde 202 { enfileirados }. O worker gera as faturas em segundo plano, um tenant por vez. É o que o cron/EventBridge chama diariamente. 401 com segredo errado; 500 se CRON_SECRET não configurado."
           }
         }
       ]
