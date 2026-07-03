@@ -31,10 +31,16 @@ export class InvoiceService {
       ? items.reduce((sum, it) => sum + it.quantity * it.unitPrice, 0)
       : (data.value ?? 0);
 
+    // Descrição exibida no checkout do gateway (evita o genérico "Cobrança").
+    const description = items.length
+      ? items.map((it) => it.description).join(', ')
+      : 'Cobrança';
+
     const charge = await this.gateway.createCharge({
       reference,
       amount: total,
       dueDate: data.dueDate,
+      description,
     });
 
     const invoice = await this.invoiceRepository.create({
@@ -77,6 +83,7 @@ export class InvoiceService {
       reference,
       amount: input.amount,
       dueDate: input.dueDate,
+      description: input.description,
     });
 
     const invoice = await this.invoiceRepository.create({
