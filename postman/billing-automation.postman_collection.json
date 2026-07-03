@@ -144,6 +144,23 @@
           }
         },
         {
+          "name": "Import Clients (bulk upsert)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clients\": [\n    { \"name\": \"Ana Souza\", \"phone\": \"11999990001\", \"document\": \"12345678901\" },\n    { \"name\": \"Bia Lima\", \"phone\": \"11999990002\", \"document\": \"98765432100\", \"status\": \"EM_ATRASO\" }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/clients/import",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "clients", "import"]
+            },
+            "description": "JWT. Upsert idempotente por telefone (spec 0008). Reenviar o mesmo lote nao duplica. Retorna { criados, atualizados, ignorados }. Lote de 1 a 1000. status opcional (EM_DIA|EM_ATRASO)."
+          }
+        },
+        {
           "name": "List Clients",
           "request": {
             "method": "GET",

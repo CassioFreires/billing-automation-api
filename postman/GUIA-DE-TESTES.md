@@ -108,6 +108,27 @@ curl -X POST http://localhost:3000/api/clients \
 **Respostas:** `201` cliente criado · `400` validação · `401` sem token.
 > Telefone é único **por tenant** — repetir o mesmo telefone deve falhar.
 
+### POST `/api/clients/import` — importação em lote (upsert por telefone)
+Upsert **idempotente** por telefone (spec 0008). Reenviar o mesmo lote **não duplica**: telefone novo cria, existente atualiza (name/document/status).
+
+**Body**
+| Campo | Tipo | Regra |
+|---|---|---|
+| `clients` | array | 1 a 1000 linhas |
+| `clients[].name` | string | mín. 3 |
+| `clients[].phone` | string | mín. 10 (chave de idempotência) |
+| `clients[].document` | string | mín. 11 |
+| `clients[].status` | enum? | `EM_DIA` \| `EM_ATRASO` (opcional) |
+
+```bash
+curl -X POST http://localhost:3000/api/clients/import \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"clients":[{"name":"Ana Souza","phone":"11999990001","document":"12345678901"},{"name":"Bia Lima","phone":"11999990002","document":"98765432100","status":"EM_ATRASO"}]}'
+```
+**Respostas:** `200 { criados, atualizados, ignorados }` · `400` lote vazio/>1000 ou linha inválida.
+> Rode o mesmo comando duas vezes: na 1ª vêm em `criados`, na 2ª em `atualizados` (prova de idempotência). Telefone repetido no lote conta em `ignorados`.
+
 ### GET `/api/clients` — lista clientes do tenant
 ```bash
 curl http://localhost:3000/api/clients -H "Authorization: Bearer $TOKEN"
@@ -266,6 +287,7 @@ curl -X POST http://localhost:3000/api/lgpd/clients/CLIENT_ID/anonymize \
 - [ ] `POST /api/auth/login` → 200 + token
 - [ ] Rota protegida **sem** token → 401
 - [ ] `POST /api/clients` → 201
+- [ ] `POST /api/clients/import` → 200; rodar 2× prova idempotência (criados→atualizados)
 - [ ] Telefone duplicado no mesmo tenant → erro
 - [ ] `GET /api/clients` → lista contém o criado
 - [ ] `GET/PUT/DELETE /api/clients/:id` → OK
@@ -292,6 +314,7 @@ curl -X POST http://localhost:3000/api/lgpd/clients/CLIENT_ID/anonymize \
 | POST | `/api/auth/register` | — | `accountName, name, email, password` |
 | POST | `/api/auth/login` | — | `username, password` |
 | POST | `/api/clients` | JWT | `name, phone, document` |
+| POST | `/api/clients/import` | JWT | `clients[]` (upsert por telefone) |
 | GET | `/api/clients` | JWT | — |
 | GET | `/api/clients/:id` | JWT | path `id` |
 | PUT | `/api/clients/:id` | JWT | `name?, phone?, document?` |

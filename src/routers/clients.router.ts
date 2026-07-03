@@ -16,6 +16,12 @@ clientRouter.post(
   controller.create.bind(controller)
 );
 
+// Importação em lote (upsert idempotente por telefone) — literal antes de :id
+clientRouter.post(
+  '/import',
+  controller.import.bind(controller)
+);
+
 clientRouter.get(
   '/',
   controller.findAll.bind(controller)

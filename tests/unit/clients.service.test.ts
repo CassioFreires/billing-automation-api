@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   findById: vi.fn(),
   update: vi.fn(),
   del: vi.fn(),
+  importUpsert: vi.fn(),
 }));
 
 vi.mock('../../src/repositories/cliente.repositorie.js', () => ({
@@ -17,6 +18,7 @@ vi.mock('../../src/repositories/cliente.repositorie.js', () => ({
     findById = mocks.findById;
     update = mocks.update;
     delete = mocks.del;
+    importUpsert = mocks.importUpsert;
   },
 }));
 
@@ -73,5 +75,19 @@ describe('ClientService', () => {
     mocks.findById.mockResolvedValue(null);
     await expect(service.delete('x')).rejects.toThrow('Cliente não encontrado.');
     expect(mocks.del).not.toHaveBeenCalled();
+  });
+
+  it('import: delega o lote para o repositório (spec 0008)', async () => {
+    mocks.importUpsert.mockResolvedValue({ criados: 2, atualizados: 1, ignorados: 0 });
+
+    const clients = [
+      { name: 'Ana', phone: '11999999999', document: '12345678901' },
+      { name: 'Bia', phone: '11888888888', document: '98765432100' },
+    ];
+
+    const result = await service.import({ clients } as any);
+
+    expect(mocks.importUpsert).toHaveBeenCalledWith(clients);
+    expect(result).toEqual({ criados: 2, atualizados: 1, ignorados: 0 });
   });
 });

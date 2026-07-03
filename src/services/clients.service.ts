@@ -1,6 +1,7 @@
 import { ClientRepository } from '../repositories/cliente.repositorie.js';
 import { CreateClientDTO } from '../dtos/createClient.dto.js';
 import { UpdateClientDTO } from '../dtos/updateClient.dto.js';
+import { ImportClientsDTO } from '../dtos/importClients.dto.js';
 
 export class ClientService {
   private repository: ClientRepository;
@@ -22,6 +23,14 @@ export class ClientService {
     }
 
     return this.repository.create(data);
+  }
+
+  /**
+   * Importa clientes em lote de forma idempotente por telefone (spec 0008).
+   * Retorna { criados, atualizados, ignorados }.
+   */
+  async import(data: ImportClientsDTO) {
+    return this.repository.importUpsert(data.clients);
   }
 
   async findAll() {

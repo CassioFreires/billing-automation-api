@@ -2,6 +2,7 @@ import prisma from '../database/prisma.js';
 import { Prisma } from '@prisma/client';
 import { requireTenantId } from '../context/tenant-context.js';
 import { CreateClientDTO } from '../dtos/createClient.dto.js';
+import { ImportClientRowDTO } from '../dtos/importClients.dto.js';
 
 export class ClientRepository {
 
@@ -27,6 +28,63 @@ export class ClientRepository {
         tenantId: requireTenantId()
       }
     });
+  }
+
+  /**
+   * Upsert em lote por telefone (spec 0008). Idempotente: rodar duas vezes
+   * o mesmo arquivo não duplica clientes. Retorna a contagem por resultado.
+   * Duplicatas de telefone DENTRO do mesmo lote são resolvidas mantendo a
+   * ÚLTIMA ocorrência; as anteriores contam como `ignorados`.
+   */
+  async importUpsert(rows: ImportClientRowDTO[]) {
+    const tenantId = requireTenantId();
+
+    // Dedup interno do lote: última ocorrência de cada telefone vence.
+    const byPhone = new Map<string, ImportClientRowDTO>();
+    let ignorados = 0;
+    for (const row of rows) {
+      if (byPhone.has(row.phone)) {
+        ignorados++;
+      }
+      byPhone.set(row.phone, row);
+    }
+
+    let criados = 0;
+    let atualizados = 0;
+
+    await prisma.$transaction(async (tx) => {
+      for (const row of byPhone.values()) {
+        const existing = await tx.client.findUnique({
+          where: { tenantId_phone: { tenantId, phone: row.phone } },
+          select: { id: true },
+        });
+
+        if (existing) {
+          await tx.client.update({
+            where: { id: existing.id },
+            data: {
+              name: row.name,
+              document: row.document,
+              ...(row.status ? { status: row.status } : {}),
+            },
+          });
+          atualizados++;
+        } else {
+          await tx.client.create({
+            data: {
+              name: row.name,
+              phone: row.phone,
+              document: row.document,
+              ...(row.status ? { status: row.status } : {}),
+              tenantId,
+            },
+          });
+          criados++;
+        }
+      }
+    });
+
+    return { criados, atualizados, ignorados };
   }
 
   async findByPhone(phone: string) {
