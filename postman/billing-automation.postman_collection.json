@@ -483,6 +483,36 @@
             },
             "description": "JWT. Define o meio de pagamento DO TENANT. provider: infinitepay|mercadopago|mock. Se infinitepay, infinitepayHandle é obrigatório. A partir daí, as faturas desse tenant usam o recebedor dele."
           }
+        },
+        {
+          "name": "Get WhatsApp settings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/settings/whatsapp",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "settings", "whatsapp"]
+            },
+            "description": "JWT. Config de WhatsApp do tenant (spec 0014). Retorna { provider, phoneNumberId, apiVersion, hasToken } — NUNCA devolve o token."
+          }
+        },
+        {
+          "name": "Update WhatsApp settings",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"provider\": \"cloud\",\n  \"phoneNumberId\": \"SEU_PHONE_NUMBER_ID\",\n  \"token\": \"SEU_TOKEN_META\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/settings/whatsapp",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "settings", "whatsapp"]
+            },
+            "description": "JWT. Define o WhatsApp DO TENANT. provider: log (não envia) | cloud (Meta). cloud exige phoneNumberId + token. Salvar sem token mantém o anterior. O worker passa a enviar pelo número do tenant."
+          }
         }
       ]
     },

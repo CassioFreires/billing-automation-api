@@ -13,4 +13,8 @@ const controller = new SettingsController();
 settingsRouter.get('/payment', controller.getPayment.bind(controller));
 settingsRouter.put('/payment', controller.updatePayment.bind(controller));
 
+// Configuração de WhatsApp do tenant (spec 0014).
+settingsRouter.get('/whatsapp', controller.getWhatsapp.bind(controller));
+settingsRouter.put('/whatsapp', controller.updateWhatsapp.bind(controller));
+
 export { settingsRouter };

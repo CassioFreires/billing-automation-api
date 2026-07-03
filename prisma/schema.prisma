@@ -18,6 +18,25 @@ model Account {
   users     User[]
   subscriptions Subscription[]
   paymentSetting PaymentSetting?
+  whatsappSetting WhatsappSetting?
+}
+
+// Configuração de WhatsApp POR TENANT (spec 0014). Cada empresa envia pelo
+// próprio número. provider 'log' (default) não envia; 'cloud' usa a Meta Cloud
+// API com as credenciais do tenant.
+// ⚠️ token é sensível: mascarado na API (write-only) e — antes de multi-tenant
+// em produção — deve ser criptografado em repouso (mesma pendência do MP).
+model WhatsappSetting {
+  id            String   @id @default(uuid())
+  provider      String   @default("log") // log | cloud
+  phoneNumberId String?  // "Phone number ID" da Meta (não é o telefone)
+  token         String?  // access token da Cloud API (secreto)
+  apiVersion    String?  // ex.: v20.0 (default no código)
+  createdAt     DateTime @default(now())
+  lastUpdate    DateTime @updatedAt
+
+  tenantId      String   @unique
+  account       Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 // Configuração de pagamento POR TENANT (spec 0012). Cada empresa recebe na

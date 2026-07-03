@@ -1,7 +1,8 @@
 // src/works/invoice.worker.ts
 import { rabbitMQ } from '../config/rabbitmql.config.js';
 import { InvoiceRepository } from '../repositories/invoice.repository.js';
-import { WhatsappAPI } from '../apis/whatsapp.api.js';
+import { WhatsappAPI, resolveWhatsappForTenant } from '../apis/whatsapp.api.js';
+import { WhatsappSettingService } from '../services/whatsapp-setting.service.js';
 import { TriggerNotificationDTO } from '../dtos/triggerNotification.dto.js';
 import {
   INVOICE_QUEUE,
@@ -11,7 +12,7 @@ import {
 import { runWithTenant } from '../context/tenant-context.js';
 
 const invoiceRepository = new InvoiceRepository();
-const whatsappAPI = new WhatsappAPI();
+const whatsappSettings = new WhatsappSettingService();
 
 interface ChargeMessageData {
   clientName: string;
@@ -75,6 +76,11 @@ export async function initInvoiceWorker() {
             console.error(`❌ Fatura não encontrada: ${data.id}`);
             return;
           }
+
+          // Resolve o provider de WhatsApp DO TENANT (spec 0014): cada empresa
+          // envia pelo próprio número. Sem config, cai no log (não envia).
+          const whatsappConfig = await whatsappSettings.getForCurrentTenant();
+          const whatsappAPI = new WhatsappAPI(resolveWhatsappForTenant(whatsappConfig));
 
           // Envia PRIMEIRO; só marca como notificada se o envio deu certo.
           const result = await whatsappAPI.sendMessageWhatsapp(data, {
