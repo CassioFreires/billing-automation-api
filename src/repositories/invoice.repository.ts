@@ -14,6 +14,8 @@ export class InvoiceRepository {
       pixQrCode?: string;
       checkoutUrl?: string;
       gatewayId?: string;
+      subscriptionId?: string; // origem recorrente (spec 0009)
+      period?: string;         // competência YYYY-MM
     }
   ) {
 
@@ -26,6 +28,8 @@ export class InvoiceRepository {
         pixQrCode: data.pixQrCode,
         checkoutUrl: data.checkoutUrl,
         gatewayId: data.gatewayId,
+        subscriptionId: data.subscriptionId,
+        period: data.period,
         status: 'PENDING',
         tenantId: requireTenantId(),
         items:
@@ -106,6 +110,17 @@ export class InvoiceRepository {
         limit,
       },
     };
+  }
+
+  /** Fatura já gerada para uma assinatura numa competência (idempotência recorrente). */
+  async findBySubscriptionPeriod(subscriptionId: string, period: string) {
+    return prisma.invoice.findFirst({
+      where: {
+        subscriptionId,
+        period,
+        tenantId: requireTenantId(),
+      },
+    });
   }
 
   async findByGatewayId(gatewayId: string) {

@@ -9,6 +9,7 @@ function makeService() {
     findPendingInvoices: vi.fn(),
     findAll: vi.fn(),
     findById: vi.fn(),
+    findBySubscriptionPeriod: vi.fn(),
   };
   const webhookEvents = { recordIfNew: vi.fn() };
   const gateway = { name: 'mock', createCharge: vi.fn(), verifyAndParseWebhook: vi.fn() };
@@ -48,6 +49,50 @@ describe('InvoiceService.createPayment', () => {
     expect(createArg.pixCopyPaste).toBe('pix-copia');
     expect(createArg.checkoutUrl).toBe('https://mp/checkout');
     expect(result).toEqual({ id: 'inv1', status: 'PENDING' });
+  });
+});
+
+describe('InvoiceService.createForSubscription (recorrente)', () => {
+  it('não cria nem chama o gateway quando a competência já foi gerada (idempotência)', async () => {
+    const { service, invoiceRepository, gateway } = makeService();
+    invoiceRepository.findBySubscriptionPeriod.mockResolvedValue({ id: 'inv-existente' });
+
+    const result = await service.createForSubscription({
+      subscriptionId: 's1',
+      clientId: 'c1',
+      description: 'Mensalidade',
+      amount: 100,
+      dueDate: new Date('2026-07-10'),
+      period: '2026-07',
+    });
+
+    expect(result.created).toBe(false);
+    expect(gateway.createCharge).not.toHaveBeenCalled();
+    expect(invoiceRepository.create).not.toHaveBeenCalled();
+  });
+
+  it('gera a fatura com item único e vincula subscriptionId/period quando é nova', async () => {
+    const { service, invoiceRepository, gateway } = makeService();
+    invoiceRepository.findBySubscriptionPeriod.mockResolvedValue(null);
+    gateway.createCharge.mockResolvedValue({ gatewayId: 'g1', pixCopyPaste: 'pix' });
+    invoiceRepository.create.mockResolvedValue({ id: 'inv1', status: 'PENDING' });
+
+    const result = await service.createForSubscription({
+      subscriptionId: 's1',
+      clientId: 'c1',
+      description: 'Mensalidade',
+      amount: 100,
+      dueDate: new Date('2026-07-10'),
+      period: '2026-07',
+    });
+
+    expect(gateway.createCharge).toHaveBeenCalledOnce();
+    const createArg = invoiceRepository.create.mock.calls[0][0];
+    expect(createArg.subscriptionId).toBe('s1');
+    expect(createArg.period).toBe('2026-07');
+    expect(createArg.value).toBe(100);
+    expect(createArg.items).toEqual([{ description: 'Mensalidade', quantity: 1, unitPrice: 100 }]);
+    expect(result.created).toBe(true);
   });
 });
 

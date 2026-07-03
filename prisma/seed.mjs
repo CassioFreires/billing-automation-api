@@ -47,7 +47,9 @@ async function main() {
   });
 
   // Idempotência: limpa apenas os dados do tenant demo
+  // (invoices antes de subscriptions/clients por causa das FKs)
   await prisma.invoice.deleteMany({ where: { tenantId: account.id } });
+  await prisma.subscription.deleteMany({ where: { tenantId: account.id } });
   await prisma.client.deleteMany({ where: { tenantId: account.id } });
 
   const clients = [
@@ -109,11 +111,13 @@ async function main() {
 
   let invoiceCount = 0;
   let seq = 0;
+  const clientByName = {};
   for (const c of clients) {
     const { invoices, ...clientData } = c;
     const client = await prisma.client.create({
       data: { ...clientData, tenantId: account.id },
     });
+    clientByName[client.name] = client;
 
     for (const inv of invoices) {
       seq += 1;
@@ -135,8 +139,33 @@ async function main() {
     }
   }
 
+  // Assinaturas recorrentes demo (spec 0009). nextRunDate no passado para que
+  // POST /api/subscriptions/run gere a fatura da competência já na 1ª execução.
+  const subscriptions = [
+    { client: "João Pereira", description: "Plano Mensal Odonto", amount: 129.9, dayOfMonth: 10 },
+    { client: "Ana Beatriz", description: "Clareamento (assinatura)", amount: 89.9, dayOfMonth: 5 },
+  ];
+  let subCount = 0;
+  for (const s of subscriptions) {
+    const client = clientByName[s.client];
+    if (!client) continue;
+    await prisma.subscription.create({
+      data: {
+        tenantId: account.id,
+        clientId: client.id,
+        description: s.description,
+        amount: s.amount,
+        dayOfMonth: s.dayOfMonth,
+        status: "ACTIVE",
+        startDate: daysFromNow(-40),
+        nextRunDate: daysFromNow(-2), // vencida → o run gera na hora
+      },
+    });
+    subCount += 1;
+  }
+
   console.log(
-    `🌱 Seed OK → tenant "${account.name}", ${clients.length} clientes, ${invoiceCount} faturas.`
+    `🌱 Seed OK → tenant "${account.name}", ${clients.length} clientes, ${invoiceCount} faturas, ${subCount} assinaturas.`
   );
   console.log(`   Login demo: ${DEMO_EMAIL} / ${DEMO_PASSWORD}`);
 }

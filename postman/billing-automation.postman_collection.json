@@ -345,6 +345,111 @@
       ]
     },
     {
+      "name": "Subscriptions",
+      "item": [
+        {
+          "name": "Create Subscription (mensalidade)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.code === 201);",
+                  "const b = pm.response.json();",
+                  "if (b.id) { pm.collectionVariables.set('subscriptionId', b.id); console.log('subscriptionId salvo:', b.id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": \"{{clientId}}\",\n  \"description\": \"Plano Pro\",\n  \"amount\": 99.90,\n  \"dayOfMonth\": 10\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/subscriptions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "subscriptions"]
+            },
+            "description": "JWT. Cria uma assinatura recorrente (spec 0009). dayOfMonth 1..28 (default 10). startDate opcional. Salva subscriptionId."
+          }
+        },
+        {
+          "name": "List Subscriptions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/subscriptions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "subscriptions"]
+            },
+            "description": "JWT. Lista as assinaturas do tenant."
+          }
+        },
+        {
+          "name": "Get Subscription by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/subscriptions/{{subscriptionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "subscriptions", "{{subscriptionId}}"]
+            },
+            "description": "JWT. 404 se não existir/for de outro tenant."
+          }
+        },
+        {
+          "name": "Update Subscription (pausar/retomar/cancelar)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"PAUSED\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/subscriptions/{{subscriptionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "subscriptions", "{{subscriptionId}}"]
+            },
+            "description": "JWT. Campos opcionais: description, amount, dayOfMonth, status (ACTIVE|PAUSED|CANCELED)."
+          }
+        },
+        {
+          "name": "Run generation (n8n)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": {
+              "raw": "{{baseUrl}}/api/subscriptions/run",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "subscriptions", "run"]
+            },
+            "description": "JWT. Geração recorrente disparada pelo agendador. Gera as faturas das assinaturas ACTIVE vencidas (nextRunDate <= agora). Idempotente por competência. Retorna { processadas, geradas, ignoradas }. Rode 2x: na 2ª as mesmas competências vêm em ignoradas."
+          }
+        },
+        {
+          "name": "Delete Subscription",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/subscriptions/{{subscriptionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "subscriptions", "{{subscriptionId}}"]
+            },
+            "description": "JWT. Remove a assinatura. As faturas já geradas permanecem (FK SET NULL)."
+          }
+        }
+      ]
+    },
+    {
       "name": "Notifications",
       "item": [
         {

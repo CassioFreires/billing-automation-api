@@ -52,6 +52,50 @@ export class InvoiceService {
   }
 
   /**
+   * Gera a fatura de uma assinatura numa competência (spec 0009).
+   * Idempotente: se já existe fatura para [subscriptionId, period], não
+   * cria nova nem chama o gateway. Retorna { created, invoice }.
+   */
+  async createForSubscription(input: {
+    subscriptionId: string;
+    clientId: string;
+    description: string;
+    amount: number;
+    dueDate: Date;
+    period: string;
+  }): Promise<{ created: boolean; invoice: unknown }> {
+    const existing = await this.invoiceRepository.findBySubscriptionPeriod(
+      input.subscriptionId,
+      input.period
+    );
+    if (existing) {
+      return { created: false, invoice: existing };
+    }
+
+    const reference = randomUUID();
+    const charge = await this.gateway.createCharge({
+      reference,
+      amount: input.amount,
+      dueDate: input.dueDate,
+    });
+
+    const invoice = await this.invoiceRepository.create({
+      clientId: input.clientId,
+      value: input.amount,
+      dueDate: input.dueDate,
+      items: [{ description: input.description, quantity: 1, unitPrice: input.amount }],
+      gatewayId: charge.gatewayId,
+      pixCopyPaste: charge.pixCopyPaste,
+      pixQrCode: charge.pixQrCode,
+      checkoutUrl: charge.checkoutUrl,
+      subscriptionId: input.subscriptionId,
+      period: input.period,
+    });
+
+    return { created: true, invoice };
+  }
+
+  /**
    * Processa uma notificação de webhook já normalizada pelo provider,
    * de forma idempotente (RN-P3).
    */
