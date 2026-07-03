@@ -179,6 +179,37 @@ export function resolveProviderFromEnv(): WhatsappProvider {
   }
 }
 
+/** Config de WhatsApp de um tenant (spec 0014). */
+export interface TenantWhatsappConfig {
+  provider: string; // log | cloud
+  token?: string | null;
+  phoneNumberId?: string | null;
+  apiVersion?: string | null;
+}
+
+/**
+ * Resolve o provider a partir da config do TENANT (spec 0014): cada empresa
+ * envia pelo próprio número. `cloud` usa as credenciais do tenant; sem elas
+ * (ou provider 'log'), cai no log-only (não envia). Nunca quebra o worker.
+ */
+export function resolveWhatsappForTenant(config: TenantWhatsappConfig): WhatsappProvider {
+  if ((config.provider ?? 'log').toLowerCase() !== 'cloud') {
+    return new LogOnlyWhatsappProvider();
+  }
+
+  if (!config.token || !config.phoneNumberId) {
+    console.warn('⚠️ WhatsApp cloud sem token/phoneNumberId no tenant — usando log.');
+    return new LogOnlyWhatsappProvider();
+  }
+
+  return new CloudApiWhatsappProvider({
+    token: config.token,
+    phoneNumberId: config.phoneNumberId,
+    apiVersion: config.apiVersion ?? process.env.WHATSAPP_API_VERSION ?? 'v20.0',
+    baseUrl: process.env.WHATSAPP_BASE_URL ?? 'https://graph.facebook.com',
+  });
+}
+
 export class WhatsappAPI {
   private readonly provider: WhatsappProvider;
 
