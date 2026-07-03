@@ -506,6 +506,24 @@
             },
             "description": "Operação de SISTEMA (cross-tenant, spec 0010). NÃO usa JWT: autentica por header x-cron-secret (= CRON_SECRET do .env). Faz fan-out: enfileira a geração recorrente de TODOS os tenants ativos e responde 202 { enfileirados }. O worker gera as faturas em segundo plano, um tenant por vez. É o que o cron/EventBridge chama diariamente. 401 com segredo errado; 500 se CRON_SECRET não configurado."
           }
+        },
+        {
+          "name": "Run notifications (todos os tenants)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-cron-secret", "value": "{{cronSecret}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": {
+              "raw": "{{baseUrl}}/api/system/notifications/run",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "system", "notifications", "run"]
+            },
+            "description": "Operação de SISTEMA (cross-tenant, spec 0013). Autentica por x-cron-secret. Varre todos os tenants ativos e enfileira as notificações dos vencidos (PENDING de clientes EM_ATRASO) na fila de faturas; o worker envia o WhatsApp. Responde 202 { tenants, comVencidos, enfileirados }. É o par do billing/run — o cron chama os dois."
+          }
         }
       ]
     },
