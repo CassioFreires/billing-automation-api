@@ -21,25 +21,35 @@ import {
  * ajustado quando tivermos a doc oficial (nomes de campos/endpoint).
  */
 
-function requireHandle(): string {
-  const handle = process.env.INFINITEPAY_HANDLE;
-  if (!handle) throw new Error('INFINITEPAY_HANDLE não configurado');
-  return handle;
-}
-
-function checkoutBaseUrl(): string {
-  return process.env.INFINITEPAY_CHECKOUT_URL ?? 'https://checkout.infinitepay.io';
-}
-
-function apiBaseUrl(): string {
-  return process.env.INFINITEPAY_API_URL ?? 'https://api.infinitepay.io';
+/** Config por tenant (spec 0012); cai para as envs quando não informada. */
+export interface InfinitePayConfig {
+  handle?: string;
+  redirectUrl?: string;
+  checkoutUrl?: string;
+  apiUrl?: string;
 }
 
 export class InfinitePayGateway implements PaymentGatewayProvider {
   readonly name = 'infinitepay';
 
+  constructor(private readonly config: InfinitePayConfig = {}) {}
+
+  private requireHandle(): string {
+    const handle = this.config.handle ?? process.env.INFINITEPAY_HANDLE;
+    if (!handle) throw new Error('INFINITEPAY_HANDLE não configurado');
+    return handle;
+  }
+
+  private checkoutBaseUrl(): string {
+    return this.config.checkoutUrl ?? process.env.INFINITEPAY_CHECKOUT_URL ?? 'https://checkout.infinitepay.io';
+  }
+
+  private apiBaseUrl(): string {
+    return this.config.apiUrl ?? process.env.INFINITEPAY_API_URL ?? 'https://api.infinitepay.io';
+  }
+
   async createCharge(input: CreateChargeInput): Promise<ChargeResult> {
-    const handle = requireHandle();
+    const handle = this.requireHandle();
 
     // InfinitePay trabalha com valores em CENTAVOS (inteiro).
     const priceInCents = Math.round(input.amount * 100);
@@ -57,12 +67,12 @@ export class InfinitePayGateway implements PaymentGatewayProvider {
       order_nsu: input.reference, // nossa referência = localizador na confirmação
     });
 
-    const redirectUrl = process.env.INFINITEPAY_REDIRECT_URL;
+    const redirectUrl = this.config.redirectUrl ?? process.env.INFINITEPAY_REDIRECT_URL;
     if (redirectUrl) {
       params.set('redirect_url', redirectUrl);
     }
 
-    const checkoutUrl = `${checkoutBaseUrl()}/${handle}?${params.toString()}`;
+    const checkoutUrl = `${this.checkoutBaseUrl()}/${handle}?${params.toString()}`;
 
     return {
       // Usamos a própria referência como gatewayId: o InfinitePay a devolve
@@ -100,7 +110,7 @@ export class InfinitePayGateway implements PaymentGatewayProvider {
     if (!externalOrderNsu) return null;
 
     const paid = await this.confirmPayment({
-      handle: requireHandle(),
+      handle: this.requireHandle(),
       transactionNsu,
       externalOrderNsu,
       slug,
@@ -134,7 +144,7 @@ export class InfinitePayGateway implements PaymentGatewayProvider {
       if (args.transactionNsu) params.set('transaction_nsu', args.transactionNsu);
       if (args.slug) params.set('slug', args.slug);
 
-      const url = `${apiBaseUrl()}/invoices/public/checkout/payment_check/${args.handle}?${params.toString()}`;
+      const url = `${this.apiBaseUrl()}/invoices/public/checkout/payment_check/${args.handle}?${params.toString()}`;
       const res = await fetch(url);
       if (!res.ok) return null;
 

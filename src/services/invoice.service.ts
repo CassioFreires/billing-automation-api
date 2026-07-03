@@ -3,22 +3,40 @@
 import { randomUUID } from 'node:crypto';
 import { InvoiceRepository } from '../repositories/invoice.repository.js';
 import { WebhookEventRepository } from '../repositories/webhook-event.repository.js';
-import { PaymentGatewayAPI, WebhookResult } from '../apis/payment/index.js';
+import {
+  PaymentGatewayProvider,
+  WebhookResult,
+  resolvePaymentGatewayForTenant,
+} from '../apis/payment/index.js';
+import { PaymentSettingService } from './payment-setting.service.js';
 import { CreateInvoiceDTO, UpdateInvoiceStatusDTO } from '../dtos/createInvoice.dto.js';
 
 export class InvoiceService {
   private invoiceRepository: InvoiceRepository;
   private webhookEvents: WebhookEventRepository;
-  private gateway: PaymentGatewayAPI;
+  private injectedGateway?: PaymentGatewayProvider;
+  private paymentSettings: PaymentSettingService;
 
   constructor(deps?: {
     invoiceRepository?: InvoiceRepository;
     webhookEvents?: WebhookEventRepository;
-    gateway?: PaymentGatewayAPI;
+    gateway?: PaymentGatewayProvider;
+    paymentSettings?: PaymentSettingService;
   }) {
     this.invoiceRepository = deps?.invoiceRepository ?? new InvoiceRepository();
     this.webhookEvents = deps?.webhookEvents ?? new WebhookEventRepository();
-    this.gateway = deps?.gateway ?? new PaymentGatewayAPI();
+    this.injectedGateway = deps?.gateway;
+    this.paymentSettings = deps?.paymentSettings ?? new PaymentSettingService();
+  }
+
+  /**
+   * Resolve o gateway do TENANT atual (spec 0012): usa a config da empresa
+   * (provider + credenciais dela). Em testes, respeita o gateway injetado.
+   */
+  private async gatewayForTenant(): Promise<PaymentGatewayProvider> {
+    if (this.injectedGateway) return this.injectedGateway;
+    const config = await this.paymentSettings.getForCurrentTenant();
+    return resolvePaymentGatewayForTenant(config);
   }
 
   async createPayment(data: CreateInvoiceDTO) {
@@ -36,7 +54,8 @@ export class InvoiceService {
       ? items.map((it) => it.description).join(', ')
       : 'Cobrança';
 
-    const charge = await this.gateway.createCharge({
+    const gateway = await this.gatewayForTenant();
+    const charge = await gateway.createCharge({
       reference,
       amount: total,
       dueDate: data.dueDate,
@@ -79,7 +98,8 @@ export class InvoiceService {
     }
 
     const reference = randomUUID();
-    const charge = await this.gateway.createCharge({
+    const gateway = await this.gatewayForTenant();
+    const charge = await gateway.createCharge({
       reference,
       amount: input.amount,
       dueDate: input.dueDate,
