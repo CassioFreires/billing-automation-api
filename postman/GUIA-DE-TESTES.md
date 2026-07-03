@@ -294,6 +294,23 @@ curl -X DELETE http://localhost:3000/api/subscriptions/SUB_ID -H "Authorization:
 
 ---
 
+## 4.2) System — agendador cross-tenant (segredo, spec 0010)
+
+O disparo **automático** que gera as mensalidades de **todos os tenants** de uma vez. Não usa JWT: autentica por header `x-cron-secret` (= `CRON_SECRET` do `.env`). É o que o cron/EventBridge chama diariamente.
+
+### POST `/api/system/billing/run`
+```bash
+curl -X POST http://localhost:3000/api/system/billing/run \
+  -H "x-cron-secret: $CRON_SECRET"
+```
+**Respostas:**
+- `202` `{ message, enfileirados: N }` — enfileirou a geração de N tenants ativos; o worker gera as faturas em segundo plano (veja os logs `📩 Cobrança recorrente do tenant…` → `✅ Tenant …`).
+- `401` segredo ausente/errado · `500` `CRON_SECRET` não configurado.
+
+> **Diferença para `/subscriptions/run`:** aquele é manual e por **1 tenant** (JWT); este é automático e cobre **todos** (segredo de sistema). Os dois acabam no mesmo gerador, então a idempotência por competência vale igual.
+
+---
+
 ## 5) Notifications (exige JWT)
 
 Enfileiram cobranças no RabbitMQ; o worker consome e (com `WHATSAPP_PROVIDER=log`) apenas **loga** — não envia de verdade.
@@ -351,6 +368,8 @@ curl -X POST http://localhost:3000/api/lgpd/clients/CLIENT_ID/anonymize \
 - [ ] `POST /api/subscriptions/run` → 200; rodar 2× prova idempotência (geradas→ignoradas)
 - [ ] `PUT /api/subscriptions/:id {status:PAUSED}` → não gera no próximo `run`
 - [ ] `DELETE /api/subscriptions/:id` → 204; faturas geradas continuam em `GET /api/invoices`
+- [ ] `POST /api/system/billing/run` (x-cron-secret) → 202 `{ enfileirados }`; logs do worker geram por tenant
+- [ ] `POST /api/system/billing/run` com segredo errado → 401
 - [ ] `POST /api/invoices/webhook` (PAID) → `duplicate:false`
 - [ ] Webhook com **mesmo eventId** → `duplicate:true`
 - [ ] Webhook com segredo errado → 401
@@ -382,8 +401,9 @@ curl -X POST http://localhost:3000/api/lgpd/clients/CLIENT_ID/anonymize \
 | GET | `/api/subscriptions` | JWT | — |
 | GET | `/api/subscriptions/:id` | JWT | path `id` |
 | PUT | `/api/subscriptions/:id` | JWT | `description?, amount?, dayOfMonth?, status?` |
-| POST | `/api/subscriptions/run` | JWT | — (agendador n8n) |
+| POST | `/api/subscriptions/run` | JWT | — (disparo manual, 1 tenant) |
 | DELETE | `/api/subscriptions/:id` | JWT | path `id` |
+| POST | `/api/system/billing/run` | header `x-cron-secret` | — (agendador cross-tenant) |
 | POST | `/api/notifications/trigger-overdue` | JWT | — |
 | POST | `/api/notifications/trigger-overdue/:invoiceId` | JWT | path `invoiceId` |
 | GET | `/api/lgpd/clients/:clientId/export` | JWT | path `clientId` |

@@ -6,7 +6,9 @@ import prisma from './database/prisma.js';
 import { rabbitMQ } from './config/rabbitmql.config.js';
 import { connectRedis, disconnectRedis } from './config/redis.config.js';
 import { initInvoiceWorker } from './works/invoice.worker.js';
+import { initBillingWorker } from './works/billing.worker.js';
 import { assertInvoiceQueueTopology } from './messaging/invoice-queue.js';
+import { assertBillingQueueTopology } from './messaging/billing-scheduler-queue.js';
 import { retry } from './infrastructure/retry.js';
 import { appRouter } from './index.js';
 
@@ -110,7 +112,8 @@ async function bootstrap() {
      * A API precisa dela para publicar, independentemente de rodar o worker.
      */
     await assertInvoiceQueueTopology(rabbitMQ.getChannel());
-    console.log('✅ Topologia da fila garantida');
+    await assertBillingQueueTopology(rabbitMQ.getChannel());
+    console.log('✅ Topologia das filas garantida');
 
     /**
      * Worker (D-03)
@@ -122,9 +125,10 @@ async function bootstrap() {
     const runWorkerInline = process.env.RUN_WORKER_INLINE !== 'false';
 
     if (runWorkerInline) {
-      console.log('🔄 Inicializando worker (inline na API)...');
+      console.log('🔄 Inicializando workers (inline na API)...');
       await initInvoiceWorker();
-      console.log('✅ Worker iniciado (inline)');
+      await initBillingWorker();
+      console.log('✅ Workers iniciados (inline)');
     } else {
       console.log(
         'ℹ️ Worker inline desabilitado (RUN_WORKER_INLINE=false). Rode `npm run worker` em separado.'
