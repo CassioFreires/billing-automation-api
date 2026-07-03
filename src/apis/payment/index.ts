@@ -1,21 +1,26 @@
 import { MockPaymentGateway } from './mock.gateway.js';
 import { MercadoPagoGateway } from './mercadopago.gateway.js';
+import { InfinitePayGateway } from './infinitepay.gateway.js';
 import { PaymentGatewayProvider } from './types.js';
 
 export * from './types.js';
 
 /**
  * Resolve o provider a partir da env `PAYMENT_PROVIDER`.
- * Default: `mock` (comportamento atual, sem gateway real).
+ * Default: `infinitepay` (gateway padrão para comercialização). Em dev/testes,
+ * defina `PAYMENT_PROVIDER=mock` para não depender de credenciais.
+ * Futuro: seleção de provider por tenant (várias opções de pagamento).
  */
 export function resolvePaymentGatewayFromEnv(): PaymentGatewayProvider {
-  const selected = (process.env.PAYMENT_PROVIDER ?? 'mock').toLowerCase();
+  const selected = (process.env.PAYMENT_PROVIDER ?? 'infinitepay').toLowerCase();
 
   switch (selected) {
     case 'mock':
       return new MockPaymentGateway();
     case 'mercadopago':
       return new MercadoPagoGateway();
+    case 'infinitepay':
+      return new InfinitePayGateway();
     default:
       console.warn(
         `⚠️ PAYMENT_PROVIDER='${selected}' não implementado. Usando 'mock' como fallback.`
