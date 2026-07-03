@@ -452,6 +452,41 @@
       ]
     },
     {
+      "name": "Settings",
+      "item": [
+        {
+          "name": "Get payment settings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/settings/payment",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "settings", "payment"]
+            },
+            "description": "JWT. Config de pagamento do tenant (spec 0012). Retorna { provider, infinitepayHandle, redirectUrl }."
+          }
+        },
+        {
+          "name": "Update payment settings",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"provider\": \"infinitepay\",\n  \"infinitepayHandle\": \"seu-handle\",\n  \"redirectUrl\": null\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/settings/payment",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "settings", "payment"]
+            },
+            "description": "JWT. Define o meio de pagamento DO TENANT. provider: infinitepay|mercadopago|mock. Se infinitepay, infinitepayHandle é obrigatório. A partir daí, as faturas desse tenant usam o recebedor dele."
+          }
+        }
+      ]
+    },
+    {
       "name": "System (cron)",
       "item": [
         {

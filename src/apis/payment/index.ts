@@ -5,6 +5,39 @@ import { PaymentGatewayProvider } from './types.js';
 
 export * from './types.js';
 
+/** Config de pagamento de um tenant (spec 0012). */
+export interface TenantPaymentConfig {
+  provider: string; // infinitepay | mercadopago | mock
+  infinitepayHandle?: string | null;
+  redirectUrl?: string | null;
+}
+
+/**
+ * Resolve o provider a partir da configuração do TENANT (spec 0012).
+ * Cada empresa recebe na própria conta, então o provider e suas credenciais
+ * vêm do banco, não do .env global.
+ */
+export function resolvePaymentGatewayForTenant(
+  config: TenantPaymentConfig
+): PaymentGatewayProvider {
+  switch ((config.provider ?? 'infinitepay').toLowerCase()) {
+    case 'mock':
+      return new MockPaymentGateway();
+    case 'mercadopago':
+      return new MercadoPagoGateway();
+    case 'infinitepay':
+      return new InfinitePayGateway({
+        handle: config.infinitepayHandle ?? undefined,
+        redirectUrl: config.redirectUrl ?? undefined,
+      });
+    default:
+      console.warn(
+        `⚠️ provider de pagamento '${config.provider}' não implementado. Usando 'mock'.`
+      );
+      return new MockPaymentGateway();
+  }
+}
+
 /**
  * Resolve o provider a partir da env `PAYMENT_PROVIDER`.
  * Default: `infinitepay` (gateway padrão para comercialização). Em dev/testes,

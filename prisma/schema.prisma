@@ -17,6 +17,23 @@ model Account {
   invoices  Invoice[]
   users     User[]
   subscriptions Subscription[]
+  paymentSetting PaymentSetting?
+}
+
+// Configuração de pagamento POR TENANT (spec 0012). Cada empresa recebe na
+// própria conta, então escolhe o provider e informa suas credenciais.
+// v1: só campos NÃO-secretos (ex.: handle do InfinitePay é público). Credenciais
+// secretas (token MP) ficam para depois, com criptografia em repouso.
+model PaymentSetting {
+  id                String   @id @default(uuid())
+  provider          String   @default("infinitepay") // infinitepay | mercadopago | mock
+  infinitepayHandle String?  // handle público do lojista (checkout.infinitepay.io/<handle>)
+  redirectUrl       String?  // retorno opcional pós-pagamento
+  createdAt         DateTime @default(now())
+  lastUpdate        DateTime @updatedAt
+
+  tenantId          String   @unique
+  account           Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 // Idempotência de webhooks (spec 0003): guarda os ids de evento já processados.
