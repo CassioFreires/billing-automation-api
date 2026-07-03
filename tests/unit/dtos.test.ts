@@ -6,6 +6,7 @@ import {
 } from '../../src/dtos/createInvoice.dto.js';
 import { loginSchema } from '../../src/dtos/login.dto.js';
 import { registerSchema } from '../../src/dtos/register.dto.js';
+import { importClientsSchema } from '../../src/dtos/importClients.dto.js';
 
 describe('createClientSchema', () => {
   it('aceita cliente válido', () => {
@@ -61,6 +62,36 @@ describe('updateInvoiceStatusSchema', () => {
     expect(
       updateInvoiceStatusSchema.safeParse({ gatewayId: 'gw', status: 'CANCELADO' }).success
     ).toBe(false);
+  });
+});
+
+describe('importClientsSchema', () => {
+  it('aceita lote válido com status opcional', () => {
+    const r = importClientsSchema.safeParse({
+      clients: [
+        { name: 'Ana', phone: '11999999999', document: '12345678901' },
+        { name: 'Bia', phone: '11888888888', document: '98765432100', status: 'EM_ATRASO' },
+      ],
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it('rejeita lote vazio', () => {
+    expect(importClientsSchema.safeParse({ clients: [] }).success).toBe(false);
+  });
+
+  it('rejeita linha com documento inválido', () => {
+    const r = importClientsSchema.safeParse({
+      clients: [{ name: 'Ana', phone: '11999999999', document: '1' }],
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it('rejeita status fora do enum', () => {
+    const r = importClientsSchema.safeParse({
+      clients: [{ name: 'Ana', phone: '11999999999', document: '12345678901', status: 'PENDENTE' }],
+    });
+    expect(r.success).toBe(false);
   });
 });
 

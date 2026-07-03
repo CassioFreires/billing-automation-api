@@ -9,6 +9,10 @@ import {
   validateUpdateClient
 } from '../dtos/updateClient.dto.js';
 
+import {
+  validateImportClients
+} from '../dtos/importClients.dto.js';
+
 export class ClientController {
   private service: ClientService;
 
@@ -28,6 +32,25 @@ export class ClientController {
         await this.service.create(data);
 
       return res.status(201).json(client);
+    } catch (error: any) {
+      return res.status(400).json({
+        error: error.message
+      });
+    }
+  }
+
+  async import(
+    req: Request,
+    res: Response
+  ) {
+    try {
+      const data =
+        validateImportClients(req.body);
+
+      const result =
+        await this.service.import(data);
+
+      return res.status(200).json(result);
     } catch (error: any) {
       return res.status(400).json({
         error: error.message
