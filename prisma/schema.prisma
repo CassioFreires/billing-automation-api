@@ -79,9 +79,26 @@ model Invoice {
   tenantId      String
   account       Account   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
+  items         InvoiceItem[] // detalhe do que está sendo cobrado (spec 0007)
+
   @@index([clientId])
   @@index([status])
   @@index([status, clientId]) // Índice composto para otimizar o método findPendingInvoices
   @@index([tenantId, status])
   @@index([tenantId, clientId])
+}
+
+// Item/linha de uma fatura: o QUE está sendo cobrado (produto/serviço).
+// O valor total da fatura é a soma de quantity * unitPrice dos itens (spec 0007).
+model InvoiceItem {
+  id          String   @id @default(uuid())
+  description String
+  quantity    Int      @default(1)
+  unitPrice   Float
+  createdAt   DateTime @default(now())
+
+  invoiceId   String
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
 }

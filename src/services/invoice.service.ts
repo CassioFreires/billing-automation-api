@@ -25,14 +25,23 @@ export class InvoiceService {
     // Referência interna única usada como localizador no gateway/webhook (RN-P2).
     const reference = randomUUID();
 
+    // Total = soma dos itens quando houver; senão, o value informado (RN-P6).
+    const items = data.items ?? [];
+    const total: number = items.length
+      ? items.reduce((sum, it) => sum + it.quantity * it.unitPrice, 0)
+      : (data.value ?? 0);
+
     const charge = await this.gateway.createCharge({
       reference,
-      amount: data.value,
+      amount: total,
       dueDate: data.dueDate,
     });
 
     const invoice = await this.invoiceRepository.create({
-      ...data,
+      clientId: data.clientId,
+      value: total,
+      dueDate: data.dueDate,
+      items,
       gatewayId: charge.gatewayId,
       pixCopyPaste: charge.pixCopyPaste,
       pixQrCode: charge.pixQrCode,

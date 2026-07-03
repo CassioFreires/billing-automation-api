@@ -1,4 +1,3 @@
-import { CreateInvoiceDTO } from '../dtos/createInvoice.dto.js';
 import prisma from '../database/prisma.js';
 import { redis } from '../config/redis.config.js';
 import { requireTenantId } from '../context/tenant-context.js';
@@ -6,7 +5,11 @@ import { requireTenantId } from '../context/tenant-context.js';
 export class InvoiceRepository {
 
   async create(
-    data: CreateInvoiceDTO & {
+    data: {
+      clientId: string;
+      value: number;
+      dueDate: Date;
+      items?: { description: string; quantity: number; unitPrice: number }[];
       pixCopyPaste?: string;
       pixQrCode?: string;
       checkoutUrl?: string;
@@ -24,8 +27,19 @@ export class InvoiceRepository {
         checkoutUrl: data.checkoutUrl,
         gatewayId: data.gatewayId,
         status: 'PENDING',
-        tenantId: requireTenantId()
-      }
+        tenantId: requireTenantId(),
+        items:
+          data.items && data.items.length
+            ? {
+                create: data.items.map((i) => ({
+                  description: i.description,
+                  quantity: i.quantity,
+                  unitPrice: i.unitPrice,
+                })),
+              }
+            : undefined,
+      },
+      include: { items: true },
     });
 
     return invoice;
@@ -41,7 +55,7 @@ export class InvoiceRepository {
     });
   }
 
-  /** Busca UMA fatura do tenant atual (com dados do cliente). null se não existir. */
+  /** Busca UMA fatura do tenant atual (com dados do cliente e itens). null se não existir. */
   async findById(id: string) {
     return prisma.invoice.findFirst({
       where: {
@@ -52,6 +66,7 @@ export class InvoiceRepository {
         client: {
           select: { id: true, name: true, phone: true, document: true, status: true },
         },
+        items: true,
       },
     });
   }
@@ -76,6 +91,7 @@ export class InvoiceRepository {
           client: {
             select: { id: true, name: true, phone: true, document: true, status: true },
           },
+          items: true,
         },
       }),
       prisma.invoice.count({ where }),
