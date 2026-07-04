@@ -44,10 +44,9 @@ _(nenhum item aberto no momento)_
 - **Impacto**: enganosa — se o frontend exibir "dívida" a partir dela, mostra sempre R$ 0. Ocupa espaço e confunde quem lê o schema.
 - **Ação** (decisão de produto): (a) **calcular** de verdade (soma das faturas em aberto do cliente, atualizada em transação ao criar/pagar fatura) — vira feature de dashboard; ou (b) **remover** a coluna. Não decidir por inércia.
 
-### D-07 · `status` como String livre (sem enum)
-- **O quê**: `Client.status` e `Invoice.status` são `String` no Prisma. Valores válidos só existem informalmente / no Zod do webhook.
-- **Impacto**: Possíveis valores inválidos gravados; sem garantia de integridade.
-- **Ação**: Usar `enum` no Prisma (ou tabela de referência) e centralizar constantes em um único lugar.
+### D-07 · `status` como String livre (sem enum) — 🟡 parcial 2026-07-04
+- **Feito**: constantes centralizadas em `src/domain/status.ts` (`InvoiceStatus`/`ClientStatus`/`SubscriptionStatus`) + **máquina de estados** da fatura (`canTransitionInvoice`, ligada no webhook — `PAID` não regride). Testado.
+- **Pendente**: converter as colunas `status` para **enum NATIVO do Postgres** (integridade no banco). Adiado por ter efeito cascata de tipos + cast de migração em runtime (não coberto pelos testes que mockam o banco) — fazer como PR próprio, verificável ponta a ponta. Adotar as constantes de `domain/status.ts` nos demais pontos que ainda usam string literal também fica para essa passada.
 
 ### D-08 · Validação inconsistente (Zod vs manual)
 - **O quê**: `triggerNotification.dto.ts` valida manualmente com `if/throw` (e tem `console.log(payload)` esquecido); os demais usam Zod.

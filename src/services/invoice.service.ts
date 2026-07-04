@@ -10,6 +10,7 @@ import {
 } from '../apis/payment/index.js';
 import { PaymentSettingService } from './payment-setting.service.js';
 import { CreateInvoiceDTO, UpdateInvoiceStatusDTO } from '../dtos/createInvoice.dto.js';
+import { canTransitionInvoice } from '../domain/status.js';
 
 /** Violação de unique (P2002) — usada para detectar corrida na reserva. */
 function isUniqueViolation(error: unknown): boolean {
@@ -175,9 +176,9 @@ export class InvoiceService {
       throw new Error('Fatura correspondente ao Gateway não encontrada.');
     }
 
-    // Guarda de ordem: uma fatura já PAID não regride por evento fora de ordem
-    // (o backstop atômico também vive dentro de applyWebhookAtomic).
-    if (invoice.status === 'PAID' && event.status !== 'PAID') {
+    // Guarda de ordem/estado: só aplica transições válidas (ex.: PAID não
+    // regride). Backstop atômico idêntico dentro de applyWebhookAtomic.
+    if (!canTransitionInvoice(invoice.status, event.status)) {
       return { duplicate: false, invoice };
     }
 
