@@ -59,9 +59,38 @@ if [ ! -s "$OUT" ]; then
 fi
 echo "✔ Backup OK: $OUT ($(du -h "$OUT" | cut -f1))"
 
-# Rotação: mantém os KEEP mais recentes desse banco.
+# Rotação LOCAL: mantém os KEEP mais recentes desse banco.
 ls -1t "$BACKUP_DIR/${PG_DB}"-*.sql.gz 2>/dev/null | tail -n +"$((KEEP + 1))" | xargs -r rm -f
 echo "✔ Rotação: mantendo os $KEEP backups mais recentes em $BACKUP_DIR"
+
+# ---------------------------------------------------------------------------
+# Envio OFF-SITE (S3-compatível). Portável: roda o aws-cli em CONTAINER, então
+# não precisa instalar nada no host — funciona em qualquer VPS com Docker.
+#   - AWS S3 (agora): BACKUP_S3_ENDPOINT vazio + AWS_DEFAULT_REGION da sua região.
+#   - Cloudflare R2 (depois): BACKUP_S3_ENDPOINT=https://<acct>.r2.cloudflarestorage.com
+#                             + AWS_DEFAULT_REGION=auto. MESMO script.
+# Ative definindo BACKUP_S3_BUCKET no .env. Sem isso, fica só o backup local.
+# ---------------------------------------------------------------------------
+if [ -n "${BACKUP_S3_BUCKET:-}" ]; then
+  PREFIX="${BACKUP_S3_PREFIX:-backups}"
+  ENDPOINT_ARG=""
+  [ -n "${BACKUP_S3_ENDPOINT:-}" ] && ENDPOINT_ARG="--endpoint-url ${BACKUP_S3_ENDPOINT}"
+
+  echo "▶ Enviando off-site para s3://${BACKUP_S3_BUCKET}/${PREFIX}/ …"
+  if docker run --rm \
+      -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY \
+      -e AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-east-2}" \
+      -v "$BACKUP_DIR:/backups:ro" \
+      amazon/aws-cli s3 cp "/backups/$(basename "$OUT")" \
+      "s3://${BACKUP_S3_BUCKET}/${PREFIX}/$(basename "$OUT")" $ENDPOINT_ARG; then
+    echo "✔ Off-site OK"
+  else
+    # Não falha o script: o backup LOCAL já está salvo; o off-site é redundância.
+    echo "⚠ Falha no envio off-site (backup local mantido). Verifique credenciais/bucket." >&2
+  fi
+else
+  echo "ℹ Off-site desativado (defina BACKUP_S3_BUCKET no .env para ativar)."
+fi
 
 # =============================================================================
 # AGENDAR NO CRON (uma vez):
