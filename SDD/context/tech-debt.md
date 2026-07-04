@@ -16,10 +16,9 @@ _(nenhum item aberto no momento)_
 
 ## 🟠 Altos
 
-### D-17 · Segredos por tenant em texto no banco
-- **O quê**: `PaymentSetting.mpAccessToken` e `WhatsappSetting.token` (specs 0012/0014) são gravados em **texto puro** no Postgres. A API já os trata como write-only/mascarados na leitura, mas o valor em repouso não é cifrado.
-- **Impacto**: aceitável pré-lançamento (banco só no loopback, backup local), mas **inaceitável em produção multi-tenant real** — um dump vazado expõe tokens de todos os tenants.
-- **Ação**: cifrar em repouso (ex.: `pgcrypto` ou cifra na app com chave em segredo gerenciado) antes de onboardar clientes reais. O handle do InfinitePay é público (não precisa).
+### D-17 · Segredos por tenant em texto no banco — ✅ (WhatsApp) 2026-07-04
+- **Feito**: `WhatsappSetting.token` agora é **cifrado em repouso** (AES-256-GCM, `src/infrastructure/crypto.ts`, chave `ENCRYPTION_KEY`). Cifra no `upsert`, decifra no `findByTenant`; formato versionado `enc:v1:`, **tolerante a legado** (tokens antigos em texto seguem legíveis e são recifrados no próximo save). Testado (`tests/unit/crypto.test.ts`).
+- **Pendente**: quando o `PaymentSetting.mpAccessToken` (token do Mercado Pago) for de fato implementado/persistido, aplicar o **mesmo** `encryptSecret`/`decryptSecret`. O handle do InfinitePay é público (não precisa). Rotacionar tokens após onboarding real.
 
 ### D-02 · WhatsApp: falta suporte a *template* (texto/teste/janela 24h já enviam)
 - **O quê**: `src/apis/whatsapp.api.ts` tem o **seam** (`WhatsappProvider`) e agora um provider real `CloudApiWhatsappProvider` (Meta Cloud API), selecionado por `WHATSAPP_PROVIDER=cloud`. Envia mensagem de **texto** e o worker re-tenta em falha (nack→DLQ). Testado (unit). Ver `whatsapp-integration.md`.

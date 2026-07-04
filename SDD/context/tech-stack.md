@@ -80,14 +80,15 @@ Carregadas via `dotenv` — `src/server.ts` e `src/worker.ts` fazem `import 'dot
 | `MP_NOTIFICATION_URL` | ➖ | `payment/mercadopago.gateway.ts` | URL pública que o MP chama no webhook |
 | `MP_BASE_URL` | ➖ | `payment/mercadopago.gateway.ts` | Base da API do MP (default `https://api.mercadopago.com`) |
 | `CRON_SECRET` | ✅ (p/ scheduler) | `auth.config.ts`, `cron.middleware.ts` | Segredo `x-cron-secret` dos endpoints de sistema cross-tenant (`/api/system/*`, specs 0010/0013) |
+| `ENCRYPTION_KEY` | ✅ (p/ salvar token WhatsApp) | `infrastructure/crypto.ts` | Chave AES-256-GCM (64 hex = `openssl rand -hex 32`) que cifra segredos por tenant em repouso (D-17). Tokens legados em texto seguem legíveis sem ela |
 
 > **Config por tenant (specs 0012/0014):** pagamento e WhatsApp são resolvidos
 > **por tenant** a partir de `PaymentSetting`/`WhatsappSetting` no banco
 > (`resolvePaymentGatewayForTenant` / `resolveWhatsappForTenant`). As variáveis
 > `INFINITEPAY_*`, `WHATSAPP_*`, `MP_*` acima são apenas **fallback** para tenants
-> sem configuração própria. Segredos por tenant (token WhatsApp, tokens MP) hoje
-> ficam em texto no banco — devem ser cifrados antes de produção multi-tenant
-> (ver `tech-debt.md`). O handle do InfinitePay é público (seguro).
+> sem configuração própria. O token de WhatsApp por tenant é **cifrado em repouso**
+> (AES-256-GCM, `ENCRYPTION_KEY` — D-17); o token do MP deve usar a mesma cifra
+> quando for persistido. O handle do InfinitePay é público (seguro).
 
 > **`.env.example`** existe em ambos os repositórios (backend e frontend) com os
 > placeholders. O `.env` real (segredos) é gitignored e vive só na VM.

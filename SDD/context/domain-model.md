@@ -120,7 +120,7 @@ Uma linha por tenant. Diz **de qual número** o tenant envia.
 | `tenantId` | String | — | PK/único — 1 por tenant |
 | `provider` | String | `log` | `log` (só loga) ou `cloud` (Meta Cloud API) |
 | `phoneNumberId` | String? | — | Phone Number ID da Meta |
-| `token` | String? | — | Token da Meta (**segredo** — write-only na API: `getMasked` devolve `hasToken`, nunca o valor) |
+| `token` | String? | — | Token da Meta (**segredo** — write-only na API: `getMasked` devolve `hasToken`, nunca o valor; **cifrado em repouso**, AES-256-GCM / D-17) |
 
 ## Máquinas de estado
 
@@ -191,7 +191,7 @@ PENDING ──► PAID
 
 ### Configuração por tenant (ver specs 0012 e 0014)
 - **RN-CFG1**: `PaymentSetting` e `WhatsappSetting` têm **uma linha por tenant** (`tenantId` único).
-- **RN-CFG2**: Segredos (token WhatsApp, `mpAccessToken`) são **write-only na API**: a leitura devolve um booleano (`hasToken`) / valor mascarado, nunca o segredo. Ao salvar sem informar o token, o valor anterior é **preservado**.
+- **RN-CFG2**: Segredos (token WhatsApp, `mpAccessToken`) são **write-only na API**: a leitura devolve um booleano (`hasToken`) / valor mascarado, nunca o segredo. Ao salvar sem informar o token, o valor anterior é **preservado**. O token de WhatsApp é **cifrado em repouso** (AES-256-GCM, D-17).
 - **RN-CFG3**: O worker resolve o provider de WhatsApp **por tenant** a cada mensagem (`resolveWhatsappForTenant`); sem config own, cai no `log`.
 
 ### LGPD / Direitos do titular (ver `../specs/0004-lgpd.md`)
