@@ -1,6 +1,15 @@
-# Fluxo Completo do Sistema — do agendador (n8n) ao pagamento
+# Fluxo Completo do Sistema — do agendador (cron) ao pagamento
 
-> Documento de leitura contínua: entenda **como o sistema funciona de ponta a ponta**, desde o disparo agendado pelo n8n até a fatura ser marcada como paga. Escrito a partir do código real — onde a realidade difere do que o `README.md` "vende", está marcado com ⚠️.
+> Documento de leitura contínua: entenda **como o sistema funciona de ponta a ponta**, desde o disparo agendado até a fatura ser marcada como paga. Escrito a partir do código real — onde a realidade difere do que o `README.md` "vende", está marcado com ⚠️.
+
+> **📌 Atualização de arquitetura (produção):** o disparo hoje é feito pelo **cron
+> do Linux na própria VM** (não mais n8n — leve demais para o free tier), chamando
+> os **endpoints de sistema cross-tenant** (`/api/system/billing/run` e
+> `/api/system/notifications/run`, autenticados por `x-cron-secret`), que fazem
+> **fan-out para todos os tenants de uma vez** — sem login por tenant. O fluxo
+> "n8n loga como um tenant e pergunta os vencidos" descrito abaixo (passos 1–3)
+> continua **válido como caminho manual/por-tenant**, mas o **automático** é o
+> cross-tenant (ver seção "cobrança recorrente" e [`devops-infra.md`](./devops-infra.md)).
 
 Se você só quer o mapa mental, leia as duas seções "Visão em 30 segundos" e "O diagrama". O resto é detalhe.
 
@@ -11,9 +20,9 @@ Se você só quer o mapa mental, leia as duas seções "Visão em 30 segundos" e
 Uma empresa (tenant) cadastra clientes devedores e gera cobranças. Um **agendador externo (n8n)** roda de tempos em tempos, pergunta à API "quem está em atraso?", e manda a API **enfileirar** as notificações. Um **worker** consome essa fila em segundo plano e envia a mensagem de cobrança (WhatsApp). Quando o cliente paga, o **gateway de pagamento chama a API** (webhook) e a fatura vira `PAID` — de forma idempotente. Tudo isolado por empresa (multi-tenant).
 
 **Os 3 atores externos:**
-- **n8n** — o "relógio" que dispara o ciclo (agendador/orquestrador).
-- **Gateway de pagamento** (mock hoje; Mercado Pago no futuro) — gera a cobrança e avisa quando foi paga.
-- **WhatsApp** — canal de entrega. Default `log` (não envia); com `WHATSAPP_PROVIDER=cloud` envia de verdade via Meta Cloud API. Regra texto×template e custo em `whatsapp-integration.md`.
+- **Cron do Linux (na VM)** — o "relógio" que dispara o ciclo diário via `/api/system/*` (cross-tenant, `x-cron-secret`). Substituiu o n8n.
+- **Gateway de pagamento** (InfinitePay default; Mercado Pago; `mock` p/ testes — resolvido **por tenant**) — gera a cobrança e avisa quando foi paga.
+- **WhatsApp** — canal de entrega, **por tenant**. Default `log` (não envia); com config `cloud` (token+phoneNumberId do tenant) envia via Meta Cloud API. Regra texto×template e custo em `whatsapp-integration.md`.
 
 ---
 

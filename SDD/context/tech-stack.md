@@ -72,20 +72,33 @@ Carregadas via `dotenv` — `src/server.ts` e `src/worker.ts` fazem `import 'dot
 | `AUTH_USERNAME` / `AUTH_PASSWORD` | ✅ | `auth.service.ts` | Credenciais da conta de serviço para o login |
 | `WEBHOOK_SECRET` | condicional | `payment/mock.gateway.ts` | Segredo `x-webhook-secret` do webhook quando `PAYMENT_PROVIDER=mock` |
 | `DEFAULT_TENANT_ID` | ➖ | `auth.config.ts` | Tenant da conta de serviço (default = Account seedado na migração 0001) |
-| `PAYMENT_PROVIDER` | ➖ | `payment/index.ts` | `mock` (default) ou `mercadopago` |
+| `PAYMENT_PROVIDER` | ➖ | `payment/index.ts` | `infinitepay` (default), `mercadopago` ou `mock`. **Fallback** — o efetivo é resolvido **por tenant** (ver abaixo) |
+| `INFINITEPAY_HANDLE` | condicional | `payment/infinitepay.gateway.ts` | Handle (`@usuario`) que recebe o pagamento — fallback se o tenant não configurou o dele (spec 0011) |
+| `INFINITEPAY_REDIRECT_URL` | ➖ | `payment/infinitepay.gateway.ts` | URL de retorno após o checkout |
 | `MP_ACCESS_TOKEN` | condicional | `payment/mercadopago.gateway.ts` | Token do Mercado Pago (sandbox) — obrigatório se `PAYMENT_PROVIDER=mercadopago` |
 | `MP_WEBHOOK_SECRET` | condicional | `payment/mercadopago.gateway.ts` | Segredo para validar a assinatura `x-signature` do MP |
 | `MP_NOTIFICATION_URL` | ➖ | `payment/mercadopago.gateway.ts` | URL pública que o MP chama no webhook |
 | `MP_BASE_URL` | ➖ | `payment/mercadopago.gateway.ts` | Base da API do MP (default `https://api.mercadopago.com`) |
+| `CRON_SECRET` | ✅ (p/ scheduler) | `auth.config.ts`, `cron.middleware.ts` | Segredo `x-cron-secret` dos endpoints de sistema cross-tenant (`/api/system/*`, specs 0010/0013) |
 
-> ⚠️ Não existe `.env.example` no repositório. Recomenda-se criar um (ver `tech-debt.md`).
+> **Config por tenant (specs 0012/0014):** pagamento e WhatsApp são resolvidos
+> **por tenant** a partir de `PaymentSetting`/`WhatsappSetting` no banco
+> (`resolvePaymentGatewayForTenant` / `resolveWhatsappForTenant`). As variáveis
+> `INFINITEPAY_*`, `WHATSAPP_*`, `MP_*` acima são apenas **fallback** para tenants
+> sem configuração própria. Segredos por tenant (token WhatsApp, tokens MP) hoje
+> ficam em texto no banco — devem ser cifrados antes de produção multi-tenant
+> (ver `tech-debt.md`). O handle do InfinitePay é público (seguro).
+
+> **`.env.example`** existe em ambos os repositórios (backend e frontend) com os
+> placeholders. O `.env` real (segredos) é gitignored e vive só na VM.
 
 ## Containerização / Deploy
 
 - `Dockerfile` — multi-stage (build → produção), roda como usuário `node` (não-root), `tini` como init (sinais), `openssl` p/ Prisma, `HEALTHCHECK` em `/api/health`.
 - `docker-compose.yml` — **stack Docker Swarm** (`postgres`, `rabbitmq`, `redis`, `migrate`, `api`, `worker`): segredos via `.env` (sem hardcode), `api` com `RUN_WORKER_INLINE=false`, `worker` separado, healthchecks, `stop_grace_period`, limites de recurso e rotação de log.
-- `docker-compose.free.yml` — **versão free tier** (1 instância, ~1 GiB): Compose puro (`docker compose up`), 1 réplica de cada, `mem_limit` enxuto, ordem via `depends_on` (migrate antes de api/worker), build embutido. Prevê o serviço `web` (nginx: SPA + proxy `/api`) para o frontend (`frontend/`).
-- Passo a passo (produção e free tier) em `skills/run-and-debug.md` (seção Deploy).
+- `docker-compose.free.yml` — **versão free tier** (1 instância, ~1 GiB): Compose puro (`docker compose up`), 1 réplica de cada, `mem_limit` enxuto, ordem via `depends_on` (migrate antes de api/worker), build embutido. Inclui o serviço **`caddy`** (reverse proxy + HTTPS automático via Let's Encrypt) que serve o frontend estático (bind mount `./frontend/dist:/srv`) e faz proxy de `/api/*` → `api:3000`. A API (3000) e o painel do RabbitMQ (15672) publicam **só no loopback** (`127.0.0.1`); só 80/443/22 ficam expostos.
+- **Infra/DevOps completo** (Elastic IP, DNS, Caddy/HTTPS, deploy, cron, backup, hardening, rotação de segredos) em [`devops-infra.md`](./devops-infra.md). Passo a passo local em `skills/run-and-debug.md`.
+- **Scripts de operação:** `scripts/deploy.sh` (deploy backend na VM), `scripts/run-daily-billing.sh` (cron diário: billing + notificações), `scripts/backup-db.sh` (backup do Postgres). Deploy do frontend: `scripts/deploy-web.sh` **no repositório do front**.
 
 ## Infraestrutura externa necessária
 
@@ -100,19 +113,20 @@ Ver `skills/run-and-debug.md` para o passo a passo.
 
 ```
 src/
-├── apis/            · integrações externas: whatsapp.api.ts (seam), payment/ (gateway seam: mock + mercadopago)
-├── config/          · rabbitmql.config.ts, redis.config.ts, auth.config.ts
+├── apis/            · integrações externas: whatsapp.api.ts (seam + resolveWhatsappForTenant), payment/ (seam: mock, mercadopago, infinitepay + resolvePaymentGatewayForTenant)
+├── config/          · rabbitmql.config.ts, redis.config.ts, auth.config.ts (inclui cronSecret)
 ├── context/         · tenant-context.ts (AsyncLocalStorage do tenant)
-├── controllers/     · auth, clients, invoice, notification, lgpd, health
+├── controllers/     · auth, clients, invoice, notification, lgpd, health, subscription, settings, system
 ├── database/        · prisma.ts (client singleton)
-├── dtos/            · validação/contratos (Zod + validação manual)
+├── dtos/            · validação/contratos (Zod): inclui importClients, subscription, paymentSettings, whatsappSettings
 ├── infrastructure/  · retry.ts
-├── messaging/       · invoice-queue.ts (topologia), publish/ e consumer/
-├── middlewares/     · auth.middleware.ts (jwtAuth)
-├── repositories/    · cliente, invoice, user, webhook-event
-├── routers/         · um router por domínio (auth, clients, invoice, notification, health)
-├── services/        · regra de negócio por domínio (inclui auth, lgpd)
-├── works/           · invoice.worker.ts
+├── messaging/       · invoice-queue.ts + billing-scheduler-queue.ts (topologias), publish/ e consumer/
+├── middlewares/     · auth.middleware.ts (jwtAuth), cron.middleware.ts (cronAuth p/ /api/system)
+├── repositories/    · cliente, invoice, user, webhook-event, subscription, account, payment-setting, whatsapp-setting
+├── routers/         · um router por domínio (+ subscription, settings, system)
+├── services/        · regra de negócio por domínio (+ subscription, billing-scheduler, notification-scheduler, payment-setting, whatsapp-setting, settings)
+├── utils/           · recurrence.ts (períodos/competências das assinaturas)
+├── works/           · invoice.worker.ts + billing.worker.ts
 ├── index.ts         · agregador de rotas (appRouter)
 ├── server.ts        · entrypoint da API (bootstrap)
 └── worker.ts        · entrypoint do worker isolado

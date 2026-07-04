@@ -76,10 +76,51 @@ Guarda os ids de evento de webhook já processados (spec 0003).
 | `paidAt` | DateTime? | — | Preenchido pelo webhook ao confirmar pagamento |
 | `createdAt` | DateTime | `now()` | — |
 | `notificationSent` | Boolean | `false` | `true` após o worker enviar a cobrança |
+| `subscriptionId` | String? | — | FK → Subscription. Preenchido quando a fatura foi **gerada por uma assinatura** (spec 0009) |
+| `period` | String? | — | Competência da assinatura (ex.: `2026-07`). Junto com `subscriptionId` garante idempotência |
 | `clientId` | String | — | FK → Client (`onDelete: Cascade`) |
 | `tenantId` | String | — | FK → Account (`onDelete: Cascade`). Escopo obrigatório |
 
-Índices: `@@index([clientId])`, `@@index([status])`, `@@index([status, clientId])`, `@@index([tenantId, status])`, `@@index([tenantId, clientId])`.
+Índices: `@@index([clientId])`, `@@index([status])`, `@@index([status, clientId])`, `@@index([tenantId, status])`, `@@index([tenantId, clientId])`, `@@unique([subscriptionId, period])` (uma fatura por competência por assinatura).
+
+### Subscription (Assinatura / mensalidade) — spec 0009
+
+Molde recorrente: gera uma `Invoice` por competência (mês) para um cliente.
+
+| Campo | Tipo | Padrão | Notas |
+|---|---|---|---|
+| `id` | String (uuid) | gerado | PK |
+| `clientId` | String | — | FK → Client (`onDelete: Cascade`) |
+| `amount` | Float | — | Valor da mensalidade (> 0) |
+| `dayOfMonth` | Int | — | Dia de vencimento (1–28) |
+| `status` | String | `ACTIVE` | `ACTIVE`, `PAUSED`, `CANCELED` |
+| `startDate` | DateTime | — | A partir de quando gera |
+| `description` | String? | — | Aparece na cobrança |
+| `tenantId` | String | — | FK → Account (`onDelete: Cascade`) |
+| `createdAt` | DateTime | `now()` | — |
+
+### PaymentSetting (Config de pagamento por tenant) — spec 0012
+
+Uma linha por tenant. Diz **em qual conta** o tenant recebe.
+
+| Campo | Tipo | Padrão | Notas |
+|---|---|---|---|
+| `tenantId` | String | — | PK/único — 1 por tenant |
+| `provider` | String | `infinitepay` | `infinitepay`, `mercadopago` ou `mock` |
+| `infinitepayHandle` | String? | — | Handle público que recebe (ex.: `@loja`) |
+| `redirectUrl` | String? | — | Retorno pós-checkout |
+| `mpAccessToken` | String? | — | Token MP (**segredo** — mascarado na API, texto no banco por ora) |
+
+### WhatsappSetting (Config de WhatsApp por tenant) — spec 0014
+
+Uma linha por tenant. Diz **de qual número** o tenant envia.
+
+| Campo | Tipo | Padrão | Notas |
+|---|---|---|---|
+| `tenantId` | String | — | PK/único — 1 por tenant |
+| `provider` | String | `log` | `log` (só loga) ou `cloud` (Meta Cloud API) |
+| `phoneNumberId` | String? | — | Phone Number ID da Meta |
+| `token` | String? | — | Token da Meta (**segredo** — write-only na API: `getMasked` devolve `hasToken`, nunca o valor) |
 
 ## Máquinas de estado
 
@@ -133,11 +174,23 @@ PENDING ──► PAID
 - **RN-I3**: Webhook só atualiza fatura existente (localizada por `gatewayId`); senão erro `"Fatura correspondente ao Gateway não encontrada."`.
 - **RN-I4**: `gatewayId` é único — não pode haver duas faturas com o mesmo ID de gateway.
 
-### Pagamento / Gateway (ver `../specs/0003-payment-gateway-mercadopago.md`)
-- **RN-P1**: `createPayment` cria a cobrança no provider ativo (`PAYMENT_PROVIDER`) e guarda `gatewayId`/`checkoutUrl`/PIX.
+### Pagamento / Gateway (ver specs 0003, 0011, 0012)
+- **RN-P1**: `createPayment` cria a cobrança no provider **resolvido por tenant** (`resolvePaymentGatewayForTenant` a partir de `PaymentSetting`; fallback = `PAYMENT_PROVIDER`) e guarda `gatewayId`/`checkoutUrl`/PIX.
 - **RN-P3**: Webhook é **idempotente** — evento com `eventId` já processado (em `WebhookEvent`) é no-op.
-- **RN-P4**: Autenticidade do webhook é do provider (`mock`: `x-webhook-secret`; `mercadopago`: assinatura `x-signature`).
+- **RN-P4**: Autenticidade do webhook é do provider (`mock`: `x-webhook-secret`; `mercadopago`: assinatura `x-signature`; `infinitepay`: a validar com a doc oficial).
 - **RN-P5**: Status MP → fatura: `approved`→`PAID`, `pending`/`in_process`→`PENDING`, `rejected`/`cancelled`/`refunded`→`FAILED`.
+- **RN-P6**: Cada tenant recebe na **própria conta** (`PaymentSetting`). O default do sistema é `infinitepay` (handle público).
+
+### Assinaturas / Recorrência (ver `../specs/0009-recurring-billing.md`)
+- **RN-S1**: Uma assinatura `ACTIVE` gera **uma** `Invoice` por competência (`period`, ex. `2026-07`). `@@unique([subscriptionId, period])` garante **idempotência** — rodar o gerador duas vezes não duplica.
+- **RN-S2**: `SubscriptionService.run(now)` gera, por execução, no máximo uma competência por assinatura vencida.
+- **RN-S3**: Assinaturas `PAUSED`/`CANCELED` não geram faturas.
+- **RN-S4**: A fatura gerada entra no ciclo normal (overdue → notificação → webhook → PAID).
+
+### Configuração por tenant (ver specs 0012 e 0014)
+- **RN-CFG1**: `PaymentSetting` e `WhatsappSetting` têm **uma linha por tenant** (`tenantId` único).
+- **RN-CFG2**: Segredos (token WhatsApp, `mpAccessToken`) são **write-only na API**: a leitura devolve um booleano (`hasToken`) / valor mascarado, nunca o segredo. Ao salvar sem informar o token, o valor anterior é **preservado**.
+- **RN-CFG3**: O worker resolve o provider de WhatsApp **por tenant** a cada mensagem (`resolveWhatsappForTenant`); sem config own, cai no `log`.
 
 ### LGPD / Direitos do titular (ver `../specs/0004-lgpd.md`)
 - **RN-L1**: Export retorna cliente + faturas, escopado por tenant.
@@ -154,7 +207,9 @@ PENDING ──► PAID
 
 ## Glossário
 
-- **Gateway**: provedor de pagamento externo (Asaas, Stripe). Hoje simulado.
+- **Gateway**: provedor de pagamento externo. Default **InfinitePay**; também `mercadopago` e `mock` (testes). Resolvido **por tenant**.
+- **Competência (`period`)**: o mês de referência de uma fatura de assinatura (ex.: `2026-07`).
 - **PIX copia-e-cola**: string do PIX para o cliente pagar.
 - **Inadimplente**: cliente com `status = EM_ATRASO`.
 - **Notificação/Cobrança**: mensagem de WhatsApp enviada para cobrar uma fatura pendente.
+- **Tenant / multi-tenancy**: cada cliente do SaaS é um `Account`; dados isolados por `tenantId`. Ver [`devops-infra.md`](./devops-infra.md).

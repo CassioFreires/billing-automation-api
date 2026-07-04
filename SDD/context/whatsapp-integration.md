@@ -21,6 +21,11 @@ Fase 2 (teste)    WHATSAPP_PROVIDER=cloud   → número de TESTE da Meta (gráti
 Fase 3 (produção) WHATSAPP_PROVIDER=cloud   → número real (pay-per-use, só quando envia)
 ```
 
+> **Atualização (spec 0014):** em produção a escolha `log`/`cloud` é feita **por
+> tenant** (a partir de `WhatsappSetting` no banco, via `resolveWhatsappForTenant`),
+> não por uma env global. A `WHATSAPP_PROVIDER`/`WHATSAPP_*` continua valendo como
+> **fallback** para tenants sem config própria. Ver "Quem é o remetente?" no fim.
+
 ---
 
 ## Modelo de custo da Meta (importante — desfaz um mito)
@@ -102,8 +107,23 @@ O worker (`src/works/invoice.worker.ts`) agora:
 2. **Webhook de status de entrega**: a Meta envia `sent/delivered/read/failed`. Consumir para dar rastreabilidade real (hoje o sistema só sabe que "chamou a API com sucesso").
 3. **Normalização E.164 completa** (PR-12): hoje só removemos não-dígitos; falta garantir DDI/DDD corretos.
 
-## Quem é o remetente? (modelo multi-cliente)
+## Quem é o remetente? (modelo multi-cliente) — DECIDIDO: por tenant (spec 0014)
 
-Uma decisão estrutural à parte: a cobrança sai do **nosso** número/CNPJ (Modelo A) ou do número/CNPJ **de cada cliente** (Modelo B, padrão de SaaS)? Isso define se as credenciais são globais (`.env`, hoje) ou **por tenant** (no banco). Está documentado em **`../specs/0005-whatsapp-sender-model.md`** — inclusive a decisão atual (adiar: modo `log` não exige CNPJ; no Modelo B o CNPJ é de cada cliente).
+A decisão estrutural foi tomada e **implementada**: **Modelo B** — cada tenant
+envia pelo **próprio** número/CNPJ (padrão de SaaS). As credenciais deixaram de
+ser só globais (`.env`) e passaram a viver **por tenant** no banco
+(`WhatsappSetting`: `provider`, `phoneNumberId`, `token`), configuráveis em
+`GET/PUT /api/settings/whatsapp` (token **write-only/mascarado**).
 
-Relacionado: `fluxo-completo.md` (onde o envio se encaixa no fluxo) e `tech-debt.md` (dívida **D-02**).
+O worker resolve o provider **por tenant e por mensagem** via
+`resolveWhatsappForTenant(config)`: usa `cloud` (Meta) só se o tenant tiver
+`token` + `phoneNumberId`; senão cai no `log`. As variáveis `WHATSAPP_*` do
+`.env` viram apenas **fallback** para tenants sem config própria.
+
+> ⚠️ Consequência de segurança: o `token` fica hoje **em texto** no banco — cifrar
+> antes de produção multi-tenant real (ver `tech-debt.md` **D-17**).
+
+Detalhe da decisão original em **`../specs/0005-whatsapp-sender-model.md`** e a
+implementação em **`../specs/0014-per-tenant-whatsapp-settings.md`**.
+
+Relacionado: `fluxo-completo.md` (onde o envio se encaixa) e `tech-debt.md` (**D-02**, **D-17**).
