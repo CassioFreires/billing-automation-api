@@ -169,6 +169,8 @@ services:
       - "443:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Build do frontend (enviado do PC). Caddy serve isto na raiz do domínio.
+      - ./frontend/dist:/srv:ro
       - caddy_data:/data
       - caddy_config:/config
     networks: [billing-network]
