@@ -153,25 +153,28 @@ services:
     logging: *default-logging
 
   # ==========================================================================
-  # FRONTEND (descomente quando existir). nginx serve o estático e faz proxy
-  # de /api -> api:3000, virando o ponto de entrada na porta 80.
-  # Precisa de: ./frontend/dist (build do front) e ./frontend/nginx.conf.
-  # Com ele ativo, você pode remover o "ports: 3000:3000" da API (fica interna).
+  # CADDY — porteiro/reverse proxy com HTTPS automático (Let's Encrypt).
+  # Escuta em 80/443, obtém o certificado sozinho e repassa:
+  #   api.useadimplo.com.br -> api:3000
+  # (e, no futuro, useadimplo.com.br -> frontend estático).
+  # Config em ./Caddyfile. Certificados persistem no volume caddy_data.
   # ==========================================================================
-  # web:
-  #   image: nginx:1.27-alpine
-  #   depends_on:
-  #     api:
-  #       condition: service_started
-  #   ports:
-  #     - "80:80"
-  #   volumes:
-  #     - ./frontend/dist:/usr/share/nginx/html:ro
-  #     - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-  #   networks: [billing-network]
-  #   mem_limit: 64m
-  #   restart: unless-stopped
-  #   logging: *default-logging
+  caddy:
+    image: caddy:2-alpine
+    depends_on:
+      api:
+        condition: service_started
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [billing-network]
+    mem_limit: 64m
+    restart: unless-stopped
+    logging: *default-logging
 
 networks:
   billing-network:
@@ -181,3 +184,5 @@ volumes:
   postgres_data:
   rabbitmq_data:
   redis_data:
+  caddy_data:
+  caddy_config:
