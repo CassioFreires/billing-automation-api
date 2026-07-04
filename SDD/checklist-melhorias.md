@@ -59,9 +59,9 @@
 - [ ] **Enums no Prisma** para `status` de Client/Invoice/Subscription (hoje `String` livre — [D-07]). Garante integridade e autocompleta. 🟠 ⏳
 - [ ] **Máquina de estados explícita** da fatura (função `canTransition(from, to)`) em vez de `update` solto — evita transições inválidas (liga com §2). 🟠 ⏳
 
-## 6. 🔴 Segurança
+## 6. 🔴 Segurança — PARCIAL (2026-07-04)
 
-- [ ] **Cifrar segredos por tenant em repouso** ([D-17]): `WhatsappSetting.token` e futuro `mpAccessToken`. `pgcrypto` ou cifra na app com chave em segredo gerenciado. 🔴 ⏳
+- [x] **Cifrar segredos por tenant em repouso** ([D-17]): `WhatsappSetting.token` cifrado com AES-256-GCM (`infrastructure/crypto.ts`, chave `ENCRYPTION_KEY`), tolerante a legado. Testado. Falta aplicar ao `mpAccessToken` quando ele for persistido.
 - [ ] **Rate limiting** nos endpoints sensíveis (login, criação de cobrança, disparo de notificação) — anti-abuso e proteção de custo (PR-11). `express-rate-limit`. 🟠 ⏱
 - [ ] **Headers de segurança**: adicionar `helmet` ao Express. 🔵 ⏱
 - [ ] **Validação de webhook do InfinitePay** ([D-18]) com a doc oficial antes de confiar em confirmação automática. 🟠 ⏳

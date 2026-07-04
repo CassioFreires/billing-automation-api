@@ -120,8 +120,9 @@ O worker resolve o provider **por tenant e por mensagem** via
 `token` + `phoneNumberId`; senão cai no `log`. As variáveis `WHATSAPP_*` do
 `.env` viram apenas **fallback** para tenants sem config própria.
 
-> ⚠️ Consequência de segurança: o `token` fica hoje **em texto** no banco — cifrar
-> antes de produção multi-tenant real (ver `tech-debt.md` **D-17**).
+> 🔒 Segurança: o `token` é **cifrado em repouso** (AES-256-GCM, chave
+> `ENCRYPTION_KEY` — ver `infrastructure/crypto.ts`). Cifra ao gravar, decifra ao
+> ler para o worker; a API nunca devolve o token (mascarado). Ver **D-17**.
 
 Detalhe da decisão original em **`../specs/0005-whatsapp-sender-model.md`** e a
 implementação em **`../specs/0014-per-tenant-whatsapp-settings.md`**.
