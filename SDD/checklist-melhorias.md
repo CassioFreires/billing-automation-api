@@ -74,9 +74,10 @@
 ## 7. 💾 Backup & estratégia (incl. "se lotar") — EM ANDAMENTO (2026-07-04)
 
 - [x] **Script de envio off-site pronto** (`backup-db.sh`): se `BACKUP_S3_BUCKET` estiver setado, envia o dump via **aws-cli em container** (portável — sem instalar nada no host). **S3-compatível**: serve AWS S3 agora e **Cloudflare R2/B2** depois só trocando `BACKUP_S3_ENDPOINT` + credenciais. Falha no envio **não** derruba o backup local (redundância).
-- [ ] **Configurar + testar na AWS** ([D-19]): criar bucket S3, IAM user com policy escopada ao bucket, pôr chaves no `.env`, rodar e ver o objeto aparecer. ⏳ (em andamento)
-- [ ] **Lifecycle rule** no bucket (expira/rotaciona os backups remotos — ex.: 90 dias). 🟠 ⏱
-- [ ] **Migrar para Cloudflare R2 na produção** (barato + egress grátis) — só trocar endpoint/credenciais. 🔵
+- [x] **Configurado + testado na AWS** ([D-19]): bucket `adimplo-db-backups-completo-cassio` (us-east-2), IAM user `adimplo-backup` com policy escopada só ao bucket, chaves no `.env` do EC2. Backup enviado e confirmado (`prod/postgres/*.sql.gz`).
+- [ ] **Lifecycle rule** no bucket (expira backups remotos > 90 dias) — resolve o "se lotar" remoto. ⏳ (fazendo agora)
+- [ ] **Testar o RESTORE** de um dump num banco descartável — backup só está "provado" depois de restaurar. 🔴 ⏱ (recomendado)
+- [ ] **Migrar para Cloudflare R2 na produção** (barato + egress grátis) — só trocar `BACKUP_S3_ENDPOINT` + credenciais. 🔵
 - [ ] **Testar o restore** de verdade (num banco descartável) — backup não testado é backup que não existe. 🔴 ⏱
 - [ ] **Proteção contra "encher o disco"**: a rotação já mantém 14 locais, mas adicionar (a) alerta de disco < 15% no cron; (b) `set -e` já aborta o dump se falhar; (c) mandar para S3 e manter só 3–5 locais. 🟠 ⏱
 - [ ] **Monitorar sucesso do backup**: se o cron das 03:00 falhar, você precisa saber. Logar em arquivo (já faz) + um _healthcheck ping_ (ex.: healthchecks.io) que alarma se não rodar. 🟠 ⏱
