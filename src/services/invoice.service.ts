@@ -3,7 +3,6 @@
 import { randomUUID } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import { InvoiceRepository } from '../repositories/invoice.repository.js';
-import { WebhookEventRepository } from '../repositories/webhook-event.repository.js';
 import {
   PaymentGatewayProvider,
   WebhookResult,
@@ -12,20 +11,24 @@ import {
 import { PaymentSettingService } from './payment-setting.service.js';
 import { CreateInvoiceDTO, UpdateInvoiceStatusDTO } from '../dtos/createInvoice.dto.js';
 
+/** Violação de unique (P2002) — usada para detectar corrida na reserva. */
+function isUniqueViolation(error: unknown): boolean {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002'
+  );
+}
+
 export class InvoiceService {
   private invoiceRepository: InvoiceRepository;
-  private webhookEvents: WebhookEventRepository;
   private injectedGateway?: PaymentGatewayProvider;
   private paymentSettings: PaymentSettingService;
 
   constructor(deps?: {
     invoiceRepository?: InvoiceRepository;
-    webhookEvents?: WebhookEventRepository;
     gateway?: PaymentGatewayProvider;
     paymentSettings?: PaymentSettingService;
   }) {
     this.invoiceRepository = deps?.invoiceRepository ?? new InvoiceRepository();
-    this.webhookEvents = deps?.webhookEvents ?? new WebhookEventRepository();
     this.injectedGateway = deps?.gateway;
     this.paymentSettings = deps?.paymentSettings ?? new PaymentSettingService();
   }
@@ -59,26 +62,35 @@ export class InvoiceService {
       ? items.map((it) => it.description).join(', ')
       : 'Cobrança';
 
-    const gateway = await this.gatewayForTenant();
-    const charge = await gateway.createCharge({
-      reference,
-      amount: total.toNumber(),
-      dueDate: data.dueDate,
-      description,
-    });
-
-    const invoice = await this.invoiceRepository.create({
+    // Reserva a fatura ANTES de cobrar (sem dados de gateway). Assim, se o
+    // gateway falhar, desfazemos a reserva e não fica cobrança órfã.
+    const reserved = await this.invoiceRepository.create({
       clientId: data.clientId,
       value: total,
       dueDate: data.dueDate,
       items,
-      gatewayId: charge.gatewayId,
-      pixCopyPaste: charge.pixCopyPaste,
-      pixQrCode: charge.pixQrCode,
-      checkoutUrl: charge.checkoutUrl,
     });
 
-    return invoice;
+    try {
+      const gateway = await this.gatewayForTenant();
+      const charge = await gateway.createCharge({
+        reference,
+        amount: total.toNumber(),
+        dueDate: data.dueDate,
+        description,
+      });
+
+      return await this.invoiceRepository.attachCharge(reserved.id, {
+        gatewayId: charge.gatewayId,
+        pixCopyPaste: charge.pixCopyPaste,
+        pixQrCode: charge.pixQrCode,
+        checkoutUrl: charge.checkoutUrl,
+      });
+    } catch (error) {
+      // Gateway falhou → desfaz a reserva para permitir um retry limpo.
+      await this.invoiceRepository.deleteById(reserved.id).catch(() => {});
+      throw error;
+    }
   }
 
   /**
@@ -103,28 +115,53 @@ export class InvoiceService {
     }
 
     const reference = randomUUID();
-    const gateway = await this.gatewayForTenant();
-    const charge = await gateway.createCharge({
-      reference,
-      amount: input.amount,
-      dueDate: input.dueDate,
-      description: input.description,
-    });
 
-    const invoice = await this.invoiceRepository.create({
-      clientId: input.clientId,
-      value: input.amount,
-      dueDate: input.dueDate,
-      items: [{ description: input.description, quantity: 1, unitPrice: input.amount }],
-      gatewayId: charge.gatewayId,
-      pixCopyPaste: charge.pixCopyPaste,
-      pixQrCode: charge.pixQrCode,
-      checkoutUrl: charge.checkoutUrl,
-      subscriptionId: input.subscriptionId,
-      period: input.period,
-    });
+    // Reserva a competência ANTES de cobrar. A unique [subscriptionId, period]
+    // barra corridas (ex.: cron + /subscriptions/run manual ao mesmo tempo):
+    // só um insert vence; o perdedor cai no P2002 e NÃO chama o gateway —
+    // eliminando a cobrança duplicada.
+    let reserved: { id: string };
+    try {
+      reserved = await this.invoiceRepository.create({
+        clientId: input.clientId,
+        value: input.amount,
+        dueDate: input.dueDate,
+        items: [{ description: input.description, quantity: 1, unitPrice: input.amount }],
+        subscriptionId: input.subscriptionId,
+        period: input.period,
+      });
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        const now = await this.invoiceRepository.findBySubscriptionPeriod(
+          input.subscriptionId,
+          input.period
+        );
+        return { created: false, invoice: now };
+      }
+      throw error;
+    }
 
-    return { created: true, invoice };
+    try {
+      const gateway = await this.gatewayForTenant();
+      const charge = await gateway.createCharge({
+        reference,
+        amount: input.amount,
+        dueDate: input.dueDate,
+        description: input.description,
+      });
+
+      const invoice = await this.invoiceRepository.attachCharge(reserved.id, {
+        gatewayId: charge.gatewayId,
+        pixCopyPaste: charge.pixCopyPaste,
+        pixQrCode: charge.pixQrCode,
+        checkoutUrl: charge.checkoutUrl,
+      });
+
+      return { created: true, invoice };
+    } catch (error) {
+      await this.invoiceRepository.deleteById(reserved.id).catch(() => {});
+      throw error;
+    }
   }
 
   /**
@@ -138,20 +175,20 @@ export class InvoiceService {
       throw new Error('Fatura correspondente ao Gateway não encontrada.');
     }
 
-    if (event.eventId) {
-      const isNew = await this.webhookEvents.recordIfNew(event.eventId, 'gateway');
-      if (!isNew) {
-        return { duplicate: true, invoice };
-      }
+    // Guarda de ordem: uma fatura já PAID não regride por evento fora de ordem
+    // (o backstop atômico também vive dentro de applyWebhookAtomic).
+    if (invoice.status === 'PAID' && event.status !== 'PAID') {
+      return { duplicate: false, invoice };
     }
 
-    const updated = await this.invoiceRepository.updateStatus(
-      invoice.id,
-      event.status,
-      event.paidAt
-    );
-
-    return { duplicate: false, invoice: updated };
+    // Idempotência (registro do evento) + update do status na MESMA transação.
+    return this.invoiceRepository.applyWebhookAtomic({
+      invoiceId: invoice.id,
+      eventId: event.eventId,
+      provider: 'gateway',
+      status: event.status,
+      paidAt: event.paidAt,
+    });
   }
 
   /** Compat: caminho antigo (payload já no formato interno). */

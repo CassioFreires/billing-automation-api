@@ -28,16 +28,13 @@
   - [x] Build limpo + 113 testes passando; doc `domain-model.md` (RN-I5) atualizada.
 - [ ] **(pendente)** Helper `money.ts` centralizando arredondamento/moeda (2 casas, `ROUND_HALF_EVEN`) — opcional, para quando houver mais aritmética monetária.
 
-## 2. 🔴 Concorrência, transações & idempotência
+## 2. ✅ Concorrência, transações & idempotência (FEITO 2026-07-04)
 
-- [ ] **Cobrança recorrente pode duplicar cobrança no gateway.** Em `invoice.service.createForSubscription`, a idempotência é _check-then-create_: `findBySubscriptionPeriod` → `createCharge` (gateway) → `create`. Duas execuções concorrentes (ex.: cron + `/subscriptions/run` manual) passam pelo `find` juntas e **ambas chamam o gateway** antes do `@@unique([subscriptionId, period])` barrar o 2º insert → **duas cobranças criadas no InfinitePay**. 🔴 ⏳
-  - Correção: **reservar primeiro** — inserir a `Invoice` (status `PENDING`, sem dados de gateway) dentro de uma transação que já topa no `@@unique`; só **depois** chamar `createCharge` e dar `update` com os dados. Em conflito de unique, aborta sem chamar o gateway.
-- [ ] **Webhook: transação + guarda de ordem.** Em `invoice.service.applyWebhook`, `findByGatewayId` → `recordIfNew` → `updateStatus` não é transacional, e nada impede um evento **antigo** (`pending`) que chega **depois** sobrescrever um `PAID`. 🔴 ⏳
-  - Envolver `recordIfNew` + `updateStatus` numa transação Prisma.
-  - Não regredir status: se a fatura já está `PAID`, ignorar transição para `PENDING`/`FAILED` (ou usar timestamp do evento).
-  - Conferir que `recordIfNew` usa `INSERT ... ON CONFLICT DO NOTHING` (atômico), não _select-then-insert_.
-- [ ] **Cobrança avulsa órfã.** Em `createPayment`, se o `repository.create` falhar após `createCharge`, fica uma cobrança no gateway sem fatura. Mesmo padrão _reservar-depois-cobrar_ do item acima. 🟠 ⏳
-- [ ] Se um dia rodar **N workers** consumindo a geração, usar `SELECT ... FOR UPDATE SKIP LOCKED` na varredura de assinaturas para dois workers não pegarem a mesma. Hoje é 1 job/tenant (serial), então é preventivo. 🔵 🗓️
+- [x] **Cobrança recorrente não duplica mais no gateway.** `createForSubscription` agora **reserva primeiro**: insere a `Invoice` (PENDING, sem gateway) → a `@@unique([subscriptionId, period])` barra corridas (cron + `/subscriptions/run`); só o vencedor chama `createCharge` e faz `attachCharge`. Perdedor cai no P2002, **não** chama o gateway e devolve a existente.
+- [x] **Webhook atômico + guarda de ordem.** Novo `invoiceRepository.applyWebhookAtomic`: registra o evento (unique) **e** atualiza o status na **mesma transação** (`prisma.$transaction`); uma fatura já `PAID` **não regride** (guarda no service + backstop atômico dentro da tx). `recordIfNew`/insert usa a PK como trava (atômico).
+- [x] **Cobrança avulsa sem órfã.** `createPayment` também reserva-depois-cobra; se o gateway falhar, `deleteById` desfaz a reserva (retry limpo).
+- [x] Verificado: build limpo + 120 testes (reserva órfã, corrida P2002, falha-gateway, guarda de ordem).
+- [ ] **(pendente/preventivo)** Se um dia rodar **N workers** na geração, usar `SELECT ... FOR UPDATE SKIP LOCKED` na varredura de assinaturas. Hoje é 1 job/tenant (serial). 🔵 🗓️
 
 ## 3. 🟠 Idempotência & retry (resiliência)
 
