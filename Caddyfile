@@ -1,0 +1,35 @@
+# =============================================================================
+# Caddy — reverse proxy com HTTPS automático (Let's Encrypt).
+#
+# Caddy escuta em 80/443, obtém e renova o certificado TLS sozinho e repassa
+# o tráfego para os containers internos. Os certificados ficam no volume
+# `caddy_data` (NÃO apague — reemitir a cada restart esbarra no rate limit
+# do Let's Encrypt).
+#
+# Pré-requisitos (já feitos):
+#   - api.useadimplo.com.br  ->  Elastic IP do EC2  (registro A no DNS)
+#   - portas 80 e 443 abertas no Security Group
+# =============================================================================
+
+{
+	# E-mail usado pelo Let's Encrypt para avisos de expiração/segurança.
+	email cassio.souza@ancar.com.br
+}
+
+# --- API --------------------------------------------------------------------
+# Todo tráfego de api.useadimplo.com.br é repassado para o container `api`
+# na porta 3000 (nome do serviço na rede billing-network do compose).
+api.useadimplo.com.br {
+	reverse_proxy api:3000
+}
+
+# --- FRONTEND (raiz) --------------------------------------------------------
+# Descomente quando o build do frontend estiver no EC2 (ver ./frontend/dist).
+# Serve o SPA e faz fallback para index.html nas rotas do react-router.
+#
+# useadimplo.com.br, www.useadimplo.com.br {
+# 	root * /srv
+# 	encode gzip
+# 	try_files {path} /index.html
+# 	file_server
+# }
