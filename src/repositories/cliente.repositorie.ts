@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { requireTenantId } from '../context/tenant-context.js';
 import { CreateClientDTO } from '../dtos/createClient.dto.js';
 import { ImportClientRowDTO } from '../dtos/importClients.dto.js';
+import { planImport } from '../utils/import-plan.js';
 
 export class ClientRepository {
 
@@ -38,53 +39,49 @@ export class ClientRepository {
    */
   async importUpsert(rows: ImportClientRowDTO[]) {
     const tenantId = requireTenantId();
+    const phones = rows.map((r) => r.phone);
 
-    // Dedup interno do lote: última ocorrência de cada telefone vence.
-    const byPhone = new Map<string, ImportClientRowDTO>();
-    let ignorados = 0;
-    for (const row of rows) {
-      if (byPhone.has(row.phone)) {
-        ignorados++;
-      }
-      byPhone.set(row.phone, row);
-    }
+    return prisma.$transaction(async (tx) => {
+      // 1 leitura batch: quais telefones já existem (evita findUnique por linha).
+      const existing = await tx.client.findMany({
+        where: { tenantId, phone: { in: phones } },
+        select: { id: true, phone: true },
+      });
+      const idByPhone = new Map(existing.map((e) => [e.phone, e.id]));
 
-    let criados = 0;
-    let atualizados = 0;
+      // Planejamento puro (dedup + split), testado em utils/import-plan.
+      const { toCreate, toUpdate, ignorados } = planImport(
+        rows,
+        new Set(idByPhone.keys())
+      );
 
-    await prisma.$transaction(async (tx) => {
-      for (const row of byPhone.values()) {
-        const existing = await tx.client.findUnique({
-          where: { tenantId_phone: { tenantId, phone: row.phone } },
-          select: { id: true },
+      // Cria todos os novos numa única query.
+      if (toCreate.length) {
+        await tx.client.createMany({
+          data: toCreate.map((row) => ({
+            name: row.name,
+            phone: row.phone,
+            document: row.document,
+            ...(row.status ? { status: row.status } : {}),
+            tenantId,
+          })),
         });
-
-        if (existing) {
-          await tx.client.update({
-            where: { id: existing.id },
-            data: {
-              name: row.name,
-              document: row.document,
-              ...(row.status ? { status: row.status } : {}),
-            },
-          });
-          atualizados++;
-        } else {
-          await tx.client.create({
-            data: {
-              name: row.name,
-              phone: row.phone,
-              document: row.document,
-              ...(row.status ? { status: row.status } : {}),
-              tenantId,
-            },
-          });
-          criados++;
-        }
       }
-    });
 
-    return { criados, atualizados, ignorados };
+      // Updates têm valores distintos por linha → um por telefone existente.
+      for (const row of toUpdate) {
+        await tx.client.update({
+          where: { id: idByPhone.get(row.phone)! },
+          data: {
+            name: row.name,
+            document: row.document,
+            ...(row.status ? { status: row.status } : {}),
+          },
+        });
+      }
+
+      return { criados: toCreate.length, atualizados: toUpdate.length, ignorados };
+    });
   }
 
   async findByPhone(phone: string) {

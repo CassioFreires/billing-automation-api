@@ -40,6 +40,11 @@ _(nenhum item aberto no momento)_
 - **Impacto**: perda total de dados se a VM/EBS morrer.
 - **Ação**: copiar os dumps para o **S3** (`aws s3 cp`/lifecycle) — ~15 min. Ver [`devops-infra.md`](./devops-infra.md) §9.
 
+### D-21 · `Client.debtValue` é um campo morto (sempre 0)
+- **O quê**: a coluna `Client.debtValue` **nunca é escrita** no código (o único `debtValue` que aparece é um campo à parte do DTO de notificação). Ela fica sempre no default `0.0`.
+- **Impacto**: enganosa — se o frontend exibir "dívida" a partir dela, mostra sempre R$ 0. Ocupa espaço e confunde quem lê o schema.
+- **Ação** (decisão de produto): (a) **calcular** de verdade (soma das faturas em aberto do cliente, atualizada em transação ao criar/pagar fatura) — vira feature de dashboard; ou (b) **remover** a coluna. Não decidir por inércia.
+
 ### D-07 · `status` como String livre (sem enum)
 - **O quê**: `Client.status` e `Invoice.status` são `String` no Prisma. Valores válidos só existem informalmente / no Zod do webhook.
 - **Impacto**: Possíveis valores inválidos gravados; sem garantia de integridade.
