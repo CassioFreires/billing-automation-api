@@ -234,10 +234,15 @@ no cabeçalho do script).
 > 💡 **Conceito — dump, rotação e off-site**
 > Um **dump** é uma "fotografia" do banco inteiro num arquivo — dá para recriar
 > tudo a partir dele. **Rotação** é manter só as N últimas fotos (senão o disco
-> enche). ⚠️ Hoje o backup mora **no mesmo disco** da EC2: protege contra erro
-> humano/corrupção, mas não contra a máquina morrer inteira. O próximo passo
-> (**off-site**) é copiar os dumps para o **S3** (armazenamento da AWS, fora da
-> máquina). *Pendente.*
+> enche). O backup local protege contra erro humano/corrupção; o **off-site**
+> protege contra a máquina morrer inteira.
+>
+> **Off-site (S3-compatível):** o `backup-db.sh` envia o dump para um bucket
+> quando `BACKUP_S3_BUCKET` está no `.env`, via **aws-cli em container** (sem
+> instalar nada no host — portável). Funciona com **AWS S3** (hoje) e
+> **Cloudflare R2 / Backblaze B2** (produção) trocando só `BACKUP_S3_ENDPOINT` +
+> credenciais. R2 é ~grátis nesse volume e não cobra egress. Falta configurar o
+> bucket/credenciais e a *lifecycle rule*.
 
 ---
 
