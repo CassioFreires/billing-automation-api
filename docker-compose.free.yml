@@ -58,8 +58,11 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-billing}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?defina RABBITMQ_PASSWORD no .env}
+    # Painel de administração APENAS no loopback: acesse via túnel SSH
+    #   ssh -L 15672:localhost:15672 ec2-user@<IP>   → http://localhost:15672
+    # Nunca exposto à internet, independente do Security Group.
     ports:
-      - "15672:15672" # painel (proteja no Security Group da AWS)
+      - "127.0.0.1:15672:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     networks: [billing-network]
@@ -109,8 +112,12 @@ services:
     environment:
       <<: *app-env
       RUN_WORKER_INLINE: "false" # worker roda em serviço próprio (D-03)
+    # Publica APENAS no loopback: quem fala com a API de fora é o Caddy (443),
+    # e o Caddy alcança a API pela rede interna do Docker (api:3000), não por
+    # esta porta. O 127.0.0.1 evita expor a API em HTTP puro na internet mesmo
+    # que uma regra 3000 seja reaberta por engano no Security Group.
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     depends_on:
       postgres:
         condition: service_healthy
