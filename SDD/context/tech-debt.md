@@ -16,6 +16,11 @@ _(nenhum item aberto no momento)_
 
 ## 🟠 Altos
 
+### D-17 · Segredos por tenant em texto no banco
+- **O quê**: `PaymentSetting.mpAccessToken` e `WhatsappSetting.token` (specs 0012/0014) são gravados em **texto puro** no Postgres. A API já os trata como write-only/mascarados na leitura, mas o valor em repouso não é cifrado.
+- **Impacto**: aceitável pré-lançamento (banco só no loopback, backup local), mas **inaceitável em produção multi-tenant real** — um dump vazado expõe tokens de todos os tenants.
+- **Ação**: cifrar em repouso (ex.: `pgcrypto` ou cifra na app com chave em segredo gerenciado) antes de onboardar clientes reais. O handle do InfinitePay é público (não precisa).
+
 ### D-02 · WhatsApp: falta suporte a *template* (texto/teste/janela 24h já enviam)
 - **O quê**: `src/apis/whatsapp.api.ts` tem o **seam** (`WhatsappProvider`) e agora um provider real `CloudApiWhatsappProvider` (Meta Cloud API), selecionado por `WHATSAPP_PROVIDER=cloud`. Envia mensagem de **texto** e o worker re-tenta em falha (nack→DLQ). Testado (unit). Ver `whatsapp-integration.md`.
 - **O que falta**: **mensagem de template** (`type: 'template'`), obrigatória pela Meta para cobrança iniciada por você **fora da janela de 24h**. Hoje o texto livre só entrega ao número de teste ou dentro da janela. Falta também consumir o webhook de status de entrega (sent/delivered/failed).
@@ -24,6 +29,16 @@ _(nenhum item aberto no momento)_
 ---
 
 ## 🟡 Médios
+
+### D-18 · Webhook do InfinitePay não validado
+- **O quê**: `src/apis/payment/infinitepay.gateway.ts` cria o checkout, mas o `verifyAndParseWebhook` (confirmação de pagamento) foi implementado **sem a doc oficial** do InfinitePay — está marcado "a validar".
+- **Impacto**: a confirmação automática de pagamento via InfinitePay pode não funcionar até o contrato do webhook ser conferido com a documentação real.
+- **Ação**: obter a doc oficial do InfinitePay, ajustar o parse/validação e fazer o teste real (spec 0011, item #8 do backlog).
+
+### D-19 · Backup do banco só no disco da VM (sem off-site)
+- **O quê**: `scripts/backup-db.sh` (cron 03:00) salva os dumps em `~/billing-backups` na própria EC2. Protege contra erro humano/corrupção, mas **não** contra perder a instância/disco.
+- **Impacto**: perda total de dados se a VM/EBS morrer.
+- **Ação**: copiar os dumps para o **S3** (`aws s3 cp`/lifecycle) — ~15 min. Ver [`devops-infra.md`](./devops-infra.md) §9.
 
 ### D-07 · `status` como String livre (sem enum)
 - **O quê**: `Client.status` e `Invoice.status` são `String` no Prisma. Valores válidos só existem informalmente / no Zod do webhook.
@@ -53,9 +68,23 @@ _(nenhum item aberto no momento)_
 ### D-14 · Health check duplicado
 - `GET /health` (no server) e `GET /api/health` (router). Definir um canônico.
 
+### D-20 · SSH (22) aberto para `0.0.0.0/0`
+- **O quê**: a porta 22 no Security Group aceita conexões de qualquer IP (protegida por chave `.pem`, sem senha).
+- **Impacto**: baixo (só com a chave se entra), mas aumenta a superfície de ataque/ruído de brute-force.
+- **Ação**: restringir o *Source* da regra 22 ao seu IP fixo (ou usar SSM Session Manager). Ver [`devops-infra.md`](./devops-infra.md) §3/§10.
+
 ---
 
 ## Resolvidos
+
+### Infra de produção: HTTPS, deploy, backup e hardening — ✅ 2026-07-03/04
+- App no ar em `https://useadimplo.com.br` via **Caddy** (reverse proxy + Let's Encrypt automático); frontend servido na raiz + `/api` mesma origem; `api.useadimplo.com.br` para acesso direto.
+- Deploy: `scripts/deploy.sh` (backend, inclui caddy) e `scripts/deploy-web.sh` (frontend, build local + scp). `.gitattributes` força LF em `*.sh`.
+- Cron diário (billing + notificações) e **backup** (`scripts/backup-db.sh`, 03:00, rotação 14).
+- Hardening: portas 3000/15672 presas ao loopback (SG só 22/80/443); `CRON_SECRET` e senha do Postgres **rotacionados**. Detalhes e conceitos em [`devops-infra.md`](./devops-infra.md).
+
+### Features 0008–0014 (import CSV, assinaturas, InfinitePay, settings por tenant, scheduler cross-tenant) — ✅ 2026-07
+- Documentadas nas specs `0008`–`0014` e refletidas em `overview.md`, `domain-model.md`, `architecture.md` e `fluxo-completo.md`.
 
 ### D-15 · Dados mockados de gateway/PIX espalhados — ✅ 2026-07-01
 - Criação de cobrança centralizada no seam de gateway (`src/apis/payment/`). E o `invoice.worker.ts` deixou de **fabricar** PIX/gatewayId: agora busca a fatura real (`findNotificationDataById`), usa `checkoutUrl`/`pixCopyPaste` reais na mensagem e só marca `notificationSent` (`markNotificationSent`). Mensagem extraída em `buildChargeMessage` (função pura testada).

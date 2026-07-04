@@ -41,14 +41,21 @@ HTTP  →  Router  →  Controller  →  Service  →  Repository  →  Prisma  
 |---|---|---|---|
 | `/api/auth` | `auth.router.ts` | Signup (`/register`) e login (`/login`) | Público |
 | `/api/notifications` | `notification.router.ts` | Disparo de cobranças | JWT |
-| `/api/clients` | `clients.router.ts` | CRUD de clientes | JWT |
+| `/api/clients` | `clients.router.ts` | CRUD + importação CSV (`/import`) | JWT |
 | `/api/invoices` | `invoice.router.ts` | Faturas e webhook | JWT (webhook: verificado pelo provider) |
+| `/api/subscriptions` | `subscription.router.ts` | Assinaturas (CRUD, pause/resume, `/run` manual) | JWT |
+| `/api/settings` | `settings.router.ts` | Config por tenant: `/payment`, `/whatsapp` (GET/PUT) | JWT |
+| `/api/system` | `system.router.ts` | Cross-tenant: `/billing/run`, `/notifications/run` | **`x-cron-secret`** (não JWT) |
 | `/api/lgpd` | `lgpd.router.ts` | Direitos do titular (export/anonimização) | JWT |
 | `/api/health` | `health.router.ts` | Health check | Público |
 
 **Segurança (D-05)**: middleware `jwtAuth` (`src/middlewares/auth.middleware.ts`) valida `Authorization: Bearer <jwt>` nas rotas internas. O **webhook** é verificado pelo **provider de pagamento ativo** (spec 0003): `mock` valida `x-webhook-secret`; `mercadopago` valida a assinatura `x-signature`. `AuthService` (async): `register` cria `Account` + `User(OWNER)` com senha em hash (`bcryptjs`) e assina JWT; `login` valida e-mail/senha por hash (fallback: conta de serviço via env). Usuários em `User` (spec 0002); `UserRepository` é global (login/signup resolvem o tenant).
 
-**Gateway de pagamento (spec 0003)**: seam `src/apis/payment/` com `PaymentGatewayProvider` selecionável por `PAYMENT_PROVIDER` (default `mock`; `mercadopago` = Checkout Pro real). `InvoiceService.createPayment` cria a cobrança via provider; o webhook é normalizado por `provider.verifyAndParseWebhook` e aplicado de forma **idempotente** (`WebhookEvent.recordIfNew`, RN-P3).
+**Gateway de pagamento (specs 0003, 0011, 0012)**: seam `src/apis/payment/` com `PaymentGatewayProvider` (`mock`, `mercadopago`, `infinitepay`). O provider é **resolvido por tenant** (`resolvePaymentGatewayForTenant`, a partir de `PaymentSetting`; fallback = `PAYMENT_PROVIDER`, default `infinitepay`). `InvoiceService.createPayment`/`createForSubscription` obtêm o gateway via `gatewayForTenant()`. O webhook é normalizado por `provider.verifyAndParseWebhook` e aplicado de forma **idempotente** (`WebhookEvent.recordIfNew`, RN-P3).
+
+**WhatsApp por tenant (spec 0014)**: o worker resolve o provider de envio **por tenant e por mensagem** (`resolveWhatsappForTenant` a partir de `WhatsappSetting`): `cloud` (Meta) só se houver token+phoneNumberId, senão `log`. Config via `GET/PUT /api/settings/whatsapp` (token write-only/mascarado).
+
+**Agendador cross-tenant (specs 0010, 0013)**: `src/routers/system.router.ts` expõe `POST /api/system/billing/run` e `/notifications/run`, protegidos pelo `cronAuth` (`src/middlewares/cron.middleware.ts`, valida `x-cron-secret` vs `authConfig.cronSecret`, `timingSafeEqual`, fail-closed — **não** é JWT, é segredo de sistema). `BillingSchedulerService.enqueueAllTenants()` faz fan-out (1 job por tenant ativo na `billing_scheduler_queue`, consumida por `billing.worker.ts` → `SubscriptionService.run`); `NotificationSchedulerService.runAllTenants()` roda inline por tenant. `AccountRepository.findActiveTenantIds()` é uma query **de sistema** (sem filtro de tenant, só acessível pelas rotas com `cronAuth`).
 
 **Multi-tenancy (spec 0001)**: o JWT carrega `tenantId`. `jwtAuth` roda a request dentro de `runWithTenant` (`src/context/tenant-context.ts`, AsyncLocalStorage); os repositórios leem `requireTenantId()` e escopam todas as queries. Na fila, o `tenantId` viaja no payload e o worker abre o mesmo contexto. O webhook resolve o tenant pela fatura (id global do gateway).
 
