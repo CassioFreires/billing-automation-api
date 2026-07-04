@@ -1,6 +1,7 @@
 
 
 import { randomUUID } from 'node:crypto';
+import { Prisma } from '@prisma/client';
 import { InvoiceRepository } from '../repositories/invoice.repository.js';
 import { WebhookEventRepository } from '../repositories/webhook-event.repository.js';
 import {
@@ -44,10 +45,14 @@ export class InvoiceService {
     const reference = randomUUID();
 
     // Total = soma dos itens quando houver; senão, o value informado (RN-P6).
+    // Soma em Decimal (exato) — nada de float em dinheiro.
     const items = data.items ?? [];
-    const total: number = items.length
-      ? items.reduce((sum, it) => sum + it.quantity * it.unitPrice, 0)
-      : (data.value ?? 0);
+    const total: Prisma.Decimal = items.length
+      ? items.reduce(
+          (sum, it) => sum.plus(new Prisma.Decimal(it.unitPrice).times(it.quantity)),
+          new Prisma.Decimal(0)
+        )
+      : new Prisma.Decimal(data.value ?? 0);
 
     // Descrição exibida no checkout do gateway (evita o genérico "Cobrança").
     const description = items.length
@@ -57,7 +62,7 @@ export class InvoiceService {
     const gateway = await this.gatewayForTenant();
     const charge = await gateway.createCharge({
       reference,
-      amount: total,
+      amount: total.toNumber(),
       dueDate: data.dueDate,
       description,
     });

@@ -20,12 +20,13 @@
 
 ---
 
-## 1. 🔴 Correção de dados — dinheiro NÃO pode ser `Float`
+## 1. ✅ Correção de dados — dinheiro NÃO pode ser `Float` (FEITO 2026-07-04)
 
-- [ ] **Trocar `Float` por `Decimal` nos campos monetários.** No `schema.prisma`: `Invoice.value`, `Subscription.amount`, `Client.debtValue`, `InvoiceItem.unitPrice`. `Float` é ponto flutuante binário → erros de arredondamento (`0.1 + 0.2 != 0.3`), inaceitável em cobrança. Use `Decimal @db.Decimal(12, 2)`. 🔴 ⏳
-  - Ajustar o código que soma itens (`invoice.service.createPayment`: `it.quantity * it.unitPrice`) para usar `Prisma.Decimal` (ou uma lib como `decimal.js`) em vez de `number`.
-  - Migration cuidadosa (converter coluna preservando dados) + atualizar DTOs/serializações.
-- [ ] Definir **arredondamento e moeda** num único lugar (helper `money.ts`): sempre 2 casas, `ROUND_HALF_EVEN`, centavos como unidade interna se preferir inteiros.
+- [x] **Trocar `Float` por `Decimal` nos campos monetários.** `schema.prisma`: `Invoice.value`, `Subscription.amount`, `Client.debtValue`, `InvoiceItem.unitPrice` agora `Decimal @db.Decimal(12,2)`. Migration `20260704000000_money_decimal` converte preservando dados.
+  - [x] Soma de itens em `invoice.service.createPayment` usa `Prisma.Decimal` (`.plus`/`.times`), não `number`.
+  - [x] Contrato da API mantido em `number`: middleware `serializeDecimal` converte `Decimal → number` na saída (frontend não muda). Testado (`tests/unit/serialize-decimal.test.ts`).
+  - [x] Build limpo + 113 testes passando; doc `domain-model.md` (RN-I5) atualizada.
+- [ ] **(pendente)** Helper `money.ts` centralizando arredondamento/moeda (2 casas, `ROUND_HALF_EVEN`) — opcional, para quando houver mais aritmética monetária.
 
 ## 2. 🔴 Concorrência, transações & idempotência
 

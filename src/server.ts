@@ -10,6 +10,7 @@ import { initBillingWorker } from './works/billing.worker.js';
 import { assertInvoiceQueueTopology } from './messaging/invoice-queue.js';
 import { assertBillingQueueTopology } from './messaging/billing-scheduler-queue.js';
 import { retry } from './infrastructure/retry.js';
+import { serializeDecimal } from './middlewares/serialize-decimal.middleware.js';
 import { appRouter } from './index.js';
 
 process.on('uncaughtException', (err) => {
@@ -26,6 +27,7 @@ const app = express();
 
 app.use(express.json());
 app.use(cors());
+app.use(serializeDecimal); // Decimal → number na saída (mantém contrato da API)
 
 app.use('/api', appRouter);
 

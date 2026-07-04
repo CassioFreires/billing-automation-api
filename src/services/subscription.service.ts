@@ -79,7 +79,7 @@ export class SubscriptionService {
         subscriptionId: sub.id,
         clientId: sub.clientId,
         description: sub.description,
-        amount: sub.amount,
+        amount: Number(sub.amount), // Decimal → number (o gateway trabalha com number)
         dueDate,
         period,
       });
