@@ -23,13 +23,22 @@ api.useadimplo.com.br {
 	reverse_proxy api:3000
 }
 
-# --- FRONTEND (raiz) --------------------------------------------------------
-# Descomente quando o build do frontend estiver no EC2 (ver ./frontend/dist).
-# Serve o SPA e faz fallback para index.html nas rotas do react-router.
-#
-# useadimplo.com.br, www.useadimplo.com.br {
-# 	root * /srv
-# 	encode gzip
-# 	try_files {path} /index.html
-# 	file_server
-# }
+# --- FRONTEND (raiz) + /api na MESMA ORIGEM ---------------------------------
+# Serve o SPA React (arquivos em /srv, montados de ./frontend/dist no host) e,
+# no MESMO domínio, repassa /api/* para a API. Assim o browser vê tudo como
+# mesma origem — sem CORS. As rotas do react-router caem no index.html.
+useadimplo.com.br, www.useadimplo.com.br {
+	encode gzip
+
+	# Chamadas da aplicação: /api/* vai para a API interna (preserva o path).
+	handle /api/* {
+		reverse_proxy api:3000
+	}
+
+	# Todo o resto é o site estático (SPA: fallback para index.html).
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}
