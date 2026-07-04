@@ -105,18 +105,24 @@ fi
 ok "Migrations aplicadas."
 
 # ---------------------------------------------------------------------------
-# 5) Recria api + worker com a imagem nova e garante o caddy no ar.
+# 5) Recria api + worker com a imagem nova; o caddy NÃO é reiniciado.
 #    --no-deps: não recria postgres/rabbit/redis (menos churn, menos risco).
-#    O `caddy` (reverse proxy/HTTPS) usa imagem própria e não muda a cada
-#    deploy — o compose só o recria se a config mudar; senão fica intacto
-#    (certificados preservados no volume caddy_data).
+#    O `caddy` (reverse proxy/HTTPS na 443) fica de pé enquanto api/worker
+#    trocam atrás dele → o SITE não pisca no deploy. Ele só é criado se estiver
+#    ausente (--no-recreate). Mudou o Caddyfile? Aplique: `up -d caddy`.
 #    NÃO usa --wait: o worker não tem healthcheck (não é HTTP) e o --wait
 #    falharia por isso. A prontidão real da API é validada pelo curl abaixo.
 #    A app tem graceful shutdown (SIGTERM + stop_grace_period 30s): requisições
 #    em andamento terminam antes do container sair.
 # ---------------------------------------------------------------------------
-log "Recriando api + worker (graceful) e garantindo o caddy…"
-dc up -d --no-deps api worker caddy || warn "compose up retornou erro; validando via health check…"
+log "Recriando api + worker (graceful)…"
+dc up -d --no-deps api worker || warn "compose up retornou erro; validando via health check…"
+
+# Garante o caddy no ar SEM reiniciá-lo: o reverse proxy fica de pé enquanto
+# api/worker trocam atrás dele (zero downtime do SITE). `--no-recreate` só cria
+# o caddy se estiver ausente; nunca derruba um que já está rodando.
+# (Se você mudar o Caddyfile, aplique com: docker compose up -d caddy)
+dc up -d --no-recreate caddy >/dev/null 2>&1 || true
 
 # ---------------------------------------------------------------------------
 # 6) Health check da API; rollback se não subir saudável.
