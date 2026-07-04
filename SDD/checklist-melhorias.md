@@ -44,14 +44,15 @@
 - [ ] **Chave de idempotência no `createCharge`** (enviar `reference`/`X-Idempotency-Key` ao gateway) — desbloqueia o retry seguro do MP. 🔵 ⏱
 - [ ] **Rotina/observabilidade da DLQ.** Por ora dá para **inspecionar manualmente** pelo painel do RabbitMQ (túnel SSH → `http://localhost:15672` → fila `invoice_processing_queue.dlq`). Falta automatizar: alerta quando a DLQ cresce + endpoint/script de reprocessamento. 🟠 ⏳ (liga com observabilidade §10)
 
-## 4. 🟠 Performance, queries & indexação
+## 4. 🟠 Performance, queries & indexação — PARCIAL (2026-07-04)
 
-- [ ] **Índice para detecção de vencidos por data.** Hoje `Invoice` indexa `status` e `[tenantId, status]`, mas não `dueDate`. Se surgir uma query "faturas `PENDING` com `dueDate < hoje`", adicionar `@@index([tenantId, status, dueDate])`. 🟠 ⏱
-- [ ] **Revisar N+1** nos endpoints de listagem (invoices/subscriptions que trazem cliente): usar `include`/`select` enxuto, não busca por item. 🟠 ⏱
-- [ ] **Paginação por cursor** em vez de `offset/limit` nas listas que vão crescer (offset fica lento em tabelas grandes). 🔵 ⏳
-- [ ] **`EXPLAIN ANALYZE`** nas 3 queries mais quentes (findPendingInvoices, listInvoices, varredura de assinaturas) com volume de teste (ex.: 100k faturas) e confirmar uso dos índices. 🟠 ⏳
-- [ ] **Cache Redis** hoje só cobre `findPendingInvoices`. Avaliar cachear settings por tenant (payment/whatsapp) que o worker lê a cada mensagem. 🔵 ⏱
-- [ ] `debtValue` no Client é um **dado derivado** (soma de faturas em aberto). Decidir: manter denormalizado (atualizar em transação) ou calcular sob demanda. Hoje pode divergir. 🟠 ⏳
+- [x] **Índice `[tenantId, status, dueDate]`** na Invoice (migration `20260704120000`): serve o filtro (tenant+status) **+** a ordenação por `dueDate` da lista de pendentes, sem passo de sort.
+- [x] **N+1 no `importUpsert` eliminado.** Era `findUnique` + `create/update` **por linha** (~2N queries). Agora: **1 `findMany`** batch + **1 `createMany`** + updates só para os existentes. Lógica de contagem/dedup extraída para `utils/import-plan.ts` (`planImport`, puro) e testada.
+- [x] **N+1 nas listagens: conferido, não há.** `findAll`/`findById` usam `include: { client, items }` — o Prisma **batcheia** as relações (não é 1 query por linha). OK.
+- [x] `debtValue` investigado → **campo morto** (nunca escrito, sempre 0). Registrado como **D-21** (calcular ou remover — decisão de produto).
+- [ ] **(pendente) `EXPLAIN ANALYZE`** nas queries quentes (findPendingInvoices, listInvoices, varredura de assinaturas) **com volume** (ex.: 100k faturas) pra confirmar uso dos índices. Precisa de dados — fazer quando houver base de teste. 🟠 ⏳
+- [ ] **(pendente) Paginação por cursor** onde crescer (offset fica lento em tabela grande). 🔵 ⏳
+- [ ] **(pendente) Cachear settings por tenant** (payment/whatsapp) que o worker lê a cada mensagem. 🔵 ⏱
 
 ## 5. 🟠 Estrutura de dados & enums
 

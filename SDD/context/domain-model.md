@@ -81,7 +81,7 @@ Guarda os ids de evento de webhook já processados (spec 0003).
 | `clientId` | String | — | FK → Client (`onDelete: Cascade`) |
 | `tenantId` | String | — | FK → Account (`onDelete: Cascade`). Escopo obrigatório |
 
-Índices: `@@index([clientId])`, `@@index([status])`, `@@index([status, clientId])`, `@@index([tenantId, status])`, `@@index([tenantId, clientId])`, `@@unique([subscriptionId, period])` (uma fatura por competência por assinatura).
+Índices: `@@index([clientId])`, `@@index([status])`, `@@index([status, clientId])`, `@@index([tenantId, status])`, `@@index([tenantId, clientId])`, `@@index([tenantId, status, dueDate])` (filtro + ordenação da lista de pendentes), `@@unique([subscriptionId, period])` (uma fatura por competência por assinatura).
 
 ### Subscription (Assinatura / mensalidade) — spec 0009
 

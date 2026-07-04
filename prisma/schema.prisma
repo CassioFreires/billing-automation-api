@@ -131,6 +131,7 @@ model Invoice {
   @@index([status, clientId]) // Índice composto para otimizar o método findPendingInvoices
   @@index([tenantId, status])
   @@index([tenantId, clientId])
+  @@index([tenantId, status, dueDate]) // filtro (tenant+status) + ordenação por dueDate (lista de pendentes)
 }
 
 // Assinatura / mensalidade recorrente (spec 0009). Um "molde" de cobrança que,
