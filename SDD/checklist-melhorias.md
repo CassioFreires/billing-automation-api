@@ -62,12 +62,12 @@
 ## 6. 🔴 Segurança — PARCIAL (2026-07-04)
 
 - [x] **Cifrar segredos por tenant em repouso** ([D-17]): `WhatsappSetting.token` cifrado com AES-256-GCM (`infrastructure/crypto.ts`, chave `ENCRYPTION_KEY`), tolerante a legado. Testado. Falta aplicar ao `mpAccessToken` quando ele for persistido.
-- [ ] **Rate limiting** nos endpoints sensíveis (login, criação de cobrança, disparo de notificação) — anti-abuso e proteção de custo (PR-11). `express-rate-limit`. 🟠 ⏱
-- [ ] **Headers de segurança**: adicionar `helmet` ao Express. 🔵 ⏱
+- [x] **Rate limiting** (PR-11): `express-rate-limit` — limite geral folgado (120/min por IP) em toda a API + limite estrito (20/15min por IP) em `/auth` (login/registro). `app.set('trust proxy', 1)` para o `req.ip` ser o IP real por trás do Caddy.
+- [x] **Headers de segurança**: `helmet()` no Express (HSTS, no-sniff, etc.).
 - [ ] **Validação de webhook do InfinitePay** ([D-18]) com a doc oficial antes de confiar em confirmação automática. 🟠 ⏳
-- [ ] **Restringir SSH (porta 22)** ao seu IP no Security Group ([D-20]). 🔵 ⏱
-- [ ] **Rotacionar `JWT_SECRET`** e conferir que nenhum segredo real ficou em `.env.example`/git. 🟠 ⏱
-- [ ] **Lockout/backoff no login** após N tentativas erradas. 🔵 ⏳
+- [ ] **Restringir SSH (porta 22)** ao seu IP no Security Group ([D-20]). 🔵 ⏱ (infra)
+- [ ] **Rotacionar `JWT_SECRET`** e conferir que nenhum segredo real ficou em `.env.example`/git. 🟠 ⏱ (ops)
+- [ ] **Lockout/backoff no login** após N tentativas erradas (complementa o rate limit). 🔵 ⏳
 
 ## 7. 💾 Backup & estratégia (incl. "se lotar")
 

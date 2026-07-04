@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { authLimiter, apiLimiter } from './middlewares/rate-limit.middleware.js';
 import { authRouter } from './routers/auth.router.js';
 import { notificationRouter } from './routers/notification.router.js';
 import { clientRouter } from './routers/clients.router.js';
@@ -11,6 +12,9 @@ import { lgpdRouter } from './routers/lgpd.router.js';
 
 const appRouter = Router();
 
+// Limite geral folgado em toda a API; auth tem um limite mais estrito abaixo.
+appRouter.use(apiLimiter);
+
 /**
  * Agregador de rotas da aplicação.
  * Tudo aqui é montado sob o prefixo `/api` no server.ts.
@@ -22,7 +26,7 @@ const appRouter = Router();
  *   /invoices/webhook → exige segredo do webhook (x-webhook-secret)
  *   /system → exige segredo de sistema (x-cron-secret) — operações cross-tenant
  */
-appRouter.use('/auth', authRouter);
+appRouter.use('/auth', authLimiter, authRouter);
 appRouter.use('/notifications', notificationRouter);
 appRouter.use('/clients', clientRouter);
 appRouter.use('/invoices', invoiceRouter);
