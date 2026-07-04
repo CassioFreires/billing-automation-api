@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import prisma from '../database/prisma.js';
 import { redis } from '../config/redis.config.js';
 import { requireTenantId } from '../context/tenant-context.js';
@@ -7,9 +8,9 @@ export class InvoiceRepository {
   async create(
     data: {
       clientId: string;
-      value: number;
+      value: Prisma.Decimal | number;
       dueDate: Date;
-      items?: { description: string; quantity: number; unitPrice: number }[];
+      items?: { description: string; quantity: number; unitPrice: Prisma.Decimal | number }[];
       pixCopyPaste?: string;
       pixQrCode?: string;
       checkoutUrl?: string;
@@ -149,7 +150,7 @@ export class InvoiceRepository {
 
     return {
       id: invoice.id,
-      value: invoice.value,
+      value: Number(invoice.value), // Decimal → number para uso interno/mensagem
       dueDate: invoice.dueDate,
       phone: invoice.client.phone,
       document: invoice.client.document,

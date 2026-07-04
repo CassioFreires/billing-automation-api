@@ -82,7 +82,7 @@ model Client {
   phone     String
   document  String
   status    String   @default("EM_DIA")
-  debtValue Float    @default(0.0)
+  debtValue Decimal  @default(0.0) @db.Decimal(12, 2)
   processed     Boolean   @default(false)
   anonymizedAt  DateTime? // LGPD: quando o titular foi anonimizado (spec 0004)
   lastUpdate    DateTime  @updatedAt
@@ -100,7 +100,7 @@ model Client {
 
 model Invoice {
   id            String    @id @default(uuid())
-  value         Float
+  value         Decimal   @db.Decimal(12, 2)
   status        String    @default("PENDING") // PENDING, PAID, OVERDUE, FAILED
   pixCopyPaste  String?   // Campo para salvar o "Copia e Cola" do PIX gerado pelo Gateway
   pixQrCode     String?   // Link ou Base64 da imagem do QR Code
@@ -138,7 +138,7 @@ model Invoice {
 model Subscription {
   id          String   @id @default(uuid())
   description String   // o que é cobrado (vira o item da fatura gerada)
-  amount      Float    // valor mensal
+  amount      Decimal  @db.Decimal(12, 2) // valor mensal
   dayOfMonth  Int      @default(10) // dia de vencimento (1..28, evita fim de mês)
   status      String   @default("ACTIVE") // ACTIVE, PAUSED, CANCELED
   startDate   DateTime @default(now())
@@ -165,7 +165,7 @@ model InvoiceItem {
   id          String   @id @default(uuid())
   description String
   quantity    Int      @default(1)
-  unitPrice   Float
+  unitPrice   Decimal  @db.Decimal(12, 2)
   createdAt   DateTime @default(now())
 
   invoiceId   String

@@ -60,7 +60,7 @@ export class NotificationSchedulerService {
           document: inv.client.document,
           phone: inv.client.phone,
           clientName: inv.client.name,
-          value: inv.value,
+          value: Number(inv.value),
         }));
 
         const { enqueued } = await this.notifications.queueOverdueInvoices(dtos);

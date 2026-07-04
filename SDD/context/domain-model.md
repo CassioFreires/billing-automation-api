@@ -51,7 +51,7 @@ Guarda os ids de evento de webhook já processados (spec 0003).
 | `phone` | String | — | **Único por tenant** (`@@unique([tenantId, phone])`). Mín. 10 dígitos. Chave de busca do worker |
 | `document` | String | — | CPF/CNPJ. Mín. 11 caracteres |
 | `status` | String | `EM_DIA` | Estado de adimplência (ver máquina de estados) |
-| `debtValue` | Float | `0.0` | Valor total em dívida |
+| `debtValue` | Decimal(12,2) | `0.0` | Valor total em dívida (dinheiro é `Decimal`, nunca `Float`) |
 | `processed` | Boolean | `false` | Flag de processamento |
 | `anonymizedAt` | DateTime? | — | LGPD: quando o titular foi anonimizado (spec 0004) |
 | `lastUpdate` | DateTime | `@updatedAt` | Atualizado automaticamente |
@@ -66,7 +66,7 @@ Guarda os ids de evento de webhook já processados (spec 0003).
 | Campo | Tipo | Padrão | Notas |
 |---|---|---|---|
 | `id` | String (uuid) | gerado | PK |
-| `value` | Float | — | Valor da cobrança (> 0) |
+| `value` | Decimal(12,2) | — | Valor da cobrança (> 0). `Decimal` exato — a API converte para `number` na saída (middleware `serializeDecimal`) |
 | `status` | String | `PENDING` | Ver máquina de estados |
 | `pixCopyPaste` | String? | — | "Copia e cola" do PIX gerado pelo gateway |
 | `pixQrCode` | String? | — | Link/Base64 do QR Code |
@@ -91,7 +91,7 @@ Molde recorrente: gera uma `Invoice` por competência (mês) para um cliente.
 |---|---|---|---|
 | `id` | String (uuid) | gerado | PK |
 | `clientId` | String | — | FK → Client (`onDelete: Cascade`) |
-| `amount` | Float | — | Valor da mensalidade (> 0) |
+| `amount` | Decimal(12,2) | — | Valor da mensalidade (> 0) |
 | `dayOfMonth` | Int | — | Dia de vencimento (1–28) |
 | `status` | String | `ACTIVE` | `ACTIVE`, `PAUSED`, `CANCELED` |
 | `startDate` | DateTime | — | A partir de quando gera |
@@ -173,6 +173,7 @@ PENDING ──► PAID
 - **RN-I2**: Ao criar, a fatura nasce `PENDING` com `gatewayId`/`pixCopyPaste` gerados (hoje mockados).
 - **RN-I3**: Webhook só atualiza fatura existente (localizada por `gatewayId`); senão erro `"Fatura correspondente ao Gateway não encontrada."`.
 - **RN-I4**: `gatewayId` é único — não pode haver duas faturas com o mesmo ID de gateway.
+- **RN-I5**: **Dinheiro é `Decimal(12,2)`** (`value`, `amount`, `unitPrice`, `debtValue`), nunca `Float` — evita erro de arredondamento binário. Somas de itens usam `Prisma.Decimal`. A API converte `Decimal → number` na saída (middleware `serializeDecimal`), mantendo o contrato JSON em `number`.
 
 ### Pagamento / Gateway (ver specs 0003, 0011, 0012)
 - **RN-P1**: `createPayment` cria a cobrança no provider **resolvido por tenant** (`resolvePaymentGatewayForTenant` a partir de `PaymentSetting`; fallback = `PAYMENT_PROVIDER`) e guarda `gatewayId`/`checkoutUrl`/PIX.
