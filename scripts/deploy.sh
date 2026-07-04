@@ -105,15 +105,18 @@ fi
 ok "Migrations aplicadas."
 
 # ---------------------------------------------------------------------------
-# 5) Recria só api + worker com a imagem nova.
+# 5) Recria api + worker com a imagem nova e garante o caddy no ar.
 #    --no-deps: não recria postgres/rabbit/redis (menos churn, menos risco).
+#    O `caddy` (reverse proxy/HTTPS) usa imagem própria e não muda a cada
+#    deploy — o compose só o recria se a config mudar; senão fica intacto
+#    (certificados preservados no volume caddy_data).
 #    NÃO usa --wait: o worker não tem healthcheck (não é HTTP) e o --wait
 #    falharia por isso. A prontidão real da API é validada pelo curl abaixo.
 #    A app tem graceful shutdown (SIGTERM + stop_grace_period 30s): requisições
 #    em andamento terminam antes do container sair.
 # ---------------------------------------------------------------------------
-log "Recriando api + worker (graceful)…"
-dc up -d --no-deps api worker || warn "compose up retornou erro; validando via health check…"
+log "Recriando api + worker (graceful) e garantindo o caddy…"
+dc up -d --no-deps api worker caddy || warn "compose up retornou erro; validando via health check…"
 
 # ---------------------------------------------------------------------------
 # 6) Health check da API; rollback se não subir saudável.
