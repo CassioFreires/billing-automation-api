@@ -29,7 +29,7 @@ Prioridades: **P0** bloqueia ter produto para vender · **P1** necessário para 
 | PR-09 | **Graceful shutdown** | ✅ Implementado (2026-07-01) | `server.ts`/`worker.ts` tratam SIGTERM/SIGINT (fecham HTTP→RabbitMQ→Redis→Prisma). Dockerfile usa `tini`; compose com `stop_grace_period` |
 | PR-10 | **CI/CD + migrations** | 🟡 Parcial (2026-07) | ✅ Deploy **automatizado por script** (`scripts/deploy.sh`: pull→build→migrate→recria→health→rollback; `deploy-web.sh` p/ o front). Stack free-tier com Caddy/HTTPS. Falta o **pipeline** de verdade (GitHub Actions: test→build→deploy sozinho). Ver `devops-infra.md` §7 |
 | PR-20 | **Hospedagem + HTTPS + backup** | ✅ Implementado (2026-07-03/04) | App no ar em `https://useadimplo.com.br` (Caddy/Let's Encrypt); backup diário do Postgres com rotação; hardening de portas + rotação de segredos. **Falta: backup off-site (S3)** (D-19). Ver `devops-infra.md` |
-| PR-11 | **Rate limiting / anti-abuso** | nenhum | Limitar disparos de cobrança/WhatsApp (custo e abuso) |
+| PR-11 | **Rate limiting / anti-abuso** | 🟡 Parcial (2026-07-04) | ✅ `express-rate-limit`: geral (120/min por IP) + `/auth` estrito (20/15min) + `helmet`. Falta: limitar especificamente disparos de cobrança/WhatsApp por custo |
 | PR-12 | **Normalização de telefone** | livre | Padronizar E.164 antes de enviar |
 
 ## 🟡 P2 — Para escalar de verdade

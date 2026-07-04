@@ -20,6 +20,8 @@
 | `jsonwebtoken` | ^9.0.3 | Emissão/verificação de JWT (auth) |
 | `bcryptjs` | ^3.0.3 | Hash de senha (JS puro, sem build nativo) |
 | `cors` | ^2.8.6 | CORS middleware |
+| `helmet` | ^8 | Headers de segurança HTTP (HSTS, no-sniff, etc.) |
+| `express-rate-limit` | ^7 | Rate limiting por IP (geral + `/auth` estrito). Requer `trust proxy` |
 | `dotenv` | ^17.4.2 | Variáveis de ambiente |
 
 ## Dependências de desenvolvimento

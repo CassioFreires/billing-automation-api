@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 
 import prisma from './database/prisma.js';
 import { rabbitMQ } from './config/rabbitmql.config.js';
@@ -25,6 +26,11 @@ process.on('unhandledRejection', (err) => {
 
 const app = express();
 
+// A API fica atrás do Caddy (1 proxy): confia no X-Forwarded-For para que
+// req.ip seja o IP real do cliente (essencial p/ o rate limit por IP).
+app.set('trust proxy', 1);
+
+app.use(helmet()); // headers de segurança (HSTS, no-sniff, etc.)
 app.use(express.json());
 app.use(cors());
 app.use(serializeDecimal); // Decimal → number na saída (mantém contrato da API)
