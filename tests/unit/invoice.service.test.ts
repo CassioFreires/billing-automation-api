@@ -1,9 +1,13 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+import { Prisma } from '@prisma/client';
 import { InvoiceService } from '../../src/services/invoice.service.js';
 
 function makeService() {
   const invoiceRepository = {
     create: vi.fn(),
+    attachCharge: vi.fn(),
+    deleteById: vi.fn(),
+    applyWebhookAtomic: vi.fn(),
     findByGatewayId: vi.fn(),
     updateStatus: vi.fn(),
     findPendingInvoices: vi.fn(),
@@ -11,27 +15,30 @@ function makeService() {
     findById: vi.fn(),
     findBySubscriptionPeriod: vi.fn(),
   };
-  const webhookEvents = { recordIfNew: vi.fn() };
   const gateway = { name: 'mock', createCharge: vi.fn(), verifyAndParseWebhook: vi.fn() };
 
   const service = new InvoiceService({
     invoiceRepository: invoiceRepository as any,
-    webhookEvents: webhookEvents as any,
     gateway: gateway as any,
   });
 
-  return { service, invoiceRepository, webhookEvents, gateway };
+  return { service, invoiceRepository, gateway };
 }
 
 describe('InvoiceService.createPayment', () => {
-  it('cria a cobrança no gateway e persiste os dados retornados', async () => {
+  it('reserva a fatura, cria a cobrança e anexa os dados do gateway', async () => {
     const { service, invoiceRepository, gateway } = makeService();
+    invoiceRepository.create.mockResolvedValue({ id: 'inv1', status: 'PENDING' });
     gateway.createCharge.mockResolvedValue({
       gatewayId: 'g1',
       pixCopyPaste: 'pix-copia',
       checkoutUrl: 'https://mp/checkout',
     });
-    invoiceRepository.create.mockResolvedValue({ id: 'inv1', status: 'PENDING' });
+    invoiceRepository.attachCharge.mockResolvedValue({
+      id: 'inv1',
+      status: 'PENDING',
+      gatewayId: 'g1',
+    });
 
     const result = await service.createPayment({
       clientId: 'c1',
@@ -39,16 +46,35 @@ describe('InvoiceService.createPayment', () => {
       dueDate: new Date('2026-07-10'),
     } as any);
 
+    // A reserva NÃO leva dados de gateway (só depois, no attachCharge).
+    const createArg = invoiceRepository.create.mock.calls[0][0];
+    expect(createArg.gatewayId).toBeUndefined();
+    expect(Number(createArg.value)).toBe(100);
+
     expect(gateway.createCharge).toHaveBeenCalledOnce();
     const chargeArg = gateway.createCharge.mock.calls[0][0];
     expect(chargeArg.amount).toBe(100);
     expect(typeof chargeArg.reference).toBe('string');
 
-    const createArg = invoiceRepository.create.mock.calls[0][0];
-    expect(createArg.gatewayId).toBe('g1');
-    expect(createArg.pixCopyPaste).toBe('pix-copia');
-    expect(createArg.checkoutUrl).toBe('https://mp/checkout');
-    expect(result).toEqual({ id: 'inv1', status: 'PENDING' });
+    const attachArgs = invoiceRepository.attachCharge.mock.calls[0];
+    expect(attachArgs[0]).toBe('inv1');
+    expect(attachArgs[1].gatewayId).toBe('g1');
+    expect(attachArgs[1].pixCopyPaste).toBe('pix-copia');
+    expect(result).toEqual({ id: 'inv1', status: 'PENDING', gatewayId: 'g1' });
+  });
+
+  it('desfaz a reserva se o gateway falhar (evita cobrança órfã)', async () => {
+    const { service, invoiceRepository, gateway } = makeService();
+    invoiceRepository.create.mockResolvedValue({ id: 'inv1' });
+    gateway.createCharge.mockRejectedValue(new Error('gateway down'));
+    invoiceRepository.deleteById.mockResolvedValue({});
+
+    await expect(
+      service.createPayment({ clientId: 'c1', value: 100, dueDate: new Date() } as any)
+    ).rejects.toThrow('gateway down');
+
+    expect(invoiceRepository.deleteById).toHaveBeenCalledWith('inv1');
+    expect(invoiceRepository.attachCharge).not.toHaveBeenCalled();
   });
 });
 
@@ -71,11 +97,12 @@ describe('InvoiceService.createForSubscription (recorrente)', () => {
     expect(invoiceRepository.create).not.toHaveBeenCalled();
   });
 
-  it('gera a fatura com item único e vincula subscriptionId/period quando é nova', async () => {
+  it('reserva, gera a fatura com item único e vincula subscriptionId/period', async () => {
     const { service, invoiceRepository, gateway } = makeService();
     invoiceRepository.findBySubscriptionPeriod.mockResolvedValue(null);
-    gateway.createCharge.mockResolvedValue({ gatewayId: 'g1', pixCopyPaste: 'pix' });
     invoiceRepository.create.mockResolvedValue({ id: 'inv1', status: 'PENDING' });
+    gateway.createCharge.mockResolvedValue({ gatewayId: 'g1', pixCopyPaste: 'pix' });
+    invoiceRepository.attachCharge.mockResolvedValue({ id: 'inv1', gatewayId: 'g1' });
 
     const result = await service.createForSubscription({
       subscriptionId: 's1',
@@ -86,13 +113,61 @@ describe('InvoiceService.createForSubscription (recorrente)', () => {
       period: '2026-07',
     });
 
-    expect(gateway.createCharge).toHaveBeenCalledOnce();
     const createArg = invoiceRepository.create.mock.calls[0][0];
     expect(createArg.subscriptionId).toBe('s1');
     expect(createArg.period).toBe('2026-07');
-    expect(createArg.value).toBe(100);
+    expect(Number(createArg.value)).toBe(100);
     expect(createArg.items).toEqual([{ description: 'Mensalidade', quantity: 1, unitPrice: 100 }]);
+    expect(createArg.gatewayId).toBeUndefined(); // reserva sem gateway
+    expect(gateway.createCharge).toHaveBeenCalledOnce();
+    expect(invoiceRepository.attachCharge).toHaveBeenCalledOnce();
     expect(result.created).toBe(true);
+  });
+
+  it('em corrida na reserva (unique/P2002), NÃO chama o gateway e devolve a existente', async () => {
+    const { service, invoiceRepository, gateway } = makeService();
+    invoiceRepository.findBySubscriptionPeriod
+      .mockResolvedValueOnce(null) // 1ª checagem: ainda não existe
+      .mockResolvedValueOnce({ id: 'inv-corrida' }); // re-find após o P2002
+    invoiceRepository.create.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('unique', {
+        code: 'P2002',
+        clientVersion: 'test',
+      })
+    );
+
+    const result = await service.createForSubscription({
+      subscriptionId: 's1',
+      clientId: 'c1',
+      description: 'Mensalidade',
+      amount: 100,
+      dueDate: new Date('2026-07-10'),
+      period: '2026-07',
+    });
+
+    expect(gateway.createCharge).not.toHaveBeenCalled();
+    expect(result).toEqual({ created: false, invoice: { id: 'inv-corrida' } });
+  });
+
+  it('desfaz a reserva se o gateway falhar', async () => {
+    const { service, invoiceRepository, gateway } = makeService();
+    invoiceRepository.findBySubscriptionPeriod.mockResolvedValue(null);
+    invoiceRepository.create.mockResolvedValue({ id: 'inv1' });
+    gateway.createCharge.mockRejectedValue(new Error('gateway down'));
+    invoiceRepository.deleteById.mockResolvedValue({});
+
+    await expect(
+      service.createForSubscription({
+        subscriptionId: 's1',
+        clientId: 'c1',
+        description: 'Mensalidade',
+        amount: 100,
+        dueDate: new Date('2026-07-10'),
+        period: '2026-07',
+      })
+    ).rejects.toThrow('gateway down');
+
+    expect(invoiceRepository.deleteById).toHaveBeenCalledWith('inv1');
   });
 });
 
@@ -107,11 +182,13 @@ describe('InvoiceService.applyWebhook (idempotência)', () => {
     expect(invoiceRepository.updateStatus).not.toHaveBeenCalled();
   });
 
-  it('atualiza o status quando o evento é novo', async () => {
-    const { service, invoiceRepository, webhookEvents } = makeService();
-    invoiceRepository.findByGatewayId.mockResolvedValue({ id: 'inv1' });
-    webhookEvents.recordIfNew.mockResolvedValue(true);
-    invoiceRepository.updateStatus.mockResolvedValue({ id: 'inv1', status: 'PAID' });
+  it('aplica de forma atômica quando o evento é novo', async () => {
+    const { service, invoiceRepository } = makeService();
+    invoiceRepository.findByGatewayId.mockResolvedValue({ id: 'inv1', status: 'PENDING' });
+    invoiceRepository.applyWebhookAtomic.mockResolvedValue({
+      duplicate: false,
+      invoice: { id: 'inv1', status: 'PAID' },
+    });
 
     const paidAt = new Date('2026-07-01T12:00:00Z');
     const result = await service.applyWebhook({
@@ -121,36 +198,53 @@ describe('InvoiceService.applyWebhook (idempotência)', () => {
       paidAt,
     });
 
-    expect(webhookEvents.recordIfNew).toHaveBeenCalledWith('evt1', 'gateway');
-    expect(invoiceRepository.updateStatus).toHaveBeenCalledWith('inv1', 'PAID', paidAt);
+    expect(invoiceRepository.applyWebhookAtomic).toHaveBeenCalledWith({
+      invoiceId: 'inv1',
+      eventId: 'evt1',
+      provider: 'gateway',
+      status: 'PAID',
+      paidAt,
+    });
     expect(result.duplicate).toBe(false);
   });
 
-  it('não reaplica quando o evento é duplicado (RN-P3)', async () => {
-    const { service, invoiceRepository, webhookEvents } = makeService();
-    invoiceRepository.findByGatewayId.mockResolvedValue({ id: 'inv1' });
-    webhookEvents.recordIfNew.mockResolvedValue(false);
-
-    const result = await service.applyWebhook({
-      eventId: 'evt1',
-      gatewayId: 'g1',
-      status: 'PAID',
+  it('propaga duplicate=true quando o evento já foi processado (RN-P3)', async () => {
+    const { service, invoiceRepository } = makeService();
+    invoiceRepository.findByGatewayId.mockResolvedValue({ id: 'inv1', status: 'PENDING' });
+    invoiceRepository.applyWebhookAtomic.mockResolvedValue({
+      duplicate: true,
+      invoice: { id: 'inv1' },
     });
 
+    const result = await service.applyWebhook({ eventId: 'evt1', gatewayId: 'g1', status: 'PAID' });
+
     expect(result.duplicate).toBe(true);
-    expect(invoiceRepository.updateStatus).not.toHaveBeenCalled();
   });
 
-  it('sem eventId, atualiza sem checar idempotência', async () => {
-    const { service, invoiceRepository, webhookEvents } = makeService();
-    invoiceRepository.findByGatewayId.mockResolvedValue({ id: 'inv1' });
-    invoiceRepository.updateStatus.mockResolvedValue({ id: 'inv1', status: 'PAID' });
+  it('sem eventId, ainda aplica atomicamente (eventId undefined)', async () => {
+    const { service, invoiceRepository } = makeService();
+    invoiceRepository.findByGatewayId.mockResolvedValue({ id: 'inv1', status: 'PENDING' });
+    invoiceRepository.applyWebhookAtomic.mockResolvedValue({ duplicate: false, invoice: {} });
 
-    const result = await service.applyWebhook({ gatewayId: 'g1', status: 'PAID' });
+    await service.applyWebhook({ gatewayId: 'g1', status: 'PAID' });
 
-    expect(webhookEvents.recordIfNew).not.toHaveBeenCalled();
-    expect(invoiceRepository.updateStatus).toHaveBeenCalled();
+    expect(invoiceRepository.applyWebhookAtomic).toHaveBeenCalledWith(
+      expect.objectContaining({ invoiceId: 'inv1', eventId: undefined, status: 'PAID' })
+    );
+  });
+
+  it('NÃO regride uma fatura já PAID (guarda de ordem)', async () => {
+    const { service, invoiceRepository } = makeService();
+    invoiceRepository.findByGatewayId.mockResolvedValue({ id: 'inv1', status: 'PAID' });
+
+    const result = await service.applyWebhook({
+      eventId: 'evt-antigo',
+      gatewayId: 'g1',
+      status: 'PENDING',
+    });
+
     expect(result.duplicate).toBe(false);
+    expect(invoiceRepository.applyWebhookAtomic).not.toHaveBeenCalled();
   });
 });
 

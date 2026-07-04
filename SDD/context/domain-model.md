@@ -176,14 +176,15 @@ PENDING ──► PAID
 - **RN-I5**: **Dinheiro é `Decimal(12,2)`** (`value`, `amount`, `unitPrice`, `debtValue`), nunca `Float` — evita erro de arredondamento binário. Somas de itens usam `Prisma.Decimal`. A API converte `Decimal → number` na saída (middleware `serializeDecimal`), mantendo o contrato JSON em `number`.
 
 ### Pagamento / Gateway (ver specs 0003, 0011, 0012)
-- **RN-P1**: `createPayment` cria a cobrança no provider **resolvido por tenant** (`resolvePaymentGatewayForTenant` a partir de `PaymentSetting`; fallback = `PAYMENT_PROVIDER`) e guarda `gatewayId`/`checkoutUrl`/PIX.
-- **RN-P3**: Webhook é **idempotente** — evento com `eventId` já processado (em `WebhookEvent`) é no-op.
+- **RN-P1**: `createPayment` **reserva a fatura primeiro** (PENDING, sem gateway), depois cria a cobrança no provider **resolvido por tenant** (`resolvePaymentGatewayForTenant` a partir de `PaymentSetting`; fallback = `PAYMENT_PROVIDER`) e faz `attachCharge` (`gatewayId`/`checkoutUrl`/PIX). Se o gateway falhar, a reserva é desfeita (`deleteById`) — sem cobrança órfã.
+- **RN-P3**: Webhook é **idempotente e atômico** — registrar o evento (`WebhookEvent`, unique = trava) e atualizar o status acontecem na **mesma transação** (`applyWebhookAtomic`); evento repetido é no-op.
 - **RN-P4**: Autenticidade do webhook é do provider (`mock`: `x-webhook-secret`; `mercadopago`: assinatura `x-signature`; `infinitepay`: a validar com a doc oficial).
 - **RN-P5**: Status MP → fatura: `approved`→`PAID`, `pending`/`in_process`→`PENDING`, `rejected`/`cancelled`/`refunded`→`FAILED`.
 - **RN-P6**: Cada tenant recebe na **própria conta** (`PaymentSetting`). O default do sistema é `infinitepay` (handle público).
+- **RN-P7**: **Guarda de ordem** — uma fatura já `PAID` **não regride** por evento de webhook fora de ordem (ex.: um `pending` que chega atrasado é ignorado).
 
 ### Assinaturas / Recorrência (ver `../specs/0009-recurring-billing.md`)
-- **RN-S1**: Uma assinatura `ACTIVE` gera **uma** `Invoice` por competência (`period`, ex. `2026-07`). `@@unique([subscriptionId, period])` garante **idempotência** — rodar o gerador duas vezes não duplica.
+- **RN-S1**: Uma assinatura `ACTIVE` gera **uma** `Invoice` por competência (`period`, ex. `2026-07`). `@@unique([subscriptionId, period])` garante **idempotência** — rodar o gerador duas vezes não duplica. A geração **reserva a fatura antes de chamar o gateway**, então corridas (cron + disparo manual) não geram cobrança dupla (o perdedor do unique não chama o gateway).
 - **RN-S2**: `SubscriptionService.run(now)` gera, por execução, no máximo uma competência por assinatura vencida.
 - **RN-S3**: Assinaturas `PAUSED`/`CANCELED` não geram faturas.
 - **RN-S4**: A fatura gerada entra no ciclo normal (overdue → notificação → webhook → PAID).

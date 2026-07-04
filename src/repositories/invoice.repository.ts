@@ -50,6 +50,71 @@ export class InvoiceRepository {
     return invoice;
   }
 
+  /** Anexa os dados da cobrança do gateway a uma fatura já reservada. */
+  async attachCharge(
+    id: string,
+    data: { gatewayId?: string; pixCopyPaste?: string; pixQrCode?: string; checkoutUrl?: string }
+  ) {
+    return prisma.invoice.update({
+      where: { id },
+      data,
+      include: { items: true },
+    });
+  }
+
+  /** Remove uma fatura — usado para DESFAZER uma reserva quando o gateway falha. */
+  async deleteById(id: string) {
+    return prisma.invoice.delete({ where: { id } });
+  }
+
+  /**
+   * Aplica o webhook de pagamento de forma ATÔMICA e idempotente (RN-P3):
+   * registra o evento (unique = trava) e atualiza o status na MESMA transação.
+   * Guarda de ordem: uma fatura já `PAID` NÃO regride por evento fora de ordem.
+   */
+  async applyWebhookAtomic(params: {
+    invoiceId: string;
+    eventId?: string;
+    provider: string;
+    status: string;
+    paidAt?: Date;
+  }): Promise<{ duplicate: boolean; invoice: unknown }> {
+    const result = await prisma.$transaction(async (tx) => {
+      // Idempotência atômica: o insert na PK do WebhookEvent é a trava.
+      if (params.eventId) {
+        try {
+          await tx.webhookEvent.create({
+            data: { id: params.eventId, provider: params.provider },
+          });
+        } catch (error) {
+          if (
+            error instanceof Prisma.PrismaClientKnownRequestError &&
+            error.code === 'P2002'
+          ) {
+            const invoice = await tx.invoice.findUnique({ where: { id: params.invoiceId } });
+            return { duplicate: true, invoice };
+          }
+          throw error;
+        }
+      }
+
+      // Backstop atômico da guarda de ordem (evita TOCTOU com o check do service).
+      const current = await tx.invoice.findUnique({ where: { id: params.invoiceId } });
+      if (current?.status === 'PAID' && params.status !== 'PAID') {
+        return { duplicate: false, invoice: current };
+      }
+
+      const invoice = await tx.invoice.update({
+        where: { id: params.invoiceId },
+        data: { status: params.status, paidAt: params.paidAt },
+      });
+      return { duplicate: false, invoice };
+    });
+
+    await this.clearPendingInvoicesCache();
+    return result;
+  }
+
   async findByClientId(clientId: string) {
     return prisma.invoice.findMany({
       where: {
