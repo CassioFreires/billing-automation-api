@@ -10,6 +10,7 @@ import {
   assertInvoiceQueueTopology,
 } from '../messaging/invoice-queue.js';
 import { runWithTenant } from '../context/tenant-context.js';
+import { PermanentError, shouldRequeue } from '../infrastructure/errors.js';
 
 const invoiceRepository = new InvoiceRepository();
 const whatsappSettings = new WhatsappSettingService();
@@ -56,16 +57,20 @@ export async function initInvoiceWorker() {
       );
 
       try {
-        const data: TriggerNotificationDTO = JSON.parse(
-          msg.content.toString()
-        );
+        let data: TriggerNotificationDTO;
+        try {
+          data = JSON.parse(msg.content.toString());
+        } catch {
+          // JSON inválido não melhora com retry → permanente (vai p/ DLQ).
+          throw new PermanentError('Mensagem malformada (JSON inválido)');
+        }
 
         console.log(`📩 Invoice recebida: ${data.id}`);
 
         if (!data.tenantId) {
-          console.error(`❌ Mensagem sem tenantId, descartada: ${data.id}`);
-          channel.ack(msg);
-          return;
+          // Payload sem tenantId é irrecuperável → permanente (vai p/ DLQ,
+          // fica inspecionável em vez de sumir com um ack silencioso).
+          throw new PermanentError(`Mensagem sem tenantId: ${data.id ?? '?'}`);
         }
 
         await runWithTenant(data.tenantId, async () => {
@@ -106,15 +111,24 @@ export async function initInvoiceWorker() {
 
         channel.ack(msg);
       } catch (err) {
-        // Retry limitado: as quorum queues incrementam x-delivery-count a cada
-        // reentrega e, ao passar de INVOICE_DELIVERY_LIMIT, mandam a mensagem
-        // para a DLQ automaticamente — sem loop infinito (dívida D-04).
-        console.error(
-          `❌ erro worker (entrega ${deliveryCount + 1}/${INVOICE_DELIVERY_LIMIT + 1}):`,
-          err
-        );
+        // Erro PERMANENTE (payload inválido) → sem requeue: o nack manda direto
+        // para a DLQ (via DLX), sem gastar reentregas.
+        // Erro TRANSITÓRIO → requeue: o x-delivery-limit da quorum queue limita
+        // o retry e, após INVOICE_DELIVERY_LIMIT, também manda para a DLQ (D-04).
+        const requeue = shouldRequeue(err);
+        if (requeue) {
+          console.error(
+            `❌ erro transitório (entrega ${deliveryCount + 1}/${INVOICE_DELIVERY_LIMIT + 1}):`,
+            err
+          );
+        } else {
+          console.error(
+            `🚫 erro permanente → DLQ:`,
+            err instanceof Error ? err.message : err
+          );
+        }
 
-        channel.nack(msg, false, true);
+        channel.nack(msg, false, requeue);
       }
     },
     { noAck: false }

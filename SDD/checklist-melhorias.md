@@ -36,12 +36,13 @@
 - [x] Verificado: build limpo + 120 testes (reserva órfã, corrida P2002, falha-gateway, guarda de ordem).
 - [ ] **(pendente/preventivo)** Se um dia rodar **N workers** na geração, usar `SELECT ... FOR UPDATE SKIP LOCKED` na varredura de assinaturas. Hoje é 1 job/tenant (serial). 🔵 🗓️
 
-## 3. 🟠 Idempotência & retry (resiliência)
+## 3. 🟠 Idempotência & retry (resiliência) — PARCIAL (2026-07-04)
 
-- [ ] **Distinguir erro transitório de permanente no worker.** Hoje todo erro faz `nack(requeue)` até o `x-delivery-limit` → DLQ (bom), mas um erro permanente (ex.: telefone inválido) gasta 5 tentativas à toa. Classificar: transitório → requeue; permanente → DLQ direto. 🟠 ⏳
-- [ ] **Retry com backoff no `createCharge`** (chamada de rede ao gateway). Já existe `infrastructure/retry.ts` para bootstrap — reusar para chamadas ao gateway/WhatsApp com jitter. 🟠 ⏱
-- [ ] **Processo/rotina da DLQ**: hoje mensagens vão para a DLQ e ninguém olha. Criar um consumo/alerta (ou endpoint) para inspecionar e reprocessar. 🟠 ⏳
-- [ ] **Chave de idempotência no `createCharge`** (enviar `reference`/idempotency-key ao gateway quando suportado) para o próprio gateway deduplicar. 🔵 ⏱
+- [x] **Distinguir erro transitório de permanente no worker.** `PermanentError` + `shouldRequeue` (`infrastructure/errors.ts`): payload malformado / sem `tenantId` → `nack` **sem requeue** (direto p/ DLQ, sem gastar reentregas); demais erros → requeue limitado pelo `x-delivery-limit`. Testado (`tests/unit/errors.test.ts`).
+- [x] **Micro-bug do `retry.ts`**: não dormia mais após a última tentativa (lança na hora).
+- [ ] **(bloqueado) Retry com backoff no `createCharge`.** ⚠️ Descoberta: o `createCharge` do **InfinitePay (default) é puro** (só monta URL, sem rede) → retry é inócuo. O do **Mercado Pago** faz rede, mas **retry sem chave de idempotência pode DUPLICAR cobrança**. Então este item depende do de baixo. 🟠
+- [ ] **Chave de idempotência no `createCharge`** (enviar `reference`/`X-Idempotency-Key` ao gateway) — desbloqueia o retry seguro do MP. 🔵 ⏱
+- [ ] **Rotina/observabilidade da DLQ.** Por ora dá para **inspecionar manualmente** pelo painel do RabbitMQ (túnel SSH → `http://localhost:15672` → fila `invoice_processing_queue.dlq`). Falta automatizar: alerta quando a DLQ cresce + endpoint/script de reprocessamento. 🟠 ⏳ (liga com observabilidade §10)
 
 ## 4. 🟠 Performance, queries & indexação
 

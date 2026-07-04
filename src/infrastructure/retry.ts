@@ -21,9 +21,11 @@ export async function retry<T>(
 
       options?.onRetry?.(err, attempt);
 
-      const delay = delayMs * Math.pow(factor, attempt - 1);
-
-      await new Promise(res => setTimeout(res, delay));
+      // Não dorme após a ÚLTIMA tentativa — lança imediatamente.
+      if (attempt < retries) {
+        const delay = delayMs * Math.pow(factor, attempt - 1);
+        await new Promise(res => setTimeout(res, delay));
+      }
     }
   }
 
