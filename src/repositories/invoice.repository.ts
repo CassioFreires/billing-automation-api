@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import prisma from '../database/prisma.js';
 import { redis } from '../config/redis.config.js';
 import { requireTenantId } from '../context/tenant-context.js';
+import { canTransitionInvoice } from '../domain/status.js';
 
 export class InvoiceRepository {
 
@@ -98,9 +99,9 @@ export class InvoiceRepository {
         }
       }
 
-      // Backstop atômico da guarda de ordem (evita TOCTOU com o check do service).
+      // Backstop atômico da máquina de estados (evita TOCTOU com o check do service).
       const current = await tx.invoice.findUnique({ where: { id: params.invoiceId } });
-      if (current?.status === 'PAID' && params.status !== 'PAID') {
+      if (current && !canTransitionInvoice(current.status, params.status)) {
         return { duplicate: false, invoice: current };
       }
 

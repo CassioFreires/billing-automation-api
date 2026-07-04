@@ -142,9 +142,10 @@ PENDING ──► PAID
    │
    └──────► FAILED
 ```
-- Valores válidos (enum no DTO `updateInvoiceStatusSchema`): `PENDING`, `PAID`, `OVERDUE`, `FAILED`.
+- Valores válidos: `PENDING`, `PAID`, `OVERDUE`, `FAILED` — centralizados em `src/domain/status.ts` (`InvoiceStatus`).
 - `PENDING` → `PAID`: via webhook, preenche `paidAt`.
-- ⚠️ No banco `status` é `String` (não enum Prisma). O enum só existe na validação Zod do webhook.
+- **Máquina de estados** (`canTransitionInvoice`): `PAID` é **terminal** (não regride); mesmo-status é no-op. Aplicada no webhook (RN-P7).
+- ⚠️ No banco `status` ainda é `String` (não enum nativo Postgres) — conversão pendente (D-07/PR-15).
 
 ## Regras de negócio
 

@@ -54,10 +54,12 @@
 - [ ] **(pendente) Paginação por cursor** onde crescer (offset fica lento em tabela grande). 🔵 ⏳
 - [ ] **(pendente) Cachear settings por tenant** (payment/whatsapp) que o worker lê a cada mensagem. 🔵 ⏱
 
-## 5. 🟠 Estrutura de dados & enums
+## 5. 🟠 Estrutura de dados & enums — PARCIAL (2026-07-04)
 
-- [ ] **Enums no Prisma** para `status` de Client/Invoice/Subscription (hoje `String` livre — [D-07]). Garante integridade e autocompleta. 🟠 ⏳
-- [ ] **Máquina de estados explícita** da fatura (função `canTransition(from, to)`) em vez de `update` solto — evita transições inválidas (liga com §2). 🟠 ⏳
+- [x] **Constantes de status centralizadas** (`src/domain/status.ts`): `InvoiceStatus`/`ClientStatus`/`SubscriptionStatus` (fim das magic strings dispersas — parte do [D-07]).
+- [x] **Máquina de estados da fatura** (`canTransitionInvoice`): `PAID` é terminal (não regride), mesmo-status é no-op; ligada no webhook (service + backstop atômico no repo). Testada (`tests/unit/status.test.ts`).
+- [ ] **(pendente/PR próprio) Enum NATIVO do Postgres** para os status ([D-07]/PR-15). Adiado de propósito: converter `status String` → enum tem **efeito cascata de tipos** em várias assinaturas e um **cast de migração** em runtime que os testes (que mockam o banco) não cobrem — merece um PR verificável ponta a ponta. 🟠 ⏳
+- [ ] **(pendente) Máquina de estados p/ Subscription** (ACTIVE↔PAUSED→CANCELED) nos endpoints de pause/resume/cancel. 🔵 ⏱
 
 ## 6. 🔴 Segurança — PARCIAL (2026-07-04)
 
