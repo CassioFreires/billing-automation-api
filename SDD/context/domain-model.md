@@ -205,7 +205,7 @@ PENDING ──► PAID
 - **RN-N2**: O disparo é **assíncrono**: a API enfileira e responde `202`; o envio real ocorre no worker.
 - **RN-N3**: Se o worker não encontrar o cliente pelo telefone, a mensagem é **descartada (ACK)** — não faz requeue.
 - **RN-N4**: Após enviar, a fatura recebe `notificationSent = true`.
-- **RN-N5**: Erros no processamento do worker fazem `nack(requeue: true)` → a mensagem volta para a fila (risco de loop em erro permanente — ver `tech-debt.md`).
+- **RN-N5**: Erros no worker são classificados (`shouldRequeue`): **permanente** (`PermanentError` — payload malformado / sem `tenantId`) → `nack` **sem requeue** → vai direto para a DLQ; **transitório** (demais) → `nack` com requeue, limitado pelo `x-delivery-limit` (após N, também DLQ). Sem loop infinito.
 
 ## Glossário
 
