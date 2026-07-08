@@ -29,9 +29,10 @@ arquivo e o assunto que você pediu para entender.
 1. **Entrar no projeto pela primeira vez?** Siga a **Trilha de aprendizado**
    acima. (Resumo da ordem antiga: `overview` → `fluxo-completo` → `architecture`
    → `domain-model` → `tech-stack` → `conventions`.)
-2. **Vai criar uma feature?** Copie `specs/_TEMPLATE.md` para `specs/NNNN-nome-da-feature.md`, preencha, e só então comece a implementar seguindo o playbook `skills/add-feature.md`.
-3. **Vai corrigir/manter algo?** Consulte `context/tech-debt.md` (pode já estar mapeado) e o playbook relevante em `skills/`.
-4. **Terminou algo?** Atualize o contexto afetado e mova o item resolvido em `tech-debt.md`.
+2. **Pensando o produto / novos módulos?** Leia [`visao-produto.md`](./visao-produto.md) — posicionamento, mapa de módulos (o que é cada um, valor, estratégia) e a ordem de construir. É de lá que saem as specs.
+3. **Vai criar uma feature?** Copie `specs/_TEMPLATE.md` para `specs/NNNN-nome-da-feature.md`, preencha, e só então comece a implementar seguindo o playbook `skills/add-feature.md`.
+4. **Vai corrigir/manter algo?** Consulte `context/tech-debt.md` (pode já estar mapeado) e o playbook relevante em `skills/`.
+5. **Terminou algo?** Atualize o contexto afetado e mova o item resolvido em `tech-debt.md`.
 
 ## Estrutura
 

@@ -104,6 +104,10 @@
 
 ## 11. ✨ Features que viram diferencial
 
+> 📌 A **estratégia e o mapa de módulos** (o que é cada um, valor, ordem de
+> construir) agora vivem em [`visao-produto.md`](./visao-produto.md). A lista
+> abaixo é o backlog rápido; o "porquê" e o "como" estão lá.
+
 - [ ] **Régua de cobrança configurável** (a promessa do Adimplo!): múltiplos lembretes por fatura — ex.: 3 dias antes, no dia, 3/7/15 dias depois — cada um com mensagem própria. Hoje o disparo é único. 🔴 🗓️ **(maior diferencial)**
 - [ ] **Reconciliação automática**: baixa da fatura 100% pelo webhook, com painel de "pagas hoje" e conciliação. 🟠 ⏳
 - [ ] **Link de pagamento reutilizável + página de fatura hospedada** (o cliente abre um link bonito com PIX/cartão). 🟠 🗓️
