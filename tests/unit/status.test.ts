@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { canTransitionInvoice, InvoiceStatus } from '../../src/domain/status.js';
+import {
+  canTransitionInvoice,
+  shouldRecordGatewayPayment,
+  InvoiceStatus,
+} from '../../src/domain/status.js';
 
 describe('canTransitionInvoice (máquina de estados da fatura)', () => {
   it('PAID é terminal: não regride para nenhum outro status', () => {
@@ -31,5 +35,22 @@ describe('canTransitionInvoice (máquina de estados da fatura)', () => {
 
   it('as constantes cobrem os 4 status', () => {
     expect(Object.values(InvoiceStatus)).toEqual(['PENDING', 'PAID', 'OVERDUE', 'FAILED']);
+  });
+});
+
+describe('shouldRecordGatewayPayment (RN-REC3, anti-duplicação)', () => {
+  it('registra na transição efetiva para PAID', () => {
+    expect(shouldRecordGatewayPayment('PENDING', 'PAID')).toBe(true);
+    expect(shouldRecordGatewayPayment('OVERDUE', 'PAID')).toBe(true);
+    expect(shouldRecordGatewayPayment(null, 'PAID')).toBe(true);
+  });
+
+  it('NÃO registra em reconfirmação (já estava PAID)', () => {
+    expect(shouldRecordGatewayPayment('PAID', 'PAID')).toBe(false);
+  });
+
+  it('NÃO registra quando o novo status não é PAID', () => {
+    expect(shouldRecordGatewayPayment('PENDING', 'PENDING')).toBe(false);
+    expect(shouldRecordGatewayPayment('PENDING', 'FAILED')).toBe(false);
   });
 });

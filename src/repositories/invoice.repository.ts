@@ -2,7 +2,7 @@ import { Prisma } from '@prisma/client';
 import prisma from '../database/prisma.js';
 import { redis } from '../config/redis.config.js';
 import { requireTenantId } from '../context/tenant-context.js';
-import { canTransitionInvoice } from '../domain/status.js';
+import { canTransitionInvoice, shouldRecordGatewayPayment } from '../domain/status.js';
 
 export class InvoiceRepository {
 
@@ -105,11 +105,68 @@ export class InvoiceRepository {
         return { duplicate: false, invoice: current };
       }
 
+      const recordGatewayPayment = shouldRecordGatewayPayment(current?.status, params.status);
+
       const invoice = await tx.invoice.update({
         where: { id: params.invoiceId },
         data: { status: params.status, paidAt: params.paidAt },
       });
+
+      // Recebimento via gateway (spec 0015): registra o Payment na MESMA
+      // transação, apenas na transição EFETIVA para PAID (não em reconfirmação),
+      // para não duplicar o "dinheiro que entrou". tenantId vem da própria
+      // fatura — o fluxo do webhook não roda dentro de runWithTenant.
+      if (recordGatewayPayment) {
+        await tx.payment.create({
+          data: {
+            invoiceId: invoice.id,
+            amount: invoice.value,
+            method: null,
+            source: 'gateway',
+            paidAt: params.paidAt ?? new Date(),
+            tenantId: invoice.tenantId,
+          },
+        });
+      }
+
       return { duplicate: false, invoice };
+    });
+
+    await this.clearPendingInvoicesCache();
+    return result;
+  }
+
+  /**
+   * Baixa MANUAL (spec 0015): registra um Payment(source=manual) e marca a
+   * fatura como PAID na MESMA transação. O service já validou o tenant (dono da
+   * fatura) e o estado (máquina de estados) antes de chamar.
+   */
+  async settleManually(params: {
+    invoiceId: string;
+    amount: Prisma.Decimal | number;
+    method: string;
+    paidAt: Date;
+    note?: string | null;
+    receiptUrl?: string | null;
+  }): Promise<{ payment: unknown; invoice: unknown }> {
+    const result = await prisma.$transaction(async (tx) => {
+      const invoice = await tx.invoice.update({
+        where: { id: params.invoiceId },
+        data: { status: 'PAID', paidAt: params.paidAt },
+      });
+      const payment = await tx.payment.create({
+        data: {
+          invoiceId: invoice.id,
+          amount: params.amount,
+          method: params.method,
+          source: 'manual',
+          paidAt: params.paidAt,
+          note: params.note ?? null,
+          receiptUrl: params.receiptUrl ?? null,
+          tenantId: invoice.tenantId,
+        },
+      });
+      return { payment, invoice };
     });
 
     await this.clearPendingInvoicesCache();

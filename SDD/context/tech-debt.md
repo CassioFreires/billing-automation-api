@@ -44,6 +44,10 @@ _(nenhum item aberto no momento)_
 - **Impacto**: enganosa — se o frontend exibir "dívida" a partir dela, mostra sempre R$ 0. Ocupa espaço e confunde quem lê o schema.
 - **Ação** (decisão de produto): (a) **calcular** de verdade (soma das faturas em aberto do cliente, atualizada em transação ao criar/pagar fatura) — vira feature de dashboard; ou (b) **remover** a coluna. Não decidir por inércia.
 
+### D-22 · Recebimentos v1: sem estorno, parcial nem upload (spec 0015)
+- **O quê**: a baixa manual (spec 0015) v1 (a) **quita total** (não trata pagamento parcial / saldo devedor); (b) **não tem estorno** (desfazer baixa manual esbarra na máquina de estados — `PAID` é terminal); (c) comprovante é só **URL** (sem upload de arquivo).
+- **Ação**: (a) status `PARCIAL` + saldo; (b) fluxo de estorno explícito (transição controlada saindo de `PAID`); (c) upload do comprovante pro S3 (reusar bucket do backup).
+
 ### D-07 · `status` como String livre (sem enum) — 🟡 parcial 2026-07-04
 - **Feito**: constantes centralizadas em `src/domain/status.ts` (`InvoiceStatus`/`ClientStatus`/`SubscriptionStatus`) + **máquina de estados** da fatura (`canTransitionInvoice`, ligada no webhook — `PAID` não regride). Testado.
 - **Pendente**: converter as colunas `status` para **enum NATIVO do Postgres** (integridade no banco). Adiado por ter efeito cascata de tipos + cast de migração em runtime (não coberto pelos testes que mockam o banco) — fazer como PR próprio, verificável ponta a ponta. Adotar as constantes de `domain/status.ts` nos demais pontos que ainda usam string literal também fica para essa passada.

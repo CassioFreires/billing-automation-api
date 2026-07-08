@@ -17,6 +17,7 @@ model Account {
   invoices  Invoice[]
   users     User[]
   subscriptions Subscription[]
+  payments  Payment[]
   paymentSetting PaymentSetting?
   whatsappSetting WhatsappSetting?
 }
@@ -118,6 +119,7 @@ model Invoice {
   account       Account   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   items         InvoiceItem[] // detalhe do que está sendo cobrado (spec 0007)
+  payments      Payment[]     // recebimentos (manual + gateway) — spec 0015
 
   // Origem recorrente (spec 0009): quando a fatura foi gerada por uma assinatura.
   // period = "YYYY-MM" da competência; o par garante 1 fatura por assinatura/mês.
@@ -173,4 +175,28 @@ model InvoiceItem {
   invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   @@index([invoiceId])
+}
+
+// Recebimento de uma fatura (spec 0015). Fonte ÚNICA do "dinheiro que entrou":
+// nasce do gateway (webhook, source=gateway) OU de uma baixa manual
+// (source=manual: dinheiro, transferência, maquininha, boleto pago no banco…).
+model Payment {
+  id         String   @id @default(uuid())
+  amount     Decimal  @db.Decimal(12, 2)
+  method     String?  // pix | dinheiro | transferencia | cartao | boleto | outro (obrigatório na baixa manual, via DTO)
+  source     String   // manual | gateway
+  paidAt     DateTime // data do recebimento
+  note       String?  // observação livre
+  receiptUrl String?  // comprovante (upload real = futuro; v1 aceita URL)
+  createdAt  DateTime @default(now())
+
+  invoiceId  String
+  invoice    Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  tenantId   String
+  account    Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@index([tenantId])
+  @@index([tenantId, paidAt]) // Cockpit (M4): soma de recebimentos por período
 }

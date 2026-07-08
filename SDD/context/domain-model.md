@@ -122,6 +122,23 @@ Uma linha por tenant. Diz **de qual número** o tenant envia.
 | `phoneNumberId` | String? | — | Phone Number ID da Meta |
 | `token` | String? | — | Token da Meta (**segredo** — write-only na API: `getMasked` devolve `hasToken`, nunca o valor; **cifrado em repouso**, AES-256-GCM / D-17) |
 
+### Payment (Recebimento) — spec 0015
+
+Fonte única do "dinheiro que entrou": nasce do gateway (webhook) ou de uma baixa manual.
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `id` | String (uuid) | PK |
+| `amount` | Decimal(12,2) | valor recebido |
+| `method` | String? | `pix`/`dinheiro`/`transferencia`/`cartao`/`boleto`/`outro` (obrigatório na baixa manual) |
+| `source` | String | `manual` \| `gateway` |
+| `paidAt` | DateTime | data do recebimento |
+| `note` / `receiptUrl` | String? | observação / comprovante (URL; upload real é futuro) |
+| `invoiceId` | String | FK → Invoice (`onDelete: Cascade`) |
+| `tenantId` | String | FK → Account (`onDelete: Cascade`) |
+
+Índices: `@@index([invoiceId])`, `@@index([tenantId])`, `@@index([tenantId, paidAt])`.
+
 ## Máquinas de estado
 
 ### Status do Cliente
@@ -207,6 +224,14 @@ PENDING ──► PAID
 - **RN-N3**: Se o worker não encontrar o cliente pelo telefone, a mensagem é **descartada (ACK)** — não faz requeue.
 - **RN-N4**: Após enviar, a fatura recebe `notificationSent = true`.
 - **RN-N5**: Erros no worker são classificados (`shouldRequeue`): **permanente** (`PermanentError` — payload malformado / sem `tenantId`) → `nack` **sem requeue** → vai direto para a DLQ; **transitório** (demais) → `nack` com requeue, limitado pelo `x-delivery-limit` (após N, também DLQ). Sem loop infinito.
+
+### Recebimentos (ver `../specs/0015-recebimentos.md`)
+- **RN-REC1**: Todo recebimento (manual ou gateway) cria um `Payment` ligado à fatura, escopado por tenant.
+- **RN-REC2**: A **baixa manual** (`POST /api/invoices/:id/payments`) marca a fatura `PAID` (v1 = quitação total), respeitando `canTransitionInvoice`, e grava `paidAt`. Fatura já `PAID` → **409** (não duplica).
+- **RN-REC3**: O webhook do gateway cria um `Payment` (`source=gateway`) na MESMA transação, **só na transição efetiva para PAID** (`shouldRecordGatewayPayment`) — reconfirmação não duplica.
+- **RN-REC4**: `method` obrigatório na baixa manual: `pix`/`dinheiro`/`transferencia`/`cartao`/`boleto`/`outro`.
+- **RN-REC5**: `amount` default = valor da fatura; se informado, `> 0`.
+- **Fora de escopo v1**: pagamento parcial e estorno de baixa (ver `tech-debt`).
 
 ## Glossário
 
