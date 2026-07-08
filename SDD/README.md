@@ -33,6 +33,7 @@ arquivo e o assunto que você pediu para entender.
 3. **Vai criar uma feature?** Copie `specs/_TEMPLATE.md` para `specs/NNNN-nome-da-feature.md`, preencha, e só então comece a implementar seguindo o playbook `skills/add-feature.md`.
 4. **Vai corrigir/manter algo?** Consulte `context/tech-debt.md` (pode já estar mapeado) e o playbook relevante em `skills/`.
 5. **Terminou algo?** Atualize o contexto afetado e mova o item resolvido em `tech-debt.md`.
+6. **Vai publicar em produção?** Siga o runbook [`skills/deploy.md`](./skills/deploy.md) — passo a passo e comandos para frontend e backend, na ordem certa.
 
 ## Estrutura
 
@@ -56,6 +57,7 @@ SDD/
 │   ├── add-endpoint.md     · adicionar um endpoint REST
 │   ├── add-worker-consumer.md · adicionar um consumidor de fila
 │   ├── db-migration.md     · alterar o schema e migrar o banco
+│   ├── deploy.md           · publicar em produção (frontend e backend) — passo a passo + comandos
 │   ├── run-and-debug.md    · rodar e depurar localmente
 │   └── testing.md          · escrever e rodar testes (Vitest)
 └── specs/                 ← especificações de features (uma por feature)
