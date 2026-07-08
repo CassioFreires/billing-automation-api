@@ -1,6 +1,6 @@
 # Spec 0015 — Recebimentos (baixa manual + fonte única de pagamentos)
 
-- **Status**: Implementada (backend) — frontend a seguir
+- **Status**: Implementada (backend + frontend)
 - **Autor**: Cassio
 - **Data**: 2026-07-08
 - **Relacionada**: `visao-produto.md` (Módulo **M1**); [0003 gateway/webhook], [0009 recorrência]; base do M4 (Cockpit)
@@ -144,4 +144,5 @@ Implementado no backend em 2026-07-08. Entidade `Payment` (migration
   então a guarda de baixa manual precisou de um check **explícito** de "já PAID"
   → 409 (senão criaria pagamento duplicado). Corrigido no service.
 - Build limpo; 146 testes (novos: `payment.service`, `shouldRecordGatewayPayment`).
-- **Follow-ups (tech-debt)**: estorno de baixa, pagamento parcial, upload de comprovante (S3). Frontend (botão "dar baixa" + lista de recebimentos) é o próximo.
+- **Frontend (entregue)**: `billing-automation-web` — `payments.service.ts` + `usePayments`/`useRegisterPayment`; na página de Faturas, botão "Dar baixa" (linha + modal de detalhe), modal de baixa (meio, valor default = total, data, observação) e seção "Recebimentos" listando pagamentos manuais e de gateway.
+- **Follow-ups (tech-debt)**: estorno de baixa, pagamento parcial, upload de comprovante (S3) — D-22.

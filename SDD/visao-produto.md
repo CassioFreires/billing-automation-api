@@ -88,7 +88,7 @@ concilia e dá baixa automática**, multi-tenant, pagamento/WhatsApp por tenant.
   + transição de status. Boleto = habilitar no gateway.
 - **Dependências:** nenhuma nova crítica (comprovante pede storage de arquivo —
   pode ser o mesmo S3 do backup).
-- **Esforço:** médio. **✅ Backend implementado** (spec 0015: `Payment`, baixa manual, webhook unificado). Falta o **frontend** (botão "dar baixa" + lista de recebimentos).
+- **Esforço:** médio. **✅ Entregue (backend + frontend)** — spec 0015: `Payment`, baixa manual, webhook unificado; UI com botão "Dar baixa" e lista de recebimentos na página de faturas.
 
 ### M2 — Recuperação inteligente 💸
 - **O que é:** a régua (vários lembretes: antes/no dia/depois) **+ autonegociação**
