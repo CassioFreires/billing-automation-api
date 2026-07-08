@@ -1,6 +1,6 @@
 # Spec 0015 — Recebimentos (baixa manual + fonte única de pagamentos)
 
-- **Status**: Rascunho
+- **Status**: Implementada (backend) — frontend a seguir
 - **Autor**: Cassio
 - **Data**: 2026-07-08
 - **Relacionada**: `visao-produto.md` (Módulo **M1**); [0003 gateway/webhook], [0009 recorrência]; base do M4 (Cockpit)
@@ -132,4 +132,16 @@ webhook → InvoiceService.applyWebhook → InvoiceRepository.applyWebhookAtomic
 
 ## 10. Notas de implementação
 
-_(preencher durante/após a implementação)_
+Implementado no backend em 2026-07-08. Entidade `Payment` (migration
+`20260708000000_payments`), DTO Zod (`payment.dto.ts`), `PaymentService`
+(registerManual/listByInvoice, com `NotFoundError`/`ConflictError`),
+`PaymentController`, rotas aninhadas em `invoice.router.ts`. Writes atômicos
+(`InvoiceRepository.settleManually` e o `Payment(gateway)` dentro de
+`applyWebhookAtomic`); regra anti-duplicação extraída para
+`shouldRecordGatewayPayment` (pura, testada). Leitura em `PaymentRepository`.
+
+- **Bug pego em teste**: `canTransitionInvoice('PAID','PAID')` é no-op permitido,
+  então a guarda de baixa manual precisou de um check **explícito** de "já PAID"
+  → 409 (senão criaria pagamento duplicado). Corrigido no service.
+- Build limpo; 146 testes (novos: `payment.service`, `shouldRecordGatewayPayment`).
+- **Follow-ups (tech-debt)**: estorno de baixa, pagamento parcial, upload de comprovante (S3). Frontend (botão "dar baixa" + lista de recebimentos) é o próximo.

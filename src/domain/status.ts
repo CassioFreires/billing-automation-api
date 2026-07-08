@@ -47,3 +47,15 @@ export function canTransitionInvoice(from: string, to: string): boolean {
   const allowed = INVOICE_TRANSITIONS[from as InvoiceStatus];
   return allowed ? allowed.includes(to as InvoiceStatus) : false;
 }
+
+/**
+ * Deve registrar um Payment(source=gateway) neste webhook? (RN-REC3, spec 0015)
+ * Só na transição EFETIVA para PAID — evita duplicar o "dinheiro que entrou"
+ * quando o gateway reconfirma um pagamento já registrado.
+ */
+export function shouldRecordGatewayPayment(
+  previousStatus: string | null | undefined,
+  newStatus: string
+): boolean {
+  return newStatus === InvoiceStatus.PAID && previousStatus !== InvoiceStatus.PAID;
+}

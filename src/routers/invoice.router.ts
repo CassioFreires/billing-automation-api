@@ -1,9 +1,11 @@
 import { Router } from 'express';
 import { InvoiceController } from '../controllers/invoice.controller.js';
+import { PaymentController } from '../controllers/payment.controller.js';
 import { jwtAuth } from '../middlewares/auth.middleware.js';
 
 const invoiceRouter = Router();
 const invoiceController = new InvoiceController();
+const paymentController = new PaymentController();
 
 
 // Rota que o seu Front-end vai chamar para gerar uma cobrança manual (JWT)
@@ -18,6 +20,9 @@ invoiceRouter.get('/', jwtAuth, invoiceController.findAll);
 invoiceRouter.get('/overdue', jwtAuth, invoiceController.findPendingInvoices);
 invoiceRouter.get('/:id', jwtAuth, invoiceController.findById);
 
+// Recebimentos da fatura (spec 0015): baixa manual e listagem (JWT).
+invoiceRouter.post('/:id/payments', jwtAuth, paymentController.register);
+invoiceRouter.get('/:id/payments', jwtAuth, paymentController.listByInvoice);
 
 
 export { invoiceRouter };
