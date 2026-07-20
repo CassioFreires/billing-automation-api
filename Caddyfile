@@ -35,6 +35,13 @@ useadimplo.com.br, www.useadimplo.com.br {
 		reverse_proxy api:3000
 	}
 
+	# Link PRÓPRIO do Elo (spec 0016): /r/:token é a rota pública que o pagador
+	# abre — registra o evento `open` e redireciona para o pagamento. Vai para a
+	# API (não é arquivo estático). Precisa vir ANTES do handle catch-all.
+	handle /r/* {
+		reverse_proxy api:3000
+	}
+
 	# Todo o resto é o site estático (SPA: fallback para index.html).
 	handle {
 		root * /srv
