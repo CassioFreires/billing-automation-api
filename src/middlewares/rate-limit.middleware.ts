@@ -26,3 +26,16 @@ export const apiLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: 'Limite de requisições excedido. Aguarde um instante.' },
 });
+
+/**
+ * Limite da rota PÚBLICA do link do Elo (`/r/:token`, spec 0016). Sem JWT, então
+ * precisa de anti-abuso próprio (scraping de tokens). Folgado o suficiente para o
+ * pagador legítimo reabrir o link várias vezes (é isso que alimenta o "open").
+ */
+export const linkLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minuto
+  max: 60,             // 60 aberturas/min por IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Muitas aberturas em pouco tempo. Aguarde um instante.' },
+});

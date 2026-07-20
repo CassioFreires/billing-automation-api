@@ -29,6 +29,34 @@ brasileiro (Asaas, Cobre Fácil, InfinitePay) já manda lembrete.
 
 O valor não está na mensagem; está **em volta do dinheiro**.
 
+### 1.1 O coração (o moat que ninguém copia)
+
+Os diferenciais vistosos — autonegociação, score de reputação, régua que aprende,
+omnichannel por taxa de abertura — **não são features independentes**. São todos
+*aplicações* de **um único ativo**: o **grafo de comportamento + pagamento de cada
+pagador**, com o Adimplo sendo **dono da camada de interação** (o link, os eventos,
+a identidade do pagador).
+
+> **Tese do coração:** o Adimplo é dono do **Elo** — o link próprio (página viva),
+> o registro de cada interação (abertura, clique, tentativa de pagar, entrega por
+> canal) e a **identidade do pagador**. WhatsApp e Instagram **nunca** constroem
+> esse grafo, porque o dinheiro e o pós-venda não moram lá. Esse é o fosso — e ele
+> **melhora sozinho quanto mais clientes o Adimplo tem** (efeito de rede).
+
+**Posicionamento afiado:** o Adimplo é a plataforma de **Gestão Reputacional de
+Crédito e Cobrança Humanizada** para PMEs — *"não enviamos cobranças; blindamos o
+fluxo de caixa do dono sem queimar a relação com o cliente"*.
+
+**Decisões de produto (2026-07-20):**
+- **Nicho primeiro, genérico depois.** Fincar bandeira num **serviço recorrente**
+  (academia, clínica, escola, prestador): torna NFS-e (M3) e **PIX Automático**
+  matadores e resolve a dor *inteira* de um público. Abrir pro genérico só depois do
+  coração provado.
+- **Rosto do produto = Autonegociação sem atrito (M2).** É o "uau" da demo. Implica
+  que **fechar o gateway real ponta-a-ponta (D-18) é pré-requisito de fundação**,
+  não dívida — a "página que renegocia sozinha" precisa de um gateway que crie
+  cobranças novas de verdade.
+
 ---
 
 ## 2. Conceitos essenciais (glossário do domínio)
@@ -57,6 +85,18 @@ O valor não está na mensagem; está **em volta do dinheiro**.
 - **Autonegociação / acordo:** o devedor escolhe sozinho como quitar (à vista com
   desconto, ou parcelado), sem o dono negociar manualmente.
 - **Previsão de caixa:** estimativa de quanto e quando vai entrar dinheiro.
+- **Elo (link próprio):** o link de cobrança **hospedado pelo Adimplo** (domínio
+  próprio, não o do gateway) — uma *página viva* que abre o pagamento e registra o
+  comportamento do pagador.
+- **Evento de interação:** cada ação medível no Elo — link aberto, clicado,
+  tentativa de pagar, e status de entrega por canal (enviado/entregue/lido/falhou).
+- **Identidade do pagador (`Payer`):** a mesma pessoa (por CPF/telefone) amarrada
+  entre faturas e — no futuro — entre tenants. Base do score de reputação.
+- **Score Adimplo (reputação):** nota de crédito construída a partir do comportamento
+  **real de pagamento dentro da rede** — um "positivo" próprio, defensável por efeito
+  de rede.
+- **PIX Automático:** débito recorrente autorizado uma vez pelo pagador (padrão do BC)
+  — mata a fricção mensal das assinaturas.
 
 ---
 
@@ -70,6 +110,26 @@ Cobrança avulsa e recorrente, gateway (PIX/cartão via InfinitePay), **webhook 
 concilia e dá baixa automática**, multi-tenant, pagamento/WhatsApp por tenant.
 > Isto já é *metade das peças difíceis*. Os módulos abaixo empacotam isso como
 > produto.
+
+---
+
+### Fundação — "Elo": link próprio + eventos + identidade do pagador 🔑 *(o coração)*
+- **O que é:** o Adimplo passa a ser **dono do link de cobrança** (hoje o
+  `checkoutUrl` é do gateway) — uma **página viva** em domínio próprio — e registra
+  cada **interação** (`InteractionEvent`: aberto, clicou, tentou pagar, entregue/lido
+  por canal). Introduz a **identidade do pagador** (`Payer`, por CPF/telefone) que
+  amarra o histórico entre faturas.
+- **Por que agrega:** é a **substância** de TODOS os diferenciais — sem ela a
+  autonegociação (M2) não detecta dúvida, o omnichannel não escolhe canal por taxa de
+  abertura e o score (M5) não tem dado. É o moat.
+- **O que já temos:** `Payment` (M1) como base do histórico financeiro; seam de
+  gateway; seam de WhatsApp.
+- **Estratégia:** ver spec **0016**. Link curto próprio → hospeda/redireciona o
+  pagamento; um middleware registra eventos; `Payer` (identidade) + `InteractionEvent`.
+  Fecha **D-18** (gateway E2E) e **D-02** (webhook de status de entrega) como parte da
+  fundação — omnichannel e autonegociação dependem deles.
+- **Dependências:** M1 (feito). Gateway real testado (D-18) entra aqui.
+- **Esforço:** médio-alto. **É o próximo passo.**
 
 ---
 
@@ -90,18 +150,27 @@ concilia e dá baixa automática**, multi-tenant, pagamento/WhatsApp por tenant.
   pode ser o mesmo S3 do backup).
 - **Esforço:** médio. **✅ Entregue (backend + frontend)** — spec 0015: `Payment`, baixa manual, webhook unificado; UI com botão "Dar baixa" e lista de recebimentos na página de faturas.
 
-### M2 — Recuperação inteligente 💸
-- **O que é:** a régua (vários lembretes: antes/no dia/depois) **+ autonegociação**
-  — o devedor abre o link e escolhe *pagar à vista com desconto* ou *parcelar*.
-- **Por que agrega (dono + devedor):** recupera inadimplência **sem o dono
-  negociar no zap**; o devedor resolve sozinho. Nenhum "disparador" faz isso.
-- **O que já temos:** disparo único + fila/worker + link de pagamento.
+### M2 — Recuperação inteligente 💸 ⭐ *(o ROSTO do produto)*
+- **O que é:** a régua (vários lembretes: antes/no dia/depois) **+ autonegociação
+  sem atrito** — o devedor abre o Elo e escolhe *pagar à vista com desconto*,
+  *parcelar no cartão* ou *adiar o vencimento* (com taxa que o dono define antes).
+- **Gatilho comportamental (o "uau"):** o Elo **detecta dúvida** — se o pagador abre
+  o link N vezes e não paga, o sistema ativa o **Botão de Alívio de Caixa**
+  automaticamente ("essa semana está apertada? quebra em 3x ou adia 7 dias por R$ X").
+  Zero constrangimento humano — o dono definiu as regras, o Adimplo executa sozinho.
+- **Por que agrega (dono + devedor):** recupera inadimplência **sem o dono negociar
+  no zap**; o devedor resolve sozinho. Nenhum "disparador" faz isso.
+- **O que já temos:** disparo único + fila/worker + link. Falta o Elo (eventos) e o
+  gateway criando cobranças novas de verdade.
 - **Estratégia:** `ReminderRule` (passos da régua: offset em dias + mensagem) por
-  fatura/tenant; o scheduler diário decide qual passo disparar (idempotente: não
-  repete o mesmo passo). Autonegociação = página de acordo que gera nova cobrança
-  (com desconto/parcelas) via gateway.
-- **Dependências:** M1 (saber o que já foi pago) ajuda a parar a régua na hora.
-- **Esforço:** médio-alto (a autonegociação é o pedaço maior).
+  fatura/tenant; o scheduler diário decide qual passo disparar (idempotente). A
+  autonegociação é uma página de acordo que gera **nova cobrança** (desconto/parcelas/
+  novo vencimento) via gateway; o Botão de Alívio dispara por regra sobre os eventos
+  do Elo (ex.: `open >= 3 AND pay_attempt = 0`).
+- **Dependências:** **Fundação Elo** (eventos + gateway real E2E, D-18) — hard
+  requirement. M1 ajuda a parar a régua na hora certa.
+- **Esforço:** alto (é o rosto — vale o investimento). Fasear: régua → autonegociação
+  → gatilho comportamental.
 
 ### M3 — Fiscal / NFS-e automática 🧾 *(matador se o nicho for serviço)*
 - **O que é:** ao receber, **emite a nota fiscal de serviço sozinho**.
@@ -126,7 +195,10 @@ concilia e dá baixa automática**, multi-tenant, pagamento/WhatsApp por tenant.
 - **Estratégia:** endpoints de agregação (somas por período/status, aging, DSO) +
   um score simples por histórico de atraso do cliente. Começar com métricas e uma
   "fila de ações do dia"; evoluir pra previsão baseada em padrão de pagamento.
-- **Dependências:** M1 (conciliação completa = números confiáveis).
+- **Loop que aprende (M4 → M2):** a previsão do Cockpit ("esse cliente atrasa 4
+  dias") **retroalimenta** o agendamento da régua ("dispara 2 dias antes pra ele").
+  Régua auto-ajustável = a história de IA que fica melhor com dados acumulados.
+- **Dependências:** M1 (conciliação completa = números confiáveis) + eventos do Elo.
 - **Esforço:** médio (começa simples, cresce).
 
 ### M5 — Adimplência premiada 🎁 *(identidade da marca)*
@@ -140,29 +212,48 @@ concilia e dá baixa automática**, multi-tenant, pagamento/WhatsApp por tenant.
 - **Esforço:** médio.
 
 ### Módulos de apoio (quando fizer sentido)
-- **Portal do devedor:** página (sem login) onde o cliente vê tudo que deve e paga.
-- **Webhooks de saída:** avisa o ERP/sistema do dono quando uma fatura é paga.
+- **Portal do devedor ("Meu Perfil Adimplo"):** página (sem login) onde o pagador vê
+  tudo que deve, paga, e acompanha seu **selo/score** de bom pagador. Vira vitrine do
+  M5.
+- **Score Adimplo cross-tenant (o moat de dados):** reputação de crédito que **viaja**
+  entre tenants (mesmo pagador por CPF/telefone) — efeito de rede difícil de copiar.
+  ⚠️ Exige **base legal LGPD** (consentimento, spec 0004) desenhada **antes** do código.
+- **Omnichannel real (multicanal com fallback):** e-mail/SMS além do WhatsApp; o
+  sistema **muda de canal** conforme a taxa de abertura/entrega (do Elo). Depende do
+  **webhook de status** (D-02).
+- **PIX Automático:** débito recorrente autorizado — mata a fricção mensal das
+  assinaturas (spec 0009). Diferencial forte no nicho de serviço recorrente.
+- **API pública + webhooks de saída + widget embutível:** API-key por tenant,
+  OpenAPI/Swagger (PR-18), webhooks de saída ("fatura paga" → ERP do dono) e botão
+  "Pague aqui" embutível em sites de terceiros. Adimplo vira **infraestrutura** que
+  outros sistemas compõem, não só um app.
 - **Planos/billing do SaaS:** o Adimplo cobrando seus próprios clientes (o Adimplo
   usando o Adimplo) — limites por plano, medição de uso.
-- **Multicanal:** e-mail/SMS além do WhatsApp (fallback).
 
 ---
 
-## 4. Ordem recomendada (faseamento)
+## 4. Ordem recomendada (faseamento) — atualizada 2026-07-20
 
-Cada fase entrega valor sozinha e prepara a próxima.
+Cada fase entrega valor sozinha e prepara a próxima. M1 (Recebimentos) já está
+**entregue** (spec 0015).
 
-1. **M1 — Recebimentos (baixa manual + meios).** Destrava a **conciliação real**
-   (base de tudo). *Próximo passo.*
-2. **M4 — Cockpit do dono.** O "uau" que vende e retém; usa os dados já existentes.
-3. **M2 — Recuperação inteligente.** Régua adaptativa + autonegociação.
-4. **M3 — NFS-e.** *Se* escolher nicho de serviço → vira o maior diferencial.
-5. **M5 — Adimplência premiada** e módulos de apoio.
+1. **Fundação "Elo"** (spec **0016**) — link próprio + `InteractionEvent` +
+   identidade do pagador; fecha **gateway E2E (D-18)** e **webhook de status (D-02)**.
+   *Destrava todos os diferenciais.* **Próximo passo.**
+2. **M4 — Cockpit do dono.** Barato, usa dados já existentes + os novos eventos; é o
+   que **retém** (o dono abre todo dia).
+3. **M2 — Recuperação inteligente / Autonegociação.** O **rosto** do produto — só
+   possível depois do Elo + gateway real. Fasear: régua → autonegociação → gatilho
+   comportamental (Botão de Alívio).
+4. **M3 — NFS-e.** No **nicho de serviço recorrente** (decisão tomada), vira o maior
+   diferencial. **PIX Automático** entra junto do nicho.
+5. **M5 — Adimplência premiada + Score de reputação** (o moat de dados) e módulos de
+   apoio (portal do devedor, API pública, omnichannel).
 
-> **Decisão de produto em aberto:** **nicho vs genérico.** Mirar um nicho de
-> serviço recorrente (academia, clínica, escola, prestador) torna o M3 (NFS-e) um
-> matador e permite resolver a dor *inteira* de um público — atalho pro "uau".
-> Genérico atende qualquer PME que cobra, mas dilui o diferencial.
+> **Decisão de produto (2026-07-20): nicho primeiro, genérico depois.** Fincar
+> bandeira num **serviço recorrente** (academia, clínica, escola, prestador) torna
+> M3 (NFS-e) e PIX Automático matadores e resolve a dor *inteira* de um público —
+> atalho pro "uau". Abre-se pro genérico depois do coração provado.
 
 ---
 

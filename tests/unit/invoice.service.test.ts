@@ -16,13 +16,16 @@ function makeService() {
     findBySubscriptionPeriod: vi.fn(),
   };
   const gateway = { name: 'mock', createCharge: vi.fn(), verifyAndParseWebhook: vi.fn() };
+  // Eventos do Elo (spec 0016): mock para os testes ficarem herméticos (sem DB).
+  const events = { record: vi.fn(), listByInvoice: vi.fn(), countsByInvoice: vi.fn() };
 
   const service = new InvoiceService({
     invoiceRepository: invoiceRepository as any,
     gateway: gateway as any,
+    events: events as any,
   });
 
-  return { service, invoiceRepository, gateway };
+  return { service, invoiceRepository, gateway, events };
 }
 
 describe('InvoiceService.createPayment', () => {
@@ -280,5 +283,34 @@ describe('InvoiceService.getInvoiceById', () => {
     invoiceRepository.findById.mockResolvedValue(null);
     const result = await service.getInvoiceById('naoexiste');
     expect(result).toBeNull();
+  });
+});
+
+describe('InvoiceService.getInvoiceEvents (Elo, spec 0016)', () => {
+  it('retorna null (→404) quando a fatura não é do tenant — não lê eventos', async () => {
+    const { service, invoiceRepository, events } = makeService();
+    invoiceRepository.findById.mockResolvedValue(null);
+
+    const result = await service.getInvoiceEvents('x');
+
+    expect(result).toBeNull();
+    expect(events.listByInvoice).not.toHaveBeenCalled();
+    expect(events.countsByInvoice).not.toHaveBeenCalled();
+  });
+
+  it('retorna timeline + contagens quando a fatura existe', async () => {
+    const { service, invoiceRepository, events } = makeService();
+    invoiceRepository.findById.mockResolvedValue({ id: 'inv1' });
+    events.listByInvoice.mockResolvedValue([{ type: 'open' }, { type: 'sent' }]);
+    events.countsByInvoice.mockResolvedValue({ open: 3, paid: 0, sent: 1 });
+
+    const result = await service.getInvoiceEvents('inv1');
+
+    expect(events.listByInvoice).toHaveBeenCalledWith('inv1');
+    expect(events.countsByInvoice).toHaveBeenCalledWith('inv1');
+    expect(result).toEqual({
+      events: [{ type: 'open' }, { type: 'sent' }],
+      counts: { open: 3, paid: 0, sent: 1 },
+    });
   });
 });

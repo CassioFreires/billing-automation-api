@@ -24,5 +24,8 @@ invoiceRouter.get('/:id', jwtAuth, invoiceController.findById);
 invoiceRouter.post('/:id/payments', jwtAuth, paymentController.register);
 invoiceRouter.get('/:id/payments', jwtAuth, paymentController.listByInvoice);
 
+// Eventos de interação da fatura (Elo, spec 0016): timeline + contagens (JWT).
+invoiceRouter.get('/:id/events', jwtAuth, invoiceController.getEvents);
+
 
 export { invoiceRouter };
