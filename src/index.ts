@@ -9,6 +9,7 @@ import { systemRouter } from './routers/system.router.js';
 import { settingsRouter } from './routers/settings.router.js';
 import { healthRouter } from './routers/health.router.js';
 import { lgpdRouter } from './routers/lgpd.router.js';
+import { cockpitRouter } from './routers/cockpit.router.js';
 
 const appRouter = Router();
 
@@ -34,6 +35,7 @@ appRouter.use('/subscriptions', subscriptionRouter);
 appRouter.use('/settings', settingsRouter);
 appRouter.use('/system', systemRouter);
 appRouter.use('/lgpd', lgpdRouter);
+appRouter.use('/cockpit', cockpitRouter);
 appRouter.use('/health', healthRouter);
 
 export { appRouter };

@@ -31,6 +31,7 @@ recebe/envia na própria conta).
 | Envio de WhatsApp | Worker consome a fila e "envia" a mensagem de cobrança | ⚠️ **Default log-only** — seam pronto p/ Meta Cloud API por tenant; envio real desligado até verificação Meta (D-02) |
 | Cache de leitura | Cache Redis (opcional) para faturas pendentes | ✅ Funcional com fallback |
 | Link próprio + eventos ("Elo") | Link do Adimplo (`/r/:token`) que registra abertura e redireciona; eventos de interação (`link_created`/`sent`/`open`/`paid`) como fonte única do comportamento — base de M2/M4/M5 (spec 0016) | ✅ Funcional (backend) — `delivered`/`read` dependem do webhook de status (D-02) |
+| Cockpit do dono (M4) | `GET /api/cockpit/overview`: KPIs de caixa (a receber/a vencer/em atraso/recebido), aging, contagem por status e fila de ações (vence essa semana + **hesitando**, do Elo) — spec 0017 | ✅ Funcional (backend) — previsão/DSO/score por cliente são evolução futura |
 
 ## Fluxo de negócio (visão macro)
 
