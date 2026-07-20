@@ -199,7 +199,7 @@ concilia e dá baixa automática**, multi-tenant, pagamento/WhatsApp por tenant.
   dias") **retroalimenta** o agendamento da régua ("dispara 2 dias antes pra ele").
   Régua auto-ajustável = a história de IA que fica melhor com dados acumulados.
 - **Dependências:** M1 (conciliação completa = números confiáveis) + eventos do Elo.
-- **Esforço:** médio (começa simples, cresce).
+- **Esforço:** médio (começa simples, cresce). **✅ v1 entregue (backend)** — spec 0017: `GET /api/cockpit/overview` com KPIs, aging, contagem por status e fila de ações (vence essa semana + hesitando via Elo). Falta: previsão de caixa, DSO real, score por cliente e o loop M4→M2.
 
 ### M5 — Adimplência premiada 🎁 *(identidade da marca)*
 - **O que é:** recompensa **quem paga em dia** — desconto à vista automático,
