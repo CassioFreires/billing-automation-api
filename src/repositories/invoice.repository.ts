@@ -1,8 +1,10 @@
+import { randomUUID } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import prisma from '../database/prisma.js';
 import { redis } from '../config/redis.config.js';
 import { requireTenantId } from '../context/tenant-context.js';
 import { canTransitionInvoice, shouldRecordGatewayPayment } from '../domain/status.js';
+import { InteractionType } from '../domain/interaction.js';
 
 export class InvoiceRepository {
 
@@ -30,6 +32,9 @@ export class InvoiceRepository {
         pixQrCode: data.pixQrCode,
         checkoutUrl: data.checkoutUrl,
         gatewayId: data.gatewayId,
+        // Link PRÓPRIO do Adimplo (Elo, spec 0016): token não-adivinhável gerado
+        // já na reserva, para toda fatura ter link próprio (avulsa e recorrente).
+        linkToken: randomUUID(),
         subscriptionId: data.subscriptionId,
         period: data.period,
         status: 'PENDING',
@@ -127,6 +132,18 @@ export class InvoiceRepository {
             tenantId: invoice.tenantId,
           },
         });
+
+        // Evento `paid` do Elo (spec 0016), na MESMA transição efetiva para PAID
+        // (não em reconfirmação) — a mesma guarda evita duplicar o evento.
+        await tx.interactionEvent.create({
+          data: {
+            type: InteractionType.PAID,
+            tenantId: invoice.tenantId,
+            invoiceId: invoice.id,
+            clientId: invoice.clientId,
+            occurredAt: params.paidAt ?? new Date(),
+          },
+        });
       }
 
       return { duplicate: false, invoice };
@@ -166,6 +183,19 @@ export class InvoiceRepository {
           tenantId: invoice.tenantId,
         },
       });
+
+      // Evento `paid` do Elo (spec 0016): pagamento manual também é pagamento —
+      // o grafo de comportamento (Cockpit/Score) precisa enxergá-lo.
+      await tx.interactionEvent.create({
+        data: {
+          type: InteractionType.PAID,
+          tenantId: invoice.tenantId,
+          invoiceId: invoice.id,
+          clientId: invoice.clientId,
+          occurredAt: params.paidAt,
+        },
+      });
+
       return { payment, invoice };
     });
 
@@ -256,6 +286,25 @@ export class InvoiceRepository {
 
   }
 
+  /**
+   * Resolve uma fatura pelo `linkToken` do Elo (spec 0016). ENTRADA GLOBAL
+   * legítima (exceção da RN-T2, igual a `findByGatewayId`): a rota pública
+   * `/r/:token` não tem contexto de tenant; o `tenantId` é derivado da fatura.
+   */
+  async findByLinkToken(token: string) {
+    return prisma.invoice.findUnique({
+      where: { linkToken: token },
+      select: {
+        id: true,
+        tenantId: true,
+        clientId: true,
+        status: true,
+        checkoutUrl: true,
+        pixCopyPaste: true,
+      },
+    });
+  }
+
   async findNotificationDataById(id: string) {
     const invoice = await prisma.invoice.findFirst({
       where: {
@@ -273,6 +322,7 @@ export class InvoiceRepository {
 
     return {
       id: invoice.id,
+      clientId: invoice.clientId, // para amarrar o evento ao pagador (Elo, spec 0016)
       value: Number(invoice.value), // Decimal → number para uso interno/mensagem
       dueDate: invoice.dueDate,
       phone: invoice.client.phone,
@@ -281,6 +331,7 @@ export class InvoiceRepository {
       pixCopyPaste: invoice.pixCopyPaste,
       checkoutUrl: invoice.checkoutUrl,
       gatewayId: invoice.gatewayId,
+      linkToken: invoice.linkToken, // link próprio do Elo (spec 0016)
     };
   }
 

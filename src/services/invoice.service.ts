@@ -3,6 +3,7 @@
 import { randomUUID } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import { InvoiceRepository } from '../repositories/invoice.repository.js';
+import { InteractionEventRepository } from '../repositories/interaction-event.repository.js';
 import {
   PaymentGatewayProvider,
   WebhookResult,
@@ -11,6 +12,7 @@ import {
 import { PaymentSettingService } from './payment-setting.service.js';
 import { CreateInvoiceDTO, UpdateInvoiceStatusDTO } from '../dtos/createInvoice.dto.js';
 import { canTransitionInvoice } from '../domain/status.js';
+import { InteractionType } from '../domain/interaction.js';
 
 /** Violação de unique (P2002) — usada para detectar corrida na reserva. */
 function isUniqueViolation(error: unknown): boolean {
@@ -23,15 +25,39 @@ export class InvoiceService {
   private invoiceRepository: InvoiceRepository;
   private injectedGateway?: PaymentGatewayProvider;
   private paymentSettings: PaymentSettingService;
+  private events: InteractionEventRepository;
 
   constructor(deps?: {
     invoiceRepository?: InvoiceRepository;
     gateway?: PaymentGatewayProvider;
     paymentSettings?: PaymentSettingService;
+    events?: InteractionEventRepository;
   }) {
     this.invoiceRepository = deps?.invoiceRepository ?? new InvoiceRepository();
     this.injectedGateway = deps?.gateway;
     this.paymentSettings = deps?.paymentSettings ?? new PaymentSettingService();
+    this.events = deps?.events ?? new InteractionEventRepository();
+  }
+
+  /**
+   * Registra o `link_created` do Elo (spec 0016). Best-effort: um evento não
+   * pode derrubar a criação da cobrança. `invoice` é o retorno de `attachCharge`.
+   */
+  private async recordLinkCreated(invoice: {
+    id: string;
+    tenantId: string;
+    clientId: string;
+  }): Promise<void> {
+    try {
+      await this.events.record({
+        type: InteractionType.LINK_CREATED,
+        tenantId: invoice.tenantId,
+        invoiceId: invoice.id,
+        clientId: invoice.clientId,
+      });
+    } catch (err) {
+      console.error('⚠️ Falha ao registrar link_created (segue):', err);
+    }
   }
 
   /**
@@ -81,12 +107,15 @@ export class InvoiceService {
         description,
       });
 
-      return await this.invoiceRepository.attachCharge(reserved.id, {
+      const invoice = await this.invoiceRepository.attachCharge(reserved.id, {
         gatewayId: charge.gatewayId,
         pixCopyPaste: charge.pixCopyPaste,
         pixQrCode: charge.pixQrCode,
         checkoutUrl: charge.checkoutUrl,
       });
+
+      await this.recordLinkCreated(invoice);
+      return invoice;
     } catch (error) {
       // Gateway falhou → desfaz a reserva para permitir um retry limpo.
       await this.invoiceRepository.deleteById(reserved.id).catch(() => {});
@@ -158,6 +187,7 @@ export class InvoiceService {
         checkoutUrl: charge.checkoutUrl,
       });
 
+      await this.recordLinkCreated(invoice);
       return { created: true, invoice };
     } catch (error) {
       await this.invoiceRepository.deleteById(reserved.id).catch(() => {});
@@ -214,5 +244,24 @@ export class InvoiceService {
   /** Busca uma fatura do tenant pelo id (null se não existir). */
   async getInvoiceById(id: string) {
     return this.invoiceRepository.findById(id);
+  }
+
+  /**
+   * Eventos de interação de uma fatura (Elo, spec 0016): a timeline + as
+   * contagens por tipo (semente do Botão de Alívio / Cockpit). Escopado por
+   * tenant — confirma que a fatura pertence ao tenant antes de ler os eventos.
+   * Retorna `null` se a fatura não for do tenant (controller → 404).
+   */
+  async getInvoiceEvents(
+    id: string
+  ): Promise<{ events: unknown[]; counts: Record<string, number> } | null> {
+    const invoice = await this.invoiceRepository.findById(id);
+    if (!invoice) return null;
+
+    const [events, counts] = await Promise.all([
+      this.events.listByInvoice(id),
+      this.events.countsByInvoice(id),
+    ]);
+    return { events, counts };
   }
 }

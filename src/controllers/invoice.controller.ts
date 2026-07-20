@@ -96,6 +96,21 @@ export class InvoiceController {
     }
   };
 
+  getEvents = async (req: Request<{ id: string }>, res: Response) => {
+    try {
+      const result = await this.invoiceService.getInvoiceEvents(req.params.id);
+
+      if (!result) {
+        return res.status(404).json({ error: 'Fatura não encontrada' });
+      }
+
+      return res.status(200).json(result);
+    } catch (error: any) {
+      console.error(error.message);
+      return res.status(500).json({ message: error.message });
+    }
+  };
+
   findPendingInvoices = async (req: Request, res: Response) => {
     try {
       const page = parseInt(req.query.page as string) || 1;

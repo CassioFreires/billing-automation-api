@@ -106,6 +106,7 @@ O **worker** (`src/worker.ts`, um processo/container separado da API) fica escut
 - Marca `notificationSent = true`.
 - Monta a mensagem (`buildChargeMessage`) e chama `WhatsappAPI.sendMessage`.
   - Com `WHATSAPP_PROVIDER=log` (default) só loga; com `=cloud` envia via Meta Cloud API. **Só marca `notificationSent` se o envio deu certo**; se falhar, lança para re-tentar (nack→DLQ). Regra texto×template em `whatsapp-integration.md`.
+  - **Link próprio "Elo" (spec 0016):** a mensagem aponta para `APP_URL/r/:token` (link do Adimplo), **não** direto para o gateway. Quando o cliente abre esse link, a rota pública grava um evento `open` e redireciona para o `checkoutUrl` — é isso que captura o comportamento (base da autonegociação/M2, do Cockpit/M4 e do Score/M5). O worker também grava o evento `sent`.
 - Confirma o processamento (`ack`).
 
 **Se der erro:** o worker faz `nack` e a mensagem volta para a fila. As *quorum queues* contam as reentregas (`x-delivery-count`); ao passar de `INVOICE_DELIVERY_LIMIT`, a mensagem vai automaticamente para a **DLQ** (dead-letter queue) — sem loop infinito (dívida D-04 resolvida).

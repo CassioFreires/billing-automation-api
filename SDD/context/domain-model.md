@@ -72,6 +72,7 @@ Guarda os ids de evento de webhook já processados (spec 0003).
 | `pixQrCode` | String? | — | Link/Base64 do QR Code |
 | `checkoutUrl` | String? | — | URL de checkout hospedado (ex.: Mercado Pago Checkout Pro) |
 | `gatewayId` | String? | — | **Único**. Localizador da cobrança no gateway (para o MP, nosso `external_reference`) |
+| `linkToken` | String? | — | **Único**. Token do **link próprio do Adimplo** (`/r/:token`) — Fundação "Elo" (spec 0016). Gerado na criação; resolvido globalmente (como `gatewayId`) |
 | `dueDate` | DateTime | — | Vencimento |
 | `paidAt` | DateTime? | — | Preenchido pelo webhook ao confirmar pagamento |
 | `createdAt` | DateTime | `now()` | — |
@@ -138,6 +139,30 @@ Fonte única do "dinheiro que entrou": nasce do gateway (webhook) ou de uma baix
 | `tenantId` | String | FK → Account (`onDelete: Cascade`) |
 
 Índices: `@@index([invoiceId])`, `@@index([tenantId])`, `@@index([tenantId, paidAt])`.
+
+### InteractionEvent (Evento de interação) — spec 0016 (Fundação "Elo")
+
+Fonte única e **append-only** do **comportamento** do pagador ao longo do ciclo da
+cobrança. É a substância da autonegociação (M2), do Cockpit (M4) e do Score (M5).
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `id` | String (uuid) | PK |
+| `type` | String | `link_created`/`sent`/`delivered`/`read`/`failed`/`open`/`pay_attempt`/`paid` (constantes em `src/domain/interaction.ts`) |
+| `channel` | String? | `whatsapp`/`sms`/`email`/`web` |
+| `metadata` | Json? | mínimo: `{ ua?, ipHash?, providerMessageId? }` — **sem IP cru / PII** (RN-ELO6) |
+| `occurredAt` | DateTime | quando o evento de fato ocorreu |
+| `createdAt` | DateTime | `now()` |
+| `invoiceId` | String? | FK → Invoice (`onDelete: Cascade`) |
+| `clientId` | String? | FK → Client (`onDelete: SetNull`) |
+| `tenantId` | String | FK → Account (`onDelete: Cascade`) — escopo |
+
+Índices: `@@index([invoiceId])`, `@@index([invoiceId, type])` (contagem do "Botão de
+Alívio": `open>=N` e sem `paid`), `@@index([tenantId, occurredAt])` (timeline/Cockpit).
+
+> **Identidade cross-tenant do pagador (`Payer`)** — o score que *viaja* entre
+> tenants — é follow-up do M5 (com trava LGPD); aqui o evento se liga a
+> `invoiceId`/`clientId` (o `Client` já é o pagador dentro do tenant).
 
 ## Máquinas de estado
 
@@ -232,6 +257,17 @@ PENDING ──► PAID
 - **RN-REC4**: `method` obrigatório na baixa manual: `pix`/`dinheiro`/`transferencia`/`cartao`/`boleto`/`outro`.
 - **RN-REC5**: `amount` default = valor da fatura; se informado, `> 0`.
 - **Fora de escopo v1**: pagamento parcial e estorno de baixa (ver `tech-debt`).
+
+### Interação / Link próprio "Elo" (ver `../specs/0016-elo-link-eventos.md`)
+- **RN-ELO1**: Toda fatura ganha um `linkToken` **único e não-adivinhável** na criação; a mensagem de cobrança usa `APP_URL/r/:token`, não o `checkoutUrl` cru.
+- **RN-ELO2**: `GET /r/:token` é **público**, registra um evento `open` (canal `web`) e responde **302** para o pagamento (`checkoutUrl`; sem ele, página mínima com o PIX). Token inexistente → **404**.
+- **RN-ELO3**: `InteractionEvent` é **append-only** (nunca edita/apaga).
+- **RN-ELO4**: A resolução do `linkToken` é **entrada global legítima** (exceção da RN-T2, como `findByGatewayId`): sem contexto de tenant, o `tenantId` vem da própria fatura.
+- **RN-ELO5**: `sent` é gravado pelo worker (junto de `markNotificationSent`); `paid` é gravado na **mesma transação** da transição **efetiva** para `PAID` — no webhook (`applyWebhookAtomic`) **e** na baixa manual (`settleManually`) — sem duplicar em reconfirmação.
+- **RN-ELO6**: **Privacidade/LGPD** — `metadata` guarda o mínimo; IP só como **hash com salt** (`EVENT_IP_SALT`), nunca cru.
+- **RN-ELO7**: A rota pública `/r/:token` tem **rate-limit próprio** (`linkLimiter`), separado do limite das rotas internas.
+- **RN-ELO8**: `type`/`channel` são constantes centralizadas (`src/domain/interaction.ts`); enum nativo é follow-up (junto de D-07).
+- **RN-ELO9**: **Semente da autonegociação (M2)**: `isHesitating` = `open >= N` e sem `paid`. v1 só expõe os dados (contagem por tipo em `GET /api/invoices/:id/events`); a oferta é do M2.
 
 ## Glossário
 

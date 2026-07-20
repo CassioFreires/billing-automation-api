@@ -35,4 +35,28 @@ describe('buildChargeMessage', () => {
     const msg = buildChargeMessage({ clientName: 'X', value: null });
     expect(msg).toContain('R$ 0.00');
   });
+
+  // Elo (spec 0016): o link PRÓPRIO tem prioridade sobre o checkout do gateway.
+  it('prefere o link próprio (Elo) ao checkoutUrl', () => {
+    const msg = buildChargeMessage({
+      clientName: 'Ana',
+      value: 150,
+      linkUrl: 'https://useadimplo.com.br/r/tok123',
+      checkoutUrl: 'https://mp/checkout/abc',
+      pixCopyPaste: 'pix-copia',
+    });
+    expect(msg).toContain('Pague aqui: https://useadimplo.com.br/r/tok123');
+    expect(msg).not.toContain('mp/checkout');
+    expect(msg).not.toContain('PIX:');
+  });
+
+  it('cai no checkoutUrl quando não há link próprio', () => {
+    const msg = buildChargeMessage({
+      clientName: 'Ana',
+      value: 150,
+      linkUrl: null,
+      checkoutUrl: 'https://mp/checkout/abc',
+    });
+    expect(msg).toContain('Pague aqui: https://mp/checkout/abc');
+  });
 });

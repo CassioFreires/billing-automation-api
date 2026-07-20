@@ -18,6 +18,7 @@ model Account {
   users     User[]
   subscriptions Subscription[]
   payments  Payment[]
+  interactionEvents InteractionEvent[]
   paymentSetting PaymentSetting?
   whatsappSetting WhatsappSetting?
 }
@@ -90,6 +91,7 @@ model Client {
   createdAt DateTime @default(now())
   invoices  Invoice[]
   subscriptions Subscription[]
+  interactionEvents InteractionEvent[]
 
   tenantId  String
   account   Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -107,6 +109,7 @@ model Invoice {
   pixQrCode     String?   // Link ou Base64 da imagem do QR Code
   checkoutUrl   String?   // URL de checkout hospedado (ex.: Mercado Pago Checkout Pro)
   gatewayId     String?   @unique // Localizador da fatura no gateway (global entre tenants)
+  linkToken     String?   @unique // Token do link PRÓPRIO do Adimplo (/r/:token) — Fundação "Elo" (spec 0016). Global entre tenants (resolvido como o webhook).
   dueDate       DateTime  // Data de vencimento da cobrança
   paidAt        DateTime? // Data que o webhook confirmou o pagamento
   createdAt     DateTime  @default(now())
@@ -120,6 +123,7 @@ model Invoice {
 
   items         InvoiceItem[] // detalhe do que está sendo cobrado (spec 0007)
   payments      Payment[]     // recebimentos (manual + gateway) — spec 0015
+  events        InteractionEvent[] // eventos de interação (Elo) — spec 0016
 
   // Origem recorrente (spec 0009): quando a fatura foi gerada por uma assinatura.
   // period = "YYYY-MM" da competência; o par garante 1 fatura por assinatura/mês.
@@ -199,4 +203,32 @@ model Payment {
   @@index([invoiceId])
   @@index([tenantId])
   @@index([tenantId, paidAt]) // Cockpit (M4): soma de recebimentos por período
+}
+
+// Evento de interação do ciclo de vida da cobrança (spec 0016 — Fundação "Elo").
+// Fonte ÚNICA e APPEND-ONLY do COMPORTAMENTO do pagador: link criado, enviado,
+// entregue/lido/falhou (por canal), aberto, tentou pagar, pago. É a substância da
+// autonegociação (M2, o rosto), do Cockpit (M4) e do Score (M5).
+// A identidade cross-tenant do pagador (Payer) é follow-up (M5, com trava LGPD);
+// aqui o evento se liga a invoiceId/clientId (o Client já é o pagador no tenant).
+model InteractionEvent {
+  id         String   @id @default(uuid())
+  type       String   // link_created | sent | delivered | read | failed | open | pay_attempt | paid
+  channel    String?  // whatsapp | sms | email | web
+  metadata   Json?    // MÍNIMO: { ua?, ipHash?, providerMessageId? } — sem IP cru / PII (RN-ELO6)
+  occurredAt DateTime // quando o evento de fato ocorreu (pode diferir de createdAt)
+  createdAt  DateTime @default(now())
+
+  invoiceId  String?
+  invoice    Invoice? @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  clientId   String?
+  client     Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  tenantId   String
+  account    Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@index([invoiceId, type])      // contagem do Botão de Alívio (open>=N e sem paid)
+  @@index([tenantId, occurredAt]) // timeline / Cockpit (M4)
 }

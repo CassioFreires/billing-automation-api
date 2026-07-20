@@ -13,6 +13,7 @@ import { assertBillingQueueTopology } from './messaging/billing-scheduler-queue.
 import { retry } from './infrastructure/retry.js';
 import { serializeDecimal } from './middlewares/serialize-decimal.middleware.js';
 import { appRouter } from './index.js';
+import { linkRouter } from './routers/link.router.js';
 
 process.on('uncaughtException', (err) => {
   console.error('❌ UNCAUGHT EXCEPTION');
@@ -36,6 +37,10 @@ app.use(cors());
 app.use(serializeDecimal); // Decimal → number na saída (mantém contrato da API)
 
 app.use('/api', appRouter);
+
+// Link PRÓPRIO do Elo (spec 0016): rota pública na raiz, o que o pagador abre.
+// Fora do /api (sem JWT), com rate-limit próprio.
+app.use('/r', linkRouter);
 
 /**
  * Health Check (raiz — além de /api/health via router)
