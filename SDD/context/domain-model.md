@@ -123,6 +123,18 @@ Uma linha por tenant. Diz **de qual número** o tenant envia.
 | `phoneNumberId` | String? | — | Phone Number ID da Meta |
 | `token` | String? | — | Token da Meta (**segredo** — write-only na API: `getMasked` devolve `hasToken`, nunca o valor; **cifrado em repouso**, AES-256-GCM / D-17) |
 
+### OnboardingState (Estado do onboarding por tenant) — spec 0021
+
+Uma linha por tenant. Guarda só as **flags de UI** do onboarding guiado; o progresso
+dos passos é **derivado** de dados reais (tem gateway? tem cliente? tem fatura?). A
+linha só nasce quando o dono dispensa o checklist ou pula o WhatsApp.
+
+| Campo | Tipo | Padrão | Notas |
+|---|---|---|---|
+| `tenantId` | String | — | PK/único — 1 por tenant |
+| `dismissed` | Boolean | `false` | Dono fechou o checklist manualmente |
+| `whatsappSkipped` | Boolean | `false` | Pulou o passo opcional de WhatsApp |
+
 ### Payment (Recebimento) — spec 0015
 
 Fonte única do "dinheiro que entrou": nasce do gateway (webhook) ou de uma baixa manual.

@@ -46,6 +46,14 @@ async function main() {
     },
   });
 
+  // Onboarding (spec 0021): o demo já tem clientes/faturas, então dispensa o
+  // checklist para não poluir a demonstração.
+  await prisma.onboardingState.upsert({
+    where: { tenantId: account.id },
+    update: { dismissed: true },
+    create: { tenantId: account.id, dismissed: true, whatsappSkipped: true },
+  });
+
   // Idempotência: limpa apenas os dados do tenant demo
   // (invoices antes de subscriptions/clients por causa das FKs)
   await prisma.invoice.deleteMany({ where: { tenantId: account.id } });
