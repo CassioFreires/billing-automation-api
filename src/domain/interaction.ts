@@ -14,7 +14,9 @@ export const InteractionType = {
   READ: 'read', // lida no canal (D-02)
   FAILED: 'failed', // falha de entrega no canal (D-02)
   OPEN: 'open', // link próprio aberto (/r/:token)
-  PAY_ATTEMPT: 'pay_attempt', // tentativa de pagar (preciso só com página própria — M2)
+  PAY_ATTEMPT: 'pay_attempt', // tentativa de pagar (preciso com a página própria — M2, spec 0018)
+  RELIEF_OFFERED: 'relief_offered', // Botão de Alívio exibido ao pagador (M2, spec 0018)
+  RELIEF_ACCEPTED: 'relief_accepted', // pagador aceitou uma opção de acordo (M2, spec 0018)
   PAID: 'paid', // pagamento confirmado (webhook)
 } as const;
 export type InteractionType = (typeof InteractionType)[keyof typeof InteractionType];
