@@ -40,24 +40,52 @@ export class InvoiceController {
       const result = await this.invoiceService.applyWebhook(event);
       res.status(200).json({ success: true, duplicate: result.duplicate });
     } catch (error: any) {
-      const msg = error?.message ?? '';
-      if (msg === 'WEBHOOK_INVALID_SIGNATURE') {
-        res.status(401).json({ error: 'Assinatura do webhook inválida' });
-        return;
-      }
-      if (msg.includes('não configurado') || msg === 'WEBHOOK_NOT_CONFIGURED') {
-        console.error('❌ Webhook mal configurado:', msg);
-        res.status(500).json({ error: 'Webhook não configurado' });
-        return;
-      }
-      if (msg.includes('não encontrada')) {
-        res.status(404).json({ error: msg });
-        return;
-      }
-      console.error('❌ Erro no webhook:', error);
-      res.status(400).json({ error: msg || 'Erro no processamento do webhook' });
+      this.mapWebhookError(error, res);
     }
   };
+
+  /**
+   * Webhook multi-gateway (spec 0019): `POST /webhook/:provider`. Resolve o
+   * provider pela URL, localiza o tenant pela referência do payload e verifica
+   * a assinatura com a credencial daquele tenant (no service).
+   */
+  handleWebhookByProvider = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const provider = String(req.params.provider ?? '').toLowerCase();
+      const result = await this.invoiceService.applyWebhookForProvider(provider, {
+        headers: req.headers as Record<string, unknown>,
+        query: req.query as Record<string, unknown>,
+        body: req.body,
+      });
+      res.status(200).json({
+        success: true,
+        ignored: result.ignored,
+        duplicate: result.duplicate,
+      });
+    } catch (error: any) {
+      this.mapWebhookError(error, res);
+    }
+  };
+
+  /** Mapeia erros de webhook para status HTTP (compartilhado pelos dois handlers). */
+  private mapWebhookError(error: any, res: Response): void {
+    const msg = error?.message ?? '';
+    if (msg === 'WEBHOOK_INVALID_SIGNATURE') {
+      res.status(401).json({ error: 'Assinatura do webhook inválida' });
+      return;
+    }
+    if (msg.includes('não configurado') || msg === 'WEBHOOK_NOT_CONFIGURED') {
+      console.error('❌ Webhook mal configurado:', msg);
+      res.status(500).json({ error: 'Webhook não configurado' });
+      return;
+    }
+    if (msg.includes('não encontrada')) {
+      res.status(404).json({ error: msg });
+      return;
+    }
+    console.error('❌ Erro no webhook:', error);
+    res.status(400).json({ error: msg || 'Erro no processamento do webhook' });
+  }
 
   private static readonly VALID_STATUS = ['PENDING', 'PAID', 'OVERDUE', 'FAILED'];
 

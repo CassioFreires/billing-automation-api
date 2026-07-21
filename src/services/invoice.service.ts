@@ -6,13 +6,16 @@ import { InvoiceRepository } from '../repositories/invoice.repository.js';
 import { InteractionEventRepository } from '../repositories/interaction-event.repository.js';
 import {
   PaymentGatewayProvider,
+  WebhookRequest,
   WebhookResult,
   resolvePaymentGatewayForTenant,
+  resolvePaymentGatewayByName,
 } from '../apis/payment/index.js';
 import { PaymentSettingService } from './payment-setting.service.js';
 import { CreateInvoiceDTO, UpdateInvoiceStatusDTO } from '../dtos/createInvoice.dto.js';
 import { canTransitionInvoice } from '../domain/status.js';
 import { InteractionType } from '../domain/interaction.js';
+import { runWithTenant } from '../context/tenant-context.js';
 
 /** Violação de unique (P2002) — usada para detectar corrida na reserva. */
 function isUniqueViolation(error: unknown): boolean {
@@ -220,6 +223,42 @@ export class InvoiceService {
       status: event.status,
       paidAt: event.paidAt,
     });
+  }
+
+  /**
+   * Webhook multi-gateway (spec 0019). Roteado por `POST /webhook/:provider`.
+   *
+   * Fluxo em duas fases: (1) "espia" a NOSSA referência no payload (sem confiar
+   * nela) para localizar a fatura e, com ela, o tenant; (2) carrega a credencial
+   * DAQUELE tenant e verifica a assinatura de verdade. A mudança de estado só
+   * ocorre se `verifyAndParseWebhook` validar a assinatura (que pode lançar
+   * WEBHOOK_INVALID_SIGNATURE). Sem referência (ex.: Mercado Pago, mock), cai no
+   * provider resolvido por env — preservando o comportamento legado.
+   */
+  async applyWebhookForProvider(
+    providerName: string,
+    req: WebhookRequest
+  ): Promise<{ duplicate: boolean; ignored: boolean }> {
+    const peeker = resolvePaymentGatewayByName(providerName);
+    const reference = peeker.extractReference?.(req) ?? null;
+
+    let gateway: PaymentGatewayProvider = peeker;
+    if (reference) {
+      const invoice = await this.invoiceRepository.findByGatewayId(reference);
+      if (invoice) {
+        // Credenciais do tenant DONO da fatura (segredos decifrados no service).
+        const config = await runWithTenant(invoice.tenantId, () =>
+          this.paymentSettings.getForCurrentTenant()
+        );
+        gateway = resolvePaymentGatewayForTenant(config);
+      }
+    }
+
+    const event = await gateway.verifyAndParseWebhook(req);
+    if (!event) return { duplicate: false, ignored: true };
+
+    const result = await this.applyWebhook(event);
+    return { duplicate: result.duplicate, ignored: false };
   }
 
   /** Compat: caminho antigo (payload já no formato interno). */
