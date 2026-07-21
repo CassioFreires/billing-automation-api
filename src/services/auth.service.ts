@@ -50,7 +50,7 @@ export class AuthService {
     const owner = await this.users.findOwnerByTenant(tenantId);
     if (!owner) throw new Error('OWNER_NOT_FOUND');
     const token = jwt.sign(
-      { sub: owner.id, role: owner.role, tenantId, imp: adminEmail },
+      { sub: owner.id, role: owner.role, tenantId, scope: 'tenant', imp: adminEmail },
       secret,
       { expiresIn: authConfig.impersonationExpiresIn as jwt.SignOptions['expiresIn'] }
     );

@@ -1,30 +1,59 @@
 import { Request, Response, NextFunction } from 'express';
-import { isPlatformAdminEmail } from '../config/auth.config.js';
-import { UserRepository } from '../repositories/user.repository.js';
+import jwt from 'jsonwebtoken';
+import { authConfig } from '../config/auth.config.js';
+import { PlatformAdminRepository } from '../repositories/platform-admin.repository.js';
 
-const users = new UserRepository();
+const admins = new PlatformAdminRepository();
+
+interface PlatformClaims extends jwt.JwtPayload {
+  scope?: string;
+  role?: string;
+}
 
 /**
- * Exige super-admin da plataforma (spec 0023). Roda APÓS `jwtAuth`: carrega o
- * usuário por `req.auth.sub` e confere se o e-mail está na allowlist
- * (`PLATFORM_ADMIN_EMAILS`). Não-admin → 403. Anexa `req.adminEmail`.
+ * Exige um token de PLATAFORMA (spec 0031): JWT válido com `scope:'platform'`
+ * (emitido só pelo login do console) e um PlatformAdmin existente. Um token de
+ * tenant (sem scope) é REJEITADO — isolamento real entre console e app do cliente.
+ * Anexa `req.admin`.
  */
 export function requirePlatformAdmin(req: Request, res: Response, next: NextFunction): void {
-  const auth = (req as Request & { auth?: { sub?: string } }).auth;
-  const sub = auth?.sub;
-  if (!sub) {
-    res.status(401).json({ error: 'Não autenticado' });
+  if (!authConfig.jwtSecret) {
+    res.status(500).json({ error: 'Autenticação não configurada' });
     return;
   }
 
-  users
-    .findById(sub)
-    .then((user) => {
-      if (!user || !isPlatformAdminEmail(user.email)) {
-        res.status(403).json({ error: 'Acesso restrito ao administrador da plataforma' });
+  const header = req.headers.authorization;
+  if (!header || !header.startsWith('Bearer ')) {
+    res.status(401).json({ error: 'Token ausente' });
+    return;
+  }
+
+  let payload: PlatformClaims;
+  try {
+    payload = jwt.verify(header.slice('Bearer '.length).trim(), authConfig.jwtSecret) as PlatformClaims;
+  } catch {
+    res.status(401).json({ error: 'Token inválido ou expirado' });
+    return;
+  }
+
+  if (payload.scope !== 'platform' || !payload.sub) {
+    res.status(403).json({ error: 'Acesso restrito ao console da plataforma' });
+    return;
+  }
+
+  admins
+    .findById(payload.sub)
+    .then((admin) => {
+      if (!admin) {
+        res.status(403).json({ error: 'Administrador não encontrado' });
         return;
       }
-      (req as Request & { adminEmail?: string }).adminEmail = user.email;
+      (req as Request & { admin?: { id: string; email: string; name: string; role: string } }).admin = {
+        id: admin.id,
+        email: admin.email,
+        name: admin.name,
+        role: admin.role,
+      };
       next();
     })
     .catch(next);
