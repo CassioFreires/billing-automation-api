@@ -66,10 +66,11 @@ fluxo de caixa do dono sem queimar a relação com o cliente"*.
   (com paywall) e cobrança da assinatura via gateway de plataforma. É o que permite
   **faturar os tenants**. Cobrança real/renovação automática em produção é D-24
   (mock já ativa/renova a assinatura no fluxo).
-- **Painel super-admin (spec 0023, entregue — Fase 1).** Você (allowlist de e-mails)
-  acessa `/admin`: MRR + métricas, lista/busca de tenants, e opera suporte — suspender/
-  reativar, mudar plano e **impersonar** (token curto + auditoria). Dá controle para
-  operar e vender sem mexer no banco.
+- **Console de plataforma (specs 0023 + 0031, entregue — Fase 1).** Área do dono do SaaS
+  (você/desenvolvedor) **totalmente separada** do app dos clientes: identidade própria
+  (`PlatformAdmin`, não é tenant), login e token próprios (`scope:platform`) e UI própria em
+  **`/console`**. Lá você vê MRR + métricas, lista/gere tenants, suspende/reativa, muda plano e
+  **impersona** (com auditoria). Nenhuma clínica vê ou acessa o console — isolamento real.
 
 ---
 
