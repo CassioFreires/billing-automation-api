@@ -2,11 +2,14 @@ import { Router } from 'express';
 
 import { ClientController } from '../controllers/clients.controller.js';
 import { jwtAuth } from '../middlewares/auth.middleware.js';
+import { requireWriteAccess } from '../middlewares/require-plan.middleware.js';
 
 const clientRouter = Router();
 
 // Todas as rotas de clientes exigem JWT válido.
 clientRouter.use(jwtAuth);
+// Gating do plano (spec 0020): leitura livre, escrita exige plano ativo.
+clientRouter.use(requireWriteAccess);
 
 const controller =
   new ClientController();
