@@ -46,4 +46,14 @@ export interface PaymentGatewayProvider {
    * Retorna `null` quando o evento deve ser ignorado; lança em assinatura inválida.
    */
   verifyAndParseWebhook(req: WebhookRequest): Promise<WebhookResult | null>;
+
+  /**
+   * Extrai NOSSA `reference` (external_reference) do payload do webhook, SEM
+   * confiar nela — serve só para localizar a fatura e, com ela, o tenant, de
+   * modo a carregar a credencial certa antes de verificar a assinatura (spec
+   * 0019, webhook multi-gateway). A mudança de estado só ocorre depois que
+   * `verifyAndParseWebhook` valida a assinatura com o segredo do tenant.
+   * Opcional: providers sem roteamento por tenant (ex.: mock) podem omitir.
+   */
+  extractReference?(req: WebhookRequest): string | null;
 }
