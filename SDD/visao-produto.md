@@ -56,6 +56,11 @@ fluxo de caixa do dono sem queimar a relação com o cliente"*.
   que **fechar o gateway real ponta-a-ponta (D-18) é pré-requisito de fundação**,
   não dívida — a "página que renegocia sozinha" precisa de um gateway que crie
   cobranças novas de verdade.
+- **Multi-gateway selecionável pelo dono (spec 0019, entregue).** O dono escolhe
+  entre 8 provedores (InfinitePay, Mercado Pago, Asaas, PagBank/PagSeguro, Efí,
+  Stripe, Pagar.me, mock) e informa as credenciais dele — **cifradas em repouso**.
+  Remove a objeção de venda "funciona com o que eu já uso?". Ligar cada conta real
+  em produção é D-23 (mock/sandbox já valida o fluxo).
 
 ---
 
