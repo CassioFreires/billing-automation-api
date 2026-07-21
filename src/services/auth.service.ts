@@ -38,6 +38,26 @@ export class AuthService {
   }
 
   /**
+   * Emite um JWT de IMPERSONAÇÃO para dar suporte a um tenant (spec 0023).
+   * Token CURTO, marcado com `imp` (e-mail do admin) para rastreio. Assume o
+   * OWNER do tenant como identidade. Só o admin.service chama (após autorizar).
+   */
+  async issueImpersonation(
+    adminEmail: string,
+    tenantId: string
+  ): Promise<{ token: string; expiresIn: string }> {
+    const secret = requireJwtSecret();
+    const owner = await this.users.findOwnerByTenant(tenantId);
+    if (!owner) throw new Error('OWNER_NOT_FOUND');
+    const token = jwt.sign(
+      { sub: owner.id, role: owner.role, tenantId, imp: adminEmail },
+      secret,
+      { expiresIn: authConfig.impersonationExpiresIn as jwt.SignOptions['expiresIn'] }
+    );
+    return { token, expiresIn: authConfig.impersonationExpiresIn };
+  }
+
+  /**
    * Cria conta (tenant) + usuário dono e retorna um JWT (RN-U3).
    * Lança EMAIL_TAKEN quando o e-mail já existe.
    */
