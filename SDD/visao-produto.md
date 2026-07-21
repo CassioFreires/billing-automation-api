@@ -66,6 +66,10 @@ fluxo de caixa do dono sem queimar a relação com o cliente"*.
   (com paywall) e cobrança da assinatura via gateway de plataforma. É o que permite
   **faturar os tenants**. Cobrança real/renovação automática em produção é D-24
   (mock já ativa/renova a assinatura no fluxo).
+- **Painel super-admin (spec 0023, entregue — Fase 1).** Você (allowlist de e-mails)
+  acessa `/admin`: MRR + métricas, lista/busca de tenants, e opera suporte — suspender/
+  reativar, mudar plano e **impersonar** (token curto + auditoria). Dá controle para
+  operar e vender sem mexer no banco.
 
 ---
 
