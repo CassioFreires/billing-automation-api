@@ -33,8 +33,21 @@ describe('canTransitionInvoice (máquina de estados da fatura)', () => {
     expect(canTransitionInvoice('BANANA', 'PAID')).toBe(false);
   });
 
-  it('as constantes cobrem os 4 status', () => {
-    expect(Object.values(InvoiceStatus)).toEqual(['PENDING', 'PAID', 'OVERDUE', 'FAILED']);
+  it('as constantes cobrem os status do domínio (inclui RENEGOTIATED — spec 0018)', () => {
+    expect(Object.values(InvoiceStatus)).toEqual([
+      'PENDING',
+      'PAID',
+      'OVERDUE',
+      'FAILED',
+      'RENEGOTIATED',
+    ]);
+  });
+
+  it('RENEGOTIATED é terminal e alcançável a partir de aberto (spec 0018)', () => {
+    expect(canTransitionInvoice('PENDING', 'RENEGOTIATED')).toBe(true);
+    expect(canTransitionInvoice('OVERDUE', 'RENEGOTIATED')).toBe(true);
+    expect(canTransitionInvoice('RENEGOTIATED', 'PAID')).toBe(false);
+    expect(canTransitionInvoice('PAID', 'RENEGOTIATED')).toBe(false);
   });
 });
 
