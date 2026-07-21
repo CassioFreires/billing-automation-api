@@ -33,6 +33,8 @@ RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/public ./public
+# Scripts operacionais (ex.: create-admin — bootstrap do super-admin, spec 0031).
+COPY --from=builder /app/scripts ./scripts
 
 # Prisma Client já gerado (client + engine)
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma

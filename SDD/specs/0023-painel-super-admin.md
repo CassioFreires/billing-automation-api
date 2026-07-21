@@ -1,6 +1,12 @@
 # Spec 0023 — Painel Super-Admin (gestão de tenants)
 
-- **Status**: Implementada
+> ⚠️ **Autorização/identidade/UI revistas pela spec 0031** (Console de Plataforma):
+> o super-admin deixou de ser allowlist-de-e-mail-como-tenant e passou a ser uma
+> identidade separada (`PlatformAdmin`), com login/token/UI próprios em `/console`.
+> As regras de negócio de gestão (métricas, suspender, mudar plano, impersonar,
+> auditoria) permanecem válidas.
+
+- **Status**: Implementada (autorização revista pela 0031)
 - **Autor**: time Adimplo
 - **Data**: 2026-07-21
 - **Dívida relacionada**: reusa o gating da spec 0020 (Account.status → entitlements). Sem nova dívida obrigatória (ver §9 p/ endurecimentos futuros).
