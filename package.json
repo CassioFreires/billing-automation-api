@@ -13,7 +13,8 @@
     "start": "node dist/server.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "db:seed": "prisma db seed"
+    "db:seed": "prisma db seed",
+    "create-admin": "node scripts/create-admin.mjs"
   },
   "prisma": {
     "seed": "node prisma/seed.mjs"
