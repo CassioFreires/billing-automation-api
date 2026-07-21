@@ -9,14 +9,6 @@
 /** Tenant da conta de serviço (default = Account seedado na migração 0001). */
 export const DEFAULT_TENANT_ID = '00000000-0000-0000-0000-000000000001';
 
-/** E-mails com poder de super-admin da plataforma (spec 0023). CSV no env. */
-function parseAdminEmails(raw: string | undefined): string[] {
-  return (raw ?? '')
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter((e) => e.length > 0);
-}
-
 export const authConfig = {
   jwtSecret: process.env.JWT_SECRET,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '1h',
@@ -28,17 +20,16 @@ export const authConfig = {
   cronSecret: process.env.CRON_SECRET,
   // Enquanto não há modelo de usuário, a conta de serviço opera sobre este tenant.
   defaultTenantId: process.env.DEFAULT_TENANT_ID ?? DEFAULT_TENANT_ID,
-  // Super-admin da plataforma (spec 0023): allowlist de e-mails + validade do
-  // token de impersonação (curto, por segurança).
-  platformAdminEmails: parseAdminEmails(process.env.PLATFORM_ADMIN_EMAILS),
+  // Console da plataforma (spec 0031): identidade separada (tabela PlatformAdmin).
+  // O 1º admin é criado por `npm run create-admin` lendo estas envs (bootstrap).
+  platformAdminBootstrap: {
+    email: process.env.PLATFORM_ADMIN_BOOTSTRAP_EMAIL,
+    password: process.env.PLATFORM_ADMIN_BOOTSTRAP_PASSWORD,
+    name: process.env.PLATFORM_ADMIN_BOOTSTRAP_NAME ?? 'Administrador',
+  },
+  // Validade do token de impersonação (curto, por segurança).
   impersonationExpiresIn: process.env.IMPERSONATION_EXPIRES_IN ?? '30m',
 };
-
-/** true se o e-mail é super-admin da plataforma (case-insensitive). */
-export function isPlatformAdminEmail(email: string | undefined | null): boolean {
-  if (!email) return false;
-  return authConfig.platformAdminEmails.includes(email.trim().toLowerCase());
-}
 
 /** Garante que o segredo do JWT está presente; senão falha fechado. */
 export function requireJwtSecret(): string {
