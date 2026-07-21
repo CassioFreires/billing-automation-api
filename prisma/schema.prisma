@@ -23,6 +23,44 @@ model Account {
   whatsappSetting WhatsappSetting?
   negotiationSetting NegotiationSetting?
   agreements Agreement[]
+  platformSubscription PlatformSubscription?
+  platformInvoices PlatformInvoice[]
+}
+
+// Assinatura do PRÓPRIO SaaS (spec 0020): a Adimplo cobra o tenant. 1:1 com
+// Account. Distinto de `Subscription` (recorrência do tenant com os clientes DELE).
+// plan: free | essencial | pro   ·   status: trialing | active | past_due | canceled
+model PlatformSubscription {
+  id               String    @id @default(uuid())
+  plan             String    @default("free")
+  status           String    @default("trialing")
+  trialEndsAt      DateTime?
+  currentPeriodEnd DateTime?
+  createdAt        DateTime  @default(now())
+  lastUpdate       DateTime  @updatedAt
+
+  tenantId String  @unique
+  account  Account @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+// Cobrança da plataforma (Adimplo → tenant) por um período. Espelha Invoice, mas
+// é da assinatura do SaaS. `gatewayId` é o localizador do webhook de plataforma.
+model PlatformInvoice {
+  id           String    @id @default(uuid())
+  plan         String
+  amountCents  Int
+  period       String // "YYYY-MM"
+  status       String    @default("PENDING") // PENDING | PAID | FAILED
+  gatewayId    String?   @unique
+  checkoutUrl  String?
+  pixCopyPaste String?
+  paidAt       DateTime?
+  createdAt    DateTime  @default(now())
+
+  tenantId String
+  account  Account @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
 }
 
 // Regras de AUTONEGOCIAÇÃO por tenant (spec 0018 — M2, "Botão de Alívio de Caixa").
