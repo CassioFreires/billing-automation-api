@@ -51,6 +51,16 @@ describe('resolveEntitlements (spec 0020)', () => {
     expect(resolveEntitlements({ plan: 'pro', status: 'canceled', trialEndsAt: null, currentPeriodEnd: future }, NOW).canWrite).toBe(false);
     expect(resolveEntitlements(null, NOW).canWrite).toBe(false);
   });
+
+  it('conta SUSPENDED pelo admin → bloqueia escrita mesmo com plano ativo (spec 0023)', () => {
+    const e = resolveEntitlements(
+      { plan: 'pro', status: 'active', trialEndsAt: null, currentPeriodEnd: future },
+      NOW,
+      'SUSPENDED'
+    );
+    expect(e.canWrite).toBe(false);
+    expect(e.reason).toBe('SUSPENDED');
+  });
 });
 
 describe('isOverInvoiceQuota', () => {
