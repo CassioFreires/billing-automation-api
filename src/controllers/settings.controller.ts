@@ -3,14 +3,18 @@ import { PaymentSettingService } from '../services/payment-setting.service.js';
 import { validateUpdatePaymentSettings } from '../dtos/paymentSettings.dto.js';
 import { WhatsappSettingService } from '../services/whatsapp-setting.service.js';
 import { validateUpdateWhatsappSettings } from '../dtos/whatsappSettings.dto.js';
+import { NegotiationSettingService } from '../services/negotiation-setting.service.js';
+import { validateUpdateNegotiationSettings } from '../dtos/negotiationSettings.dto.js';
 
 export class SettingsController {
   private paymentSettings: PaymentSettingService;
   private whatsappSettings: WhatsappSettingService;
+  private negotiationSettings: NegotiationSettingService;
 
   constructor() {
     this.paymentSettings = new PaymentSettingService();
     this.whatsappSettings = new WhatsappSettingService();
+    this.negotiationSettings = new NegotiationSettingService();
   }
 
   async getPayment(_req: Request, res: Response) {
@@ -45,6 +49,26 @@ export class SettingsController {
     try {
       const data = validateUpdateWhatsappSettings(req.body);
       const settings = await this.whatsappSettings.update(data);
+      return res.json(settings);
+    } catch (error: any) {
+      return res.status(400).json({ error: error.message });
+    }
+  }
+
+  // Regras de autonegociação do tenant (spec 0018 — M2).
+  async getNegotiation(_req: Request, res: Response) {
+    try {
+      const settings = await this.negotiationSettings.get();
+      return res.json(settings);
+    } catch (error: any) {
+      return res.status(500).json({ error: error.message });
+    }
+  }
+
+  async updateNegotiation(req: Request, res: Response) {
+    try {
+      const data = validateUpdateNegotiationSettings(req.body);
+      const settings = await this.negotiationSettings.update(data);
       return res.json(settings);
     } catch (error: any) {
       return res.status(400).json({ error: error.message });

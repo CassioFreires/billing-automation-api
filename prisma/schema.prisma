@@ -21,6 +21,56 @@ model Account {
   interactionEvents InteractionEvent[]
   paymentSetting PaymentSetting?
   whatsappSetting WhatsappSetting?
+  negotiationSetting NegotiationSetting?
+  agreements Agreement[]
+}
+
+// Regras de AUTONEGOCIAÇÃO por tenant (spec 0018 — M2, "Botão de Alívio de Caixa").
+// O dono define UMA vez os limites do que o Adimplo pode oferecer sozinho ao
+// pagador que hesita (abriu o link N vezes e não pagou — Elo, spec 0016). O
+// sistema NUNCA oferece além destes tetos (RN-NEG2).
+model NegotiationSetting {
+  id                  String   @id @default(uuid())
+  enabled             Boolean  @default(false) // liga/desliga o alívio no tenant
+  hesitationOpens     Int      @default(3)     // limiar de aberturas (DEFAULT_HESITATION_OPENS)
+  discountEnabled     Boolean  @default(false)
+  discountPercent     Decimal  @default(0) @db.Decimal(5, 4) // 0..1 (ex.: 0.1000 = 10%)
+  installmentsEnabled Boolean  @default(false)
+  maxInstallments     Int      @default(1)     // teto de parcelas
+  deferEnabled        Boolean  @default(false)
+  deferMaxDays        Int      @default(0)     // teto de dias de adiamento
+  deferFeePercent     Decimal  @default(0) @db.Decimal(5, 4) // taxa sobre o valor ao adiar
+  createdAt           DateTime @default(now())
+  lastUpdate          DateTime @updatedAt
+
+  tenantId            String   @unique
+  account             Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+// Acordo de autonegociação (spec 0018 — M2). Nasce quando o pagador aceita uma
+// opção de alívio: gera uma NOVA cobrança (newInvoice) e "supersede" a original
+// (que vai para RENEGOTIATED). `terms` guarda o SNAPSHOT dos valores aplicados
+// (RN-NEG11) — imune a mudanças posteriores no NegotiationSetting.
+model Agreement {
+  id                String   @id @default(uuid())
+  type              String   // discount | installments | defer
+  status            String   @default("PENDING") // PENDING | ACCEPTED | CANCELLED | EXPIRED
+  terms             Json     // { originalValue, finalValue, discountPercent?, installments?, newDueDate?, feePercent? }
+  createdAt         DateTime @default(now())
+  lastUpdate        DateTime @updatedAt
+
+  originalInvoiceId String
+  originalInvoice   Invoice  @relation("AgreementOriginal", fields: [originalInvoiceId], references: [id], onDelete: Cascade)
+
+  newInvoiceId      String?  @unique
+  newInvoice        Invoice? @relation("AgreementNew", fields: [newInvoiceId], references: [id], onDelete: SetNull)
+
+  tenantId          String
+  account           Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([originalInvoiceId])
+  @@index([tenantId])
+  @@index([originalInvoiceId, status]) // guarda do "1 acordo ativo por fatura" (RN-NEG3)
 }
 
 // Configuração de WhatsApp POR TENANT (spec 0014). Cada empresa envia pelo
@@ -104,7 +154,7 @@ model Client {
 model Invoice {
   id            String    @id @default(uuid())
   value         Decimal   @db.Decimal(12, 2)
-  status        String    @default("PENDING") // PENDING, PAID, OVERDUE, FAILED
+  status        String    @default("PENDING") // PENDING, PAID, OVERDUE, FAILED, RENEGOTIATED (spec 0018)
   pixCopyPaste  String?   // Campo para salvar o "Copia e Cola" do PIX gerado pelo Gateway
   pixQrCode     String?   // Link ou Base64 da imagem do QR Code
   checkoutUrl   String?   // URL de checkout hospedado (ex.: Mercado Pago Checkout Pro)
@@ -124,6 +174,11 @@ model Invoice {
   items         InvoiceItem[] // detalhe do que está sendo cobrado (spec 0007)
   payments      Payment[]     // recebimentos (manual + gateway) — spec 0015
   events        InteractionEvent[] // eventos de interação (Elo) — spec 0016
+
+  // Autonegociação (spec 0018 — M2): acordos onde esta fatura é a ORIGINAL
+  // (renegociada) ou a NOVA (gerada pelo acordo).
+  agreementsAsOriginal Agreement[] @relation("AgreementOriginal")
+  agreementAsNew       Agreement?  @relation("AgreementNew")
 
   // Origem recorrente (spec 0009): quando a fatura foi gerada por uma assinatura.
   // period = "YYYY-MM" da competência; o par garante 1 fatura por assinatura/mês.

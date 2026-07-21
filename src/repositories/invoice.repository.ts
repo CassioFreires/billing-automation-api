@@ -144,6 +144,13 @@ export class InvoiceRepository {
             occurredAt: params.paidAt ?? new Date(),
           },
         });
+
+        // Autonegociação (spec 0018 — RN-NEG6): se esta fatura é a NOVA cobrança
+        // de um acordo, o acordo se resolve (ACCEPTED) ao ser paga.
+        await tx.agreement.updateMany({
+          where: { newInvoiceId: invoice.id, status: 'PENDING' },
+          data: { status: 'ACCEPTED' },
+        });
       }
 
       return { duplicate: false, invoice };
@@ -299,6 +306,8 @@ export class InvoiceRepository {
         tenantId: true,
         clientId: true,
         status: true,
+        value: true,     // necessário para calcular as opções de acordo (spec 0018)
+        dueDate: true,
         checkoutUrl: true,
         pixCopyPaste: true,
       },

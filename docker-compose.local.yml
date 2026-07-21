@@ -1,0 +1,164 @@
+# =============================================================================
+# Billing Automation API — TESTE LOCAL (Docker Desktop / Windows)
+#
+# Igual ao docker-compose.free.yml, porém SEM o Caddy: em máquina local não há
+# domínio público nem como emitir certificado Let's Encrypt. Aqui a API é
+# publicada em 127.0.0.1:3000 e o frontend roda via `npm run dev` (Vite) no host,
+# apontando VITE_API_PROXY_TARGET para http://localhost:3000.
+#
+# Uso (PowerShell, dentro de billing-automation-api/, com Docker Desktop ligado):
+#   docker compose -f docker-compose.local.yml up -d --build
+#   docker compose -f docker-compose.local.yml ps
+#   docker compose -f docker-compose.local.yml logs -f api
+#   docker compose -f docker-compose.local.yml down          # para (mantém dados)
+#   docker compose -f docker-compose.local.yml down -v       # para e APAGA o banco
+#
+# O serviço `migrate` roda `prisma migrate deploy` uma vez e sai ANTES de a API
+# subir. Segredos vêm do .env (nunca versionado).
+# =============================================================================
+
+x-app-env: &app-env
+  NODE_ENV: production
+  DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}@postgres:5432/${POSTGRES_DB:-billing_db}
+  RABBITMQ_URL: amqp://${RABBITMQ_USER:-billing}:${RABBITMQ_PASSWORD:?defina RABBITMQ_PASSWORD no .env}@rabbitmq:5672
+  REDIS_ENABLED: "true"
+  REDIS_URL: redis://redis:6379
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "5m"
+    max-file: "3"
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-billing_db}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+    # Exposto no loopback do host em 5433 (o 5432 fica pro Postgres LOCAL da
+    # máquina). Para inspecionar o banco do container: host localhost:5433.
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks: [billing-network]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-billing_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    mem_limit: 256m
+    restart: unless-stopped
+    logging: *default-logging
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-billing}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?defina RABBITMQ_PASSWORD no .env}
+    # Painel de administração em http://localhost:15672
+    ports:
+      - "127.0.0.1:15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks: [billing-network]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    mem_limit: 350m
+    restart: unless-stopped
+    logging: *default-logging
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "60", "1", "--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - redis_data:/data
+    networks: [billing-network]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    mem_limit: 96m
+    restart: unless-stopped
+    logging: *default-logging
+
+  # Migrações: roda uma vez, aplica o schema e sai. A API/worker só sobem depois.
+  migrate:
+    build: .
+    image: billing-api:latest
+    command: ["npx", "prisma", "migrate", "deploy"]
+    env_file: [.env]
+    environment:
+      <<: *app-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [billing-network]
+    mem_limit: 256m
+    restart: "no"
+    logging: *default-logging
+
+  api:
+    image: billing-api:latest
+    env_file: [.env]
+    environment:
+      <<: *app-env
+      RUN_WORKER_INLINE: "false" # worker roda em serviço próprio (D-03)
+    # Publicada no loopback do host: é aqui que o Vite (VITE_API_PROXY_TARGET=
+    # http://localhost:3000) fala com a API.
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    networks: [billing-network]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    stop_grace_period: 30s
+    mem_limit: 256m
+    restart: unless-stopped
+    logging: *default-logging
+
+  worker:
+    image: billing-api:latest
+    command: ["node", "dist/worker.js"]
+    env_file: [.env]
+    environment:
+      <<: *app-env
+    # O worker NÃO é um serviço HTTP: desabilita o HEALTHCHECK herdado do
+    # Dockerfile (que testa /api/health), senão fica "unhealthy" à toa.
+    healthcheck:
+      disable: true
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    networks: [billing-network]
+    stop_grace_period: 30s
+    mem_limit: 256m
+    restart: unless-stopped
+    logging: *default-logging
+
+networks:
+  billing-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
+  redis_data:

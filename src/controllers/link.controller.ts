@@ -64,7 +64,17 @@ export async function openLink(req: Request<{ token: string }>, res: Response) {
     console.error('⚠️ Falha ao registrar evento open (segue o redirect):', err);
   }
 
-  // Destino: checkout hospedado do gateway; sem ele, página mínima com o PIX.
+  // Destino do pagador. Com a autonegociação (spec 0018 — M2), o link leva à
+  // PÁGINA DE ACORDO hospedada pelo Adimplo (SPA): lá o pagador vê "Pagar" e,
+  // se estiver hesitando e o dono habilitou, o Botão de Alívio. Configurável por
+  // `WEB_APP_URL` (ex.: http://localhost:5173 em dev; o domínio do front em prod).
+  const webAppUrl = (process.env.WEB_APP_URL ?? '').replace(/\/$/, '');
+  if (webAppUrl) {
+    return res.redirect(302, `${webAppUrl}/pagar/${token}`);
+  }
+
+  // Sem SPA configurada (ex.: ambiente de teste): mantém o fluxo do Elo v1 —
+  // checkout do gateway ou página mínima com o PIX.
   if (invoice.checkoutUrl) {
     return res.redirect(302, invoice.checkoutUrl);
   }

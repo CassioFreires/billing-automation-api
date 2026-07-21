@@ -171,6 +171,12 @@ concilia e dá baixa automática**, multi-tenant, pagamento/WhatsApp por tenant.
   requirement. M1 ajuda a parar a régua na hora certa.
 - **Esforço:** alto (é o rosto — vale o investimento). Fasear: régua → autonegociação
   → gatilho comportamental.
+- **✅ v1 entregue (backend + frontend, 2026-07-21)** — spec **0018**: autonegociação
+  disparada por comportamento (Botão de Alívio). `NegotiationSetting` (regras por
+  tenant), `Agreement` (supersede → nova cobrança pelo seam de gateway), página
+  pública `/pagar/:token` com as opções (desconto/parcelar/adiar) e config no painel.
+  Validado no gateway `mock` (D-18 é pré-requisito só de produção). **Falta**: a
+  **régua multi-passo** (dunning → spec 0019, a outra metade do M2) e o loop M4→M2.
 
 ### M3 — Fiscal / NFS-e automática 🧾 *(matador se o nicho for serviço)*
 - **O que é:** ao receber, **emite a nota fiscal de serviço sozinho**.

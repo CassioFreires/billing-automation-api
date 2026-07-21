@@ -12,6 +12,7 @@ export const InvoiceStatus = {
   PAID: 'PAID',
   OVERDUE: 'OVERDUE',
   FAILED: 'FAILED',
+  RENEGOTIATED: 'RENEGOTIATED', // substituída por um acordo (spec 0018 — M2). Terminal.
 } as const;
 export type InvoiceStatus = (typeof InvoiceStatus)[keyof typeof InvoiceStatus];
 
@@ -35,10 +36,13 @@ export type SubscriptionStatus = (typeof SubscriptionStatus)[keyof typeof Subscr
  * no-op permitido (idempotência).
  */
 const INVOICE_TRANSITIONS: Record<InvoiceStatus, readonly InvoiceStatus[]> = {
-  PENDING: [InvoiceStatus.PAID, InvoiceStatus.OVERDUE, InvoiceStatus.FAILED],
-  OVERDUE: [InvoiceStatus.PAID, InvoiceStatus.FAILED],
+  // Autonegociação (spec 0018): uma fatura em aberto pode ser RENEGOCIADA (o acordo
+  // gera uma cobrança nova e "supersede" esta). RENEGOTIATED é terminal.
+  PENDING: [InvoiceStatus.PAID, InvoiceStatus.OVERDUE, InvoiceStatus.FAILED, InvoiceStatus.RENEGOTIATED],
+  OVERDUE: [InvoiceStatus.PAID, InvoiceStatus.FAILED, InvoiceStatus.RENEGOTIATED],
   FAILED: [InvoiceStatus.PENDING, InvoiceStatus.PAID], // permite reprocessar
   PAID: [], // terminal
+  RENEGOTIATED: [], // terminal — a cobrança viva agora é a nova fatura do acordo
 };
 
 /** true se a fatura pode ir de `from` para `to` (mesmo status = no-op ok). */
