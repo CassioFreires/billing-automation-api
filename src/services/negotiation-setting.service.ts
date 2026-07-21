@@ -2,6 +2,7 @@ import { NegotiationSettingRepository } from '../repositories/negotiation-settin
 import { UpdateNegotiationSettingsDTO } from '../dtos/negotiationSettings.dto.js';
 import { NegotiationRules } from '../domain/negotiation.js';
 import { DEFAULT_HESITATION_OPENS } from '../domain/interaction.js';
+import { PlatformSubscriptionService } from './platform-subscription.service.js';
 
 /** Regras default quando o tenant ainda não configurou (alívio DESLIGADO). */
 const DEFAULTS = {
@@ -16,11 +17,23 @@ const DEFAULTS = {
   deferFeePercent: 0,
 };
 
+/** Botão de Alívio exige plano com o recurso (spec 0020). */
+export class NegotiationFeatureError extends Error {
+  constructor() {
+    super('PLAN_FEATURE_REQUIRED');
+  }
+}
+
 export class NegotiationSettingService {
   private repository: NegotiationSettingRepository;
+  private platform: PlatformSubscriptionService;
 
-  constructor(deps?: { repository?: NegotiationSettingRepository }) {
+  constructor(deps?: {
+    repository?: NegotiationSettingRepository;
+    platform?: PlatformSubscriptionService;
+  }) {
     this.repository = deps?.repository ?? new NegotiationSettingRepository();
+    this.platform = deps?.platform ?? new PlatformSubscriptionService();
   }
 
   /** Config "crua" do tenant (com defaults) — para a tela de Configurações. */
@@ -46,6 +59,11 @@ export class NegotiationSettingService {
   }
 
   async update(data: UpdateNegotiationSettingsDTO) {
+    // Botão de Alívio é recurso do plano Pro (spec 0020). Só bloqueia ao LIGAR.
+    if (data.enabled) {
+      const ent = await this.platform.entitlementsForCurrentTenant();
+      if (!ent.features.reliefButton) throw new NegotiationFeatureError();
+    }
     return this.repository.upsert({
       enabled: data.enabled,
       hesitationOpens: data.hesitationOpens,

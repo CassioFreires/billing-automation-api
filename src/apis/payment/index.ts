@@ -116,6 +116,17 @@ export function resolvePaymentGatewayFromEnv(): PaymentGatewayProvider {
   return resolvePaymentGatewayForTenant({ provider: selected });
 }
 
+/**
+ * Gateway da PLATAFORMA (spec 0020): a conta da própria Adimplo que cobra os
+ * tenants pela assinatura do SaaS. Independente do gateway de cada tenant.
+ * `PLATFORM_PAYMENT_PROVIDER` (default `mock`); credenciais reais via env por
+ * provider quando houver conta real (D-24).
+ */
+export function resolvePlatformGateway(): PaymentGatewayProvider {
+  const selected = (process.env.PLATFORM_PAYMENT_PROVIDER ?? 'mock').toLowerCase();
+  return resolvePaymentGatewayForTenant({ provider: selected });
+}
+
 /** Fachada usada pela aplicação; injeta o provider ativo. */
 export class PaymentGatewayAPI {
   private readonly provider: PaymentGatewayProvider;

@@ -3,6 +3,7 @@ import { InvoiceController } from '../controllers/invoice.controller.js';
 import { PaymentController } from '../controllers/payment.controller.js';
 import { AgreementController } from '../controllers/agreement.controller.js';
 import { jwtAuth } from '../middlewares/auth.middleware.js';
+import { requireWriteAccess, enforceInvoiceQuota } from '../middlewares/require-plan.middleware.js';
 
 const invoiceRouter = Router();
 const invoiceController = new InvoiceController();
@@ -10,8 +11,9 @@ const paymentController = new PaymentController();
 const agreementController = new AgreementController();
 
 
-// Rota que o seu Front-end vai chamar para gerar uma cobrança manual (JWT)
-invoiceRouter.post('/', jwtAuth, invoiceController.create);
+// Rota que o seu Front-end vai chamar para gerar uma cobrança manual (JWT).
+// Gating do plano (spec 0020): exige plano ativo + respeita a quota de faturas.
+invoiceRouter.post('/', jwtAuth, requireWriteAccess, enforceInvoiceQuota, invoiceController.create);
 // Webhook do gateway: a verificação de autenticidade é feita pelo provider ativo
 // (mock: x-webhook-secret; mercadopago: assinatura x-signature). Rota legada
 // (provider global do .env) mantida para compatibilidade.
@@ -27,7 +29,7 @@ invoiceRouter.get('/overdue', jwtAuth, invoiceController.findPendingInvoices);
 invoiceRouter.get('/:id', jwtAuth, invoiceController.findById);
 
 // Recebimentos da fatura (spec 0015): baixa manual e listagem (JWT).
-invoiceRouter.post('/:id/payments', jwtAuth, paymentController.register);
+invoiceRouter.post('/:id/payments', jwtAuth, requireWriteAccess, paymentController.register);
 invoiceRouter.get('/:id/payments', jwtAuth, paymentController.listByInvoice);
 
 // Eventos de interação da fatura (Elo, spec 0016): timeline + contagens (JWT).

@@ -1,4 +1,5 @@
 import prisma from '../database/prisma.js';
+import { TRIAL_DAYS } from '../domain/plans.js';
 
 /**
  * Repositório de usuários.
@@ -11,13 +12,16 @@ export class UserRepository {
     return prisma.user.findUnique({ where: { email } });
   }
 
-  /** Cria a conta (tenant) e o usuário dono atomicamente (RN-U3). */
+  /** Cria a conta (tenant) + usuário dono + trial de plataforma, atomicamente (RN-U3). */
   async createAccountWithOwner(input: {
     accountName: string;
     name: string;
     email: string;
     passwordHash: string;
   }) {
+    // Trial de 14 dias com recursos Pro (spec 0020). Mesmo create atômico.
+    const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
+
     const account = await prisma.account.create({
       data: {
         name: input.accountName,
@@ -28,6 +32,9 @@ export class UserRepository {
             passwordHash: input.passwordHash,
             role: 'OWNER',
           },
+        },
+        platformSubscription: {
+          create: { plan: 'pro', status: 'trialing', trialEndsAt },
         },
       },
       include: { users: true },

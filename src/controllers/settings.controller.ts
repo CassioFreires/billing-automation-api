@@ -71,6 +71,13 @@ export class SettingsController {
       const settings = await this.negotiationSettings.update(data);
       return res.json(settings);
     } catch (error: any) {
+      // Botão de Alívio é recurso do plano Pro (spec 0020).
+      if (error?.message === 'PLAN_FEATURE_REQUIRED') {
+        return res.status(402).json({
+          error: 'O Botão de Alívio faz parte do plano Pro. Faça upgrade para ativar.',
+          code: 'PLAN_FEATURE_REQUIRED',
+        });
+      }
       return res.status(400).json({ error: error.message });
     }
   }

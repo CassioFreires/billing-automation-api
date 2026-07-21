@@ -313,6 +313,17 @@ export class InvoiceRepository {
   }
 
   /**
+   * Conta faturas criadas no mês corrente pelo tenant atual (quota de plano —
+   * spec 0020). Baseado em createdAt (emissão), UTC.
+   */
+  async countCreatedThisMonth(now: Date = new Date()): Promise<number> {
+    const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0));
+    return prisma.invoice.count({
+      where: { tenantId: requireTenantId(), createdAt: { gte: start } },
+    });
+  }
+
+  /**
    * Resolve uma fatura pelo `linkToken` do Elo (spec 0016). ENTRADA GLOBAL
    * legítima (exceção da RN-T2, igual a `findByGatewayId`): a rota pública
    * `/r/:token` não tem contexto de tenant; o `tenantId` é derivado da fatura.
