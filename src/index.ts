@@ -13,6 +13,7 @@ import { cockpitRouter } from './routers/cockpit.router.js';
 import { publicAgreementRouter } from './routers/agreement.router.js';
 import { billingRouter } from './routers/billing.router.js';
 import { adminRouter } from './routers/admin.router.js';
+import { onboardingRouter } from './routers/onboarding.router.js';
 
 const appRouter = Router();
 
@@ -36,6 +37,8 @@ appRouter.use('/clients', clientRouter);
 appRouter.use('/invoices', invoiceRouter);
 appRouter.use('/subscriptions', subscriptionRouter);
 appRouter.use('/settings', settingsRouter);
+// Onboarding guiado do tenant (spec 0021): checklist de ativação (JWT, sem gating).
+appRouter.use('/onboarding', onboardingRouter);
 // Cobrança do próprio SaaS (spec 0020): plano/checkout (JWT) + webhook (público).
 appRouter.use('/billing', billingRouter);
 // Painel super-admin (spec 0023): cross-tenant, restrito à allowlist de admins.

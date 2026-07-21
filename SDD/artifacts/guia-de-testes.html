@@ -1,0 +1,977 @@
+<title>Adimplo — Guia de Testes</title>
+<style>
+  :root {
+    --bg: #f6f8f7;
+    --surface: #ffffff;
+    --surface-2: #eef2f0;
+    --border: #e0e5e2;
+    --border-strong: #cdd5d0;
+    --ink: #15201c;
+    --muted: #55645d;
+    --faint: #85938b;
+    --accent: #0c7a6f;
+    --accent-strong: #094e47;
+    --accent-tint: #dff1ee;
+    --plat: #4338ca;
+    --plat-strong: #3730a3;
+    --plat-tint: #e6e6fb;
+    --success: #167c3c;
+    --success-tint: #ddf3e4;
+    --warning: #a65a0a;
+    --warning-tint: #fbeddb;
+    --danger: #b21f43;
+    --danger-tint: #fbe2e8;
+    --shadow: 0 1px 2px rgba(20,32,28,.05), 0 8px 24px -12px rgba(20,32,28,.15);
+    --radius: 14px;
+    --maxw: 880px;
+    --mono: ui-monospace, "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0c1310; --surface: #121b17; --surface-2: #18231e;
+      --border: #253129; --border-strong: #32433a;
+      --ink: #e7efe9; --muted: #9caea4; --faint: #6c7d73;
+      --accent: #2fd4c0; --accent-strong: #6ee7d8; --accent-tint: #123029;
+      --plat: #a5b4fc; --plat-strong: #c7d2fe; --plat-tint: #1e1b3a;
+      --success: #4ade80; --success-tint: #12301d;
+      --warning: #fbbf24; --warning-tint: #33260c;
+      --danger: #fb7185; --danger-tint: #34141d;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px -14px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f6f8f7; --surface: #ffffff; --surface-2: #eef2f0; --border: #e0e5e2; --border-strong: #cdd5d0;
+    --ink: #15201c; --muted: #55645d; --faint: #85938b;
+    --accent: #0c7a6f; --accent-strong: #094e47; --accent-tint: #dff1ee;
+    --plat: #4338ca; --plat-strong: #3730a3; --plat-tint: #e6e6fb;
+    --success: #167c3c; --success-tint: #ddf3e4; --warning: #a65a0a; --warning-tint: #fbeddb;
+    --danger: #b21f43; --danger-tint: #fbe2e8;
+    --shadow: 0 1px 2px rgba(20,32,28,.05), 0 8px 24px -12px rgba(20,32,28,.15);
+  }
+  :root[data-theme="dark"] {
+    --bg: #0c1310; --surface: #121b17; --surface-2: #18231e; --border: #253129; --border-strong: #32433a;
+    --ink: #e7efe9; --muted: #9caea4; --faint: #6c7d73;
+    --accent: #2fd4c0; --accent-strong: #6ee7d8; --accent-tint: #123029;
+    --plat: #a5b4fc; --plat-strong: #c7d2fe; --plat-tint: #1e1b3a;
+    --success: #4ade80; --success-tint: #12301d; --warning: #fbbf24; --warning-tint: #33260c;
+    --danger: #fb7185; --danger-tint: #34141d;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px -14px rgba(0,0,0,.6);
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans);
+    line-height: 1.65; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px; }
+  .layout { display: block; }
+  @media (min-width: 1080px) {
+    .layout { display: grid; grid-template-columns: 232px minmax(0,1fr); gap: 48px; align-items: start; }
+  }
+
+  /* ---- TOC ---- */
+  nav.toc { display: none; }
+  @media (min-width: 1080px) {
+    nav.toc { display: block; position: sticky; top: 24px; align-self: start; padding: 8px 0;
+      font-size: .84rem; max-height: calc(100vh - 48px); overflow-y: auto; }
+  }
+  nav.toc a { display: block; color: var(--faint); text-decoration: none; padding: 5px 12px;
+    border-left: 2px solid transparent; transition: color .15s, border-color .15s; }
+  nav.toc a:hover { color: var(--ink); }
+  nav.toc a.active { color: var(--accent); border-left-color: var(--accent); font-weight: 600; }
+  nav.toc .toc-group { text-transform: uppercase; letter-spacing: .08em; font-size: .68rem;
+    color: var(--faint); margin: 16px 0 4px; padding: 0 12px; font-weight: 700; }
+
+  main { min-width: 0; padding-bottom: 80px; }
+
+  /* ---- hero ---- */
+  header.hero { padding: 56px 0 28px; }
+  .eyebrow { display: inline-flex; align-items: center; gap: 8px; text-transform: uppercase;
+    letter-spacing: .14em; font-size: .7rem; font-weight: 700; color: var(--accent);
+    background: var(--accent-tint); padding: 5px 11px; border-radius: 999px; }
+  h1 { font-size: clamp(1.9rem, 4vw, 2.6rem); line-height: 1.1; letter-spacing: -.02em;
+    margin: 18px 0 10px; text-wrap: balance; font-weight: 800; }
+  .lede { font-size: 1.08rem; color: var(--muted); max-width: 62ch; margin: 0; }
+
+  /* ---- reference card ---- */
+  .refcard { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 4px; margin: 28px 0 8px; display: grid; gap: 1px;
+    grid-template-columns: 1fr; overflow: hidden; }
+  @media (min-width: 620px) { .refcard { grid-template-columns: 1fr 1fr; } }
+  .refcard .cell { padding: 16px 18px; }
+  .refcard .label { text-transform: uppercase; letter-spacing: .08em; font-size: .68rem;
+    color: var(--faint); font-weight: 700; margin-bottom: 4px; }
+  .refcard .val { font-family: var(--mono); font-size: .98rem; color: var(--ink); word-break: break-word; }
+  .refcard a { color: var(--accent); font-weight: 600; text-decoration: none; }
+  .refcard a:hover { text-decoration: underline; }
+
+  section { scroll-margin-top: 20px; padding-top: 34px; }
+  h2 { font-size: 1.5rem; letter-spacing: -.01em; margin: 0 0 6px; font-weight: 800; text-wrap: balance; }
+  h2 .num { color: var(--accent); font-variant-numeric: tabular-nums; }
+  .section-sub { color: var(--muted); margin: 0 0 20px; max-width: 64ch; }
+  h3 { font-size: 1.06rem; margin: 26px 0 8px; font-weight: 700; }
+  p { margin: 0 0 14px; }
+  a { color: var(--accent); }
+
+  hr.div { border: none; border-top: 1px solid var(--border); margin: 40px 0 0; }
+
+  /* ---- persona chips ---- */
+  .persona { display: inline-flex; align-items: center; gap: 7px; font-size: .74rem; font-weight: 700;
+    padding: 4px 10px; border-radius: 999px; letter-spacing: .02em; }
+  .persona.owner { background: var(--accent-tint); color: var(--accent-strong); }
+  .persona.payer { background: var(--warning-tint); color: var(--warning); }
+  .persona.sys { background: var(--surface-2); color: var(--muted); }
+  .persona.plat { background: var(--plat-tint); color: var(--plat-strong); }
+  :root[data-theme="dark"] .persona.owner { color: var(--accent); }
+  :root[data-theme="dark"] .persona.plat { color: var(--plat); }
+
+  /* ---- steps ---- */
+  ol.steps { list-style: none; counter-reset: step; padding: 0; margin: 8px 0 0; display: grid; gap: 14px; }
+  ol.steps > li { counter-increment: step; position: relative; background: var(--surface);
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px 18px 62px;
+    box-shadow: var(--shadow); }
+  ol.steps > li::before { content: counter(step); position: absolute; left: 16px; top: 16px;
+    width: 30px; height: 30px; border-radius: 9px; background: var(--accent); color: #fff;
+    display: grid; place-items: center; font-weight: 700; font-size: .95rem; font-variant-numeric: tabular-nums; }
+  :root[data-theme="dark"] ol.steps > li::before { color: #06231f; }
+  ol.steps h4 { margin: 0 0 4px; font-size: 1.02rem; font-weight: 700; }
+  ol.steps p { margin: 0 0 8px; color: var(--ink); }
+  ol.steps p:last-child { margin-bottom: 0; }
+
+  .expect { font-size: .9rem; color: var(--muted); background: var(--surface-2);
+    border-radius: 9px; padding: 9px 12px; display: flex; gap: 9px; align-items: flex-start; }
+  .expect b { color: var(--success); font-weight: 700; }
+  .expect::before { content: "✓"; color: var(--success); font-weight: 800; margin-top: -1px; }
+
+  /* ---- callouts ---- */
+  .call { border-radius: var(--radius); padding: 15px 17px; margin: 18px 0; border: 1px solid var(--border);
+    background: var(--surface); display: flex; gap: 12px; align-items: flex-start; }
+  .call .ic { flex: none; width: 22px; height: 22px; margin-top: 1px; }
+  .call p { margin: 0; }
+  .call p + p { margin-top: 8px; }
+  .call.warn { background: var(--warning-tint); border-color: color-mix(in srgb, var(--warning) 35%, transparent); }
+  .call.warn .ic { color: var(--warning); }
+  .call.danger { background: var(--danger-tint); border-color: color-mix(in srgb, var(--danger) 35%, transparent); }
+  .call.danger .ic { color: var(--danger); }
+  .call.info { background: var(--accent-tint); border-color: color-mix(in srgb, var(--accent) 30%, transparent); }
+  .call.info .ic { color: var(--accent); }
+  .call.plat { background: var(--plat-tint); border-color: color-mix(in srgb, var(--plat) 35%, transparent); }
+  .call.plat .ic { color: var(--plat); }
+  .call .t { font-weight: 700; }
+
+  /* ---- concept grid ---- */
+  .concepts { display: grid; gap: 12px; grid-template-columns: 1fr; margin-top: 8px; }
+  @media (min-width: 620px) { .concepts { grid-template-columns: 1fr 1fr; } }
+  .concept { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 15px 17px; box-shadow: var(--shadow); }
+  .concept dt { font-weight: 700; color: var(--accent-strong); margin-bottom: 3px; }
+  :root[data-theme="dark"] .concept dt { color: var(--accent); }
+  .concept dd { margin: 0; color: var(--muted); font-size: .93rem; }
+
+  code { font-family: var(--mono); font-size: .88em; background: var(--surface-2);
+    padding: 1px 6px; border-radius: 5px; color: var(--ink); word-break: break-word; }
+  pre { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px; overflow-x: auto; font-family: var(--mono); font-size: .84rem; line-height: 1.55; margin: 12px 0; }
+  pre code { background: none; padding: 0; }
+
+  /* ---- figures / diagrams (mermaid) ---- */
+  figure.fig { margin: 20px 0; }
+  figure.fig pre.mermaid { background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px 16px; margin: 0;
+    text-align: center; overflow-x: auto; font-family: var(--sans); }
+  figure.fig figcaption { font-size: .82rem; color: var(--faint); margin-top: 9px; text-align: center;
+    text-wrap: balance; }
+
+  /* legend for diagram colors */
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 4px 0 0; font-size: .8rem; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+  .legend i.owner { background: #0c7a6f; }
+  .legend i.payer { background: #b45309; }
+  .legend i.sys { background: #475569; }
+  .legend i.done { background: #167c3c; }
+  .legend i.plat { background: #4338ca; }
+
+  /* scenario card */
+  .scenario { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--accent);
+    border-radius: var(--radius); padding: 18px 20px; box-shadow: var(--shadow); margin: 16px 0; }
+  .scenario h3 { margin-top: 0; }
+  .scenario .flow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0 12px;
+    font-size: .82rem; font-family: var(--mono); }
+  .scenario .flow span { background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px;
+    padding: 3px 10px; }
+  .scenario .flow .arw { background: none; border: none; color: var(--faint); padding: 0; }
+
+  /* checklist */
+  ul.check { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 8px; }
+  ul.check li { display: flex; gap: 11px; align-items: flex-start; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 10px; padding: 11px 14px; }
+  ul.check li .box { flex: none; width: 18px; height: 18px; border: 2px solid var(--border-strong);
+    border-radius: 5px; margin-top: 2px; }
+
+  .foot { margin-top: 46px; padding-top: 22px; border-top: 1px solid var(--border);
+    color: var(--faint); font-size: .84rem; }
+
+  table.data { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: .9rem; }
+  table.data th, table.data td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border);
+    vertical-align: top; }
+  table.data th { font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); }
+  table.data td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .tablewrap { overflow-x: auto; }
+  .pill { display: inline-block; font-size: .72rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+  .pill.paid { background: var(--success-tint); color: var(--success); }
+  .pill.over { background: var(--danger-tint); color: var(--danger); }
+  .pill.pend { background: var(--warning-tint); color: var(--warning); }
+  .pill.reneg { background: var(--accent-tint); color: var(--accent-strong); }
+  .pill.new { background: var(--plat-tint); color: var(--plat-strong); }
+  :root[data-theme="dark"] .pill.reneg { color: var(--accent); }
+  :root[data-theme="dark"] .pill.new { color: var(--plat); }
+
+  @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; } }
+  html { scroll-behavior: smooth; }
+</style>
+
+<div class="wrap">
+<div class="layout">
+
+  <nav class="toc" aria-label="Índice">
+    <div class="toc-group">Começar</div>
+    <a href="#antes">Antes de começar</a>
+    <a href="#novidades">O que há de novo</a>
+    <a href="#mapa">Mapa do produto</a>
+    <a href="#conceitos">Conceitos</a>
+    <div class="toc-group">Trilha do Dono</div>
+    <a href="#dono-login">1 · Entrar</a>
+    <a href="#dono-cockpit">2 · Painel Geral</a>
+    <a href="#dono-clientes">3 · Clientes</a>
+    <a href="#dono-fatura">4 · Faturas</a>
+    <a href="#dono-config">5 · Configuração</a>
+    <a href="#dono-baixa">6 · Dar baixa</a>
+    <a href="#dono-assinatura">7 · Assinaturas</a>
+    <a href="#dono-plano">8 · Seu plano Adimplo</a>
+    <div class="toc-group">Trilha do Pagador</div>
+    <a href="#cons-link">9 · Receber o link</a>
+    <a href="#cons-pagar">10 · Pagar</a>
+    <a href="#cons-alivio">11 · Botão de Alívio</a>
+    <div class="toc-group">Console da Plataforma</div>
+    <a href="#console">Só para você (dono do SaaS)</a>
+    <a href="#console-entrar">12 · Entrar no console</a>
+    <a href="#console-metricas">13 · Métricas & MRR</a>
+    <a href="#console-tenants">14 · Gerir assinantes</a>
+    <div class="toc-group">Por baixo dos panos</div>
+    <a href="#bastidores">Os bastidores</a>
+    <div class="toc-group">Simulações</div>
+    <a href="#sim">Cenários</a>
+    <a href="#modos">Teste × Produção</a>
+    <a href="#checklist">Checklist</a>
+  </nav>
+
+  <main>
+    <header class="hero" id="topo">
+      <span class="eyebrow">Guia de testes · Adimplo</span>
+      <h1>O Adimplo de ponta a ponta: cada tela, cada fluxo, os bastidores</h1>
+      <p class="lede">Um roteiro para você <strong>entender e testar</strong> a plataforma pelos três lados — o <strong>dono do negócio</strong>, que gerencia e cobra; o <strong>pagador</strong>, que recebe a cobrança e paga; e o <strong>console da plataforma</strong>, o painel só seu (dono do SaaS) para administrar todos os assinantes — mais o que acontece <strong>por baixo dos panos</strong>. Com diagramas de cada fluxo e o que muda do modo teste para a produção.</p>
+
+      <div class="refcard">
+        <div class="cell">
+          <div class="label">Ambiente de teste (online)</div>
+          <div class="val"><a href="https://useadimplo.com.br">useadimplo.com.br</a></div>
+        </div>
+        <div class="cell">
+          <div class="label">Ambiente de teste (local / dev)</div>
+          <div class="val">localhost:5173 (front) · :3000 (API)</div>
+        </div>
+        <div class="cell">
+          <div class="label">Conta de teste (dono)</div>
+          <div class="val">demo@autocore.app · demo12345</div>
+        </div>
+        <div class="cell">
+          <div class="label">Negócio demo</div>
+          <div class="val">Clínica OdontoFit · 6 clientes · 8 faturas</div>
+        </div>
+        <div class="cell">
+          <div class="label">Console da plataforma (só você)</div>
+          <div class="val"><a href="https://useadimplo.com.br/console/login">useadimplo.com.br/console/login</a></div>
+        </div>
+        <div class="cell">
+          <div class="label">Acesso do console</div>
+          <div class="val">cassio_souza@live.com · senha entregue em separado</div>
+        </div>
+      </div>
+    </header>
+
+    <section id="antes">
+      <h2>Antes de começar</h2>
+      <p class="section-sub">Pontos que vão te travar se você não souber — leia primeiro.</p>
+
+      <div class="call info">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
+        <div>
+          <p class="t">Existem dois lugares para testar — os dois são "modo teste".</p>
+          <p><strong>Local (dev):</strong> sobe na sua máquina com Docker (<code>localhost:5173</code>). É onde a versão mais nova roda primeiro. <strong>Online (demo):</strong> <code>useadimplo.com.br</code>, para mostrar de qualquer lugar. Os dois usam pagamento <strong>simulado</strong> e não afetam ninguém real.</p>
+        </div>
+      </div>
+
+      <div class="call danger">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+        <div>
+          <p class="t">No online, a rede da empresa (Zscaler) pode bloquear o site.</p>
+          <p>O firewall corporativo classifica <code>useadimplo.com.br</code> como "domínio recém-registrado" e barra o acesso. <strong>Teste pelo celular no 4G/5G</strong> (fora do Wi-Fi da empresa) ou peça ao TI para liberar o domínio. No local (<code>localhost</code>) esse problema não existe.</p>
+        </div>
+      </div>
+
+      <div class="call info">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
+        <div>
+          <p class="t">O Botão de Alívio, os multi-gateways, o plano do próprio Adimplo e o Console já estão no online.</p>
+          <p>Tudo que este guia descreve foi deployado em <strong>produção</strong> (<code>useadimplo.com.br</code>). Pagamentos seguem <strong>simulados</strong> (mock) até você ligar contas reais dos provedores — o comportamento do produto é o final, só o dinheiro é fictício.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="novidades">
+      <h2>O que há de novo nesta versão</h2>
+      <p class="section-sub">Três blocos entraram desde a última revisão deste guia. Estão marcados com <span class="pill new">novo</span> ao longo do texto.</p>
+      <dl class="concepts">
+        <div class="concept"><dt>💳 Multi-gateway de pagamento <span class="pill new">novo</span></dt><dd>Além do Simulado, o dono escolhe entre <strong>Asaas, PagBank (PagSeguro), Efí, Stripe e Pagar.me</strong>. As credenciais ficam <strong>criptografadas em repouso</strong> e cada provedor tem seu próprio webhook. (Contas reais dependem só de ligar o provedor.)</dd></div>
+        <div class="concept"><dt>🏷️ Cobrança do próprio Adimplo <span class="pill new">novo</span></dt><dd>O SaaS agora cobra de <em>você</em>: planos <strong>Free</strong>, <strong>Essencial (R$49)</strong> e <strong>Pro (R$199)</strong>, com <strong>14 dias de teste grátis</strong> (recursos Pro). Ao expirar, as ações de escrita bloqueiam até regularizar (paywall).</dd></div>
+        <div class="concept"><dt>🛡️ Console da Plataforma <span class="pill new">novo</span></dt><dd>Um painel <strong>totalmente separado</strong> (<code>/console</code>), só para você (dono/dev do SaaS): métricas, MRR, e gestão dos assinantes (suspender, mudar plano, entrar como). O dono da clínica <strong>nunca</strong> vê nem acessa.</dd></div>
+        <div class="concept"><dt>✨ Botão de Alívio de Caixa</dt><dd>A autonegociação (módulo M2) segue disponível — agora também no online. Cobertura completa na seção 11.</dd></div>
+      </dl>
+    </section>
+
+    <section id="mapa">
+      <h2>Mapa do produto — como as seções se relacionam</h2>
+      <p class="section-sub">Antes de clicar, o desenho geral. Cada seção do painel tem um papel, e elas se encadeiam: você cadastra <strong>clientes</strong>, cria <strong>faturas</strong>, a <strong>configuração</strong> define como cobrar e o que oferecer, o <strong>pagador</strong> recebe um link, e tudo volta como números no <strong>Painel Geral</strong>. Por cima de tudo, o <strong>Console da plataforma</strong> — o seu ponto de vista de dono do SaaS.</p>
+
+      <figure class="fig">
+        <pre class="mermaid">
+%%{init: {'theme':'base','themeVariables':{'fontFamily':'system-ui, sans-serif','fontSize':'14px','lineColor':'#8aa0a8','primaryColor':'#0c7a6f','primaryTextColor':'#ffffff','primaryBorderColor':'#0a5f57'}}}%%
+flowchart TD
+  CON["🛡️ Console da Plataforma<br/>você administra todos os assinantes"]:::plat
+  CON -.governa a conta do dono.-> PLANO
+  PLANO["🏷️ Plano Adimplo<br/>trial · Free/Essencial/Pro"]:::owner
+  PLANO -.libera/bloqueia ações.-> CFG
+  CFG["⚙️ Configuração<br/>gateway + mensagem + oferta"]:::owner
+  CL["👥 Clientes<br/>quem você cobra"]:::owner
+  AS["🔁 Assinaturas<br/>mensalidade recorrente"]:::owner
+  FA["🧾 Faturas / Cobranças"]:::owner
+  LK["🔗 Link do Adimplo<br/>/r/…"]:::sys
+  PAY(("💬 Pagador")):::payer
+  EV["📈 Eventos + Recebimentos"]:::sys
+  PG["📊 Painel Geral (Cockpit)<br/>o raio-x do caixa"]:::owner
+
+  CL --> FA
+  AS -->|gera todo mês| FA
+  CFG -.define gateway/mensagem/oferta.-> FA
+  FA -->|gera| LK --> PAY
+  PAY -->|abre, paga, negocia| EV
+  EV --> PG
+  FA --> PG
+
+  classDef owner fill:#0c7a6f,stroke:#0a5f57,color:#ffffff;
+  classDef payer fill:#b45309,stroke:#8a4308,color:#ffffff;
+  classDef sys fill:#475569,stroke:#334155,color:#ffffff;
+  classDef plat fill:#4338ca,stroke:#3730a3,color:#ffffff;
+        </pre>
+        <figcaption>Como as seções se encadeiam. Verde = o dono opera · laranja = o pagador · cinza = o que roda por baixo · <strong>índigo = o console da plataforma (só você)</strong>.</figcaption>
+      </figure>
+      <div class="legend">
+        <span><i class="owner"></i> Dono / painel</span>
+        <span><i class="payer"></i> Pagador</span>
+        <span><i class="sys"></i> Bastidores</span>
+        <span><i class="plat"></i> Console da plataforma</span>
+      </div>
+    </section>
+
+    <section id="conceitos">
+      <h2>Conceitos em 30 segundos</h2>
+      <p class="section-sub">O Adimplo não é "um app que manda lembrete". Ele cuida do <strong>dinheiro em volta da cobrança</strong>. Os termos que você vai ver:</p>
+      <dl class="concepts">
+        <div class="concept"><dt>Painel Geral (Cockpit)</dt><dd>A tela de abertura: quanto você tem a receber, quanto atrasou, quanto entrou e o que fazer hoje.</dd></div>
+        <div class="concept"><dt>Aging</dt><dd>O "envelhecimento" das dívidas: a vencer, e atrasado de 0–30, 31–60 ou 60+ dias.</dd></div>
+        <div class="concept"><dt>Elo (link próprio)</dt><dd>O link de cobrança é do <em>Adimplo</em>, não do banco. Quando o cliente abre, o sistema <strong>registra</strong> e leva ao pagamento.</dd></div>
+        <div class="concept"><dt>Hesitando</dt><dd>Cliente que <strong>abriu o link 3× e não pagou</strong>. Sinal de "está em dúvida" — gatilho do Botão de Alívio.</dd></div>
+        <div class="concept"><dt>Botão de Alívio</dt><dd>Quando o cliente hesita, o Adimplo oferece <strong>sozinho</strong> desconto à vista, parcelar ou adiar — dentro das regras que o dono definiu.</dd></div>
+        <div class="concept"><dt>Dar baixa</dt><dd>Registrar que uma fatura foi paga — inclusive quando o pagamento veio por fora (dinheiro, PIX manual, maquininha).</dd></div>
+        <div class="concept"><dt>Assinatura (do cliente)</dt><dd>Mensalidade recorrente que o dono cobra do seu cliente: um molde que gera a fatura do mês sozinho.</dd></div>
+        <div class="concept"><dt>Conciliação</dt><dd>Casar o dinheiro que entrou com a fatura certa. Automática (o banco avisa) ou manual (a baixa).</dd></div>
+        <div class="concept"><dt>Gateway de pagamento <span class="pill new">novo</span></dt><dd>O provedor por onde <em>o dono</em> recebe: Asaas, PagBank, Efí, Stripe, Pagar.me ou Simulado. Escolhido na Configuração; credenciais criptografadas.</dd></div>
+        <div class="concept"><dt>Plano Adimplo <span class="pill new">novo</span></dt><dd>A assinatura que <em>o dono paga ao Adimplo</em> (Free/Essencial/Pro). Não confundir com as assinaturas que ele cobra dos clientes dele.</dd></div>
+        <div class="concept"><dt>Trial <span class="pill new">novo</span></dt><dd>14 dias com recursos Pro liberados. No fim, ou vira um plano pago, ou as ações de escrita bloqueiam.</dd></div>
+        <div class="concept"><dt>Console da plataforma <span class="pill new">novo</span></dt><dd>O painel do <strong>dono do SaaS</strong> (você). Identidade e login próprios, separados do app do cliente.</dd></div>
+        <div class="concept"><dt>Impersonar <span class="pill new">novo</span></dt><dd>Do console, você "entra como" um assinante para dar suporte — com auditoria. Um banner avisa e o "Sair" volta ao console.</dd></div>
+        <div class="concept"><dt>Multi-tenant</dt><dd>Cada empresa é uma "conta" isolada. Um dono nunca vê o dado do outro.</dd></div>
+      </dl>
+    </section>
+
+    <hr class="div">
+
+    <section id="dono-login">
+      <h2><span class="persona owner">● Dono / Admin</span></h2>
+      <p class="section-sub">Você gerencia o negócio, cobra e acompanha o caixa. A jornada, em um olhar:</p>
+
+      <figure class="fig">
+        <pre class="mermaid">
+%%{init: {'theme':'base','themeVariables':{'fontFamily':'system-ui, sans-serif','fontSize':'14px','lineColor':'#8aa0a8'}}}%%
+flowchart LR
+  A["1· Entrar"]:::owner --> B["2· Ler o<br/>Painel Geral"]:::owner --> C["3· Cadastrar<br/>cliente"]:::owner --> D["4· Criar<br/>cobrança"]:::owner
+  D --> E["5· Configurar<br/>gateway + alívio"]:::owner --> F["6· Dar baixa /<br/>acompanhar"]:::owner --> G["8· Seu plano<br/>Adimplo"]:::owner
+  classDef owner fill:#0c7a6f,stroke:#0a5f57,color:#ffffff;
+        </pre>
+        <figcaption>A trilha do dono. Faça-a logado, com a conta demo.</figcaption>
+      </figure>
+
+      <h3><span class="num">1.</span> Entrar na plataforma</h3>
+      <ol class="steps">
+        <li>
+          <h4>Faça login com a conta demo</h4>
+          <p>Abra <a href="https://useadimplo.com.br">useadimplo.com.br</a> (ou <code>localhost:5173</code> no local), clique em <strong>Entrar</strong> e use <code>demo@autocore.app</code> / <code>demo12345</code>.</p>
+          <p class="expect"><span><b>Esperado:</b> você cai no Painel Geral da "Clínica OdontoFit".</span></p>
+        </li>
+      </ol>
+    </section>
+
+    <section id="dono-cockpit">
+      <h3><span class="num">2.</span> Painel Geral (Cockpit) — <span style="color:var(--muted);font-weight:600">o raio-x do caixa</span></h3>
+      <p class="section-sub"><b>O que é:</b> a primeira tela, o resumo do negócio. <b>Como se relaciona:</b> ele não guarda dado próprio — <em>lê</em> tudo das faturas, dos recebimentos e dos eventos do link. Mexeu em qualquer seção, o Painel reflete.</p>
+      <ol class="steps">
+        <li>
+          <h4>Confira os indicadores de caixa</h4>
+          <p>No topo, 4 números: <strong>A receber</strong>, <strong>Em atraso</strong>, <strong>Recebido</strong> (seletor 7/30/90 dias) e <strong>Inadimplência</strong>.</p>
+          <p class="expect"><span><b>Esperado:</b> com os dados demo, "A receber" ≈ <code>R$ 1.300,40</code> e "Inadimplência" alta (a clínica tem coisa vencida de propósito).</span></p>
+        </li>
+        <li>
+          <h4>Leia a barra de Envelhecimento (aging)</h4>
+          <p>Mostra a proporção do que está <em>a vencer</em> × atrasado (0–30 / 31–60 / 60+ dias). Mais à direita (vermelho) = pior o caixa.</p>
+        </li>
+        <li>
+          <h4>Olhe a fila de ações do dia</h4>
+          <p>Duas listas: <strong>Vence essa semana</strong> (cobrar antes de atrasar) e <strong>Hesitando</strong> (abriu o link e não pagou).</p>
+          <p class="expect"><span><b>Esperado:</b> "Hesitando" começa vazia — você mesmo vai populá-la na simulação (Cenário A).</span></p>
+        </li>
+        <li>
+          <h4>Troque o período (7d / 30d / 90d)</h4>
+          <p class="expect"><span><b>Esperado:</b> o "Recebido" recalcula conforme a janela.</span></p>
+        </li>
+      </ol>
+    </section>
+
+    <section id="dono-clientes">
+      <h3><span class="num">3.</span> Clientes — <span style="color:var(--muted);font-weight:600">quem você cobra</span></h3>
+      <p class="section-sub"><b>O que é:</b> o cadastro das pessoas/empresas que devem a você. <b>Como se relaciona:</b> toda fatura e toda assinatura pertence a um cliente; é o telefone dele que recebe a cobrança.</p>
+      <ol class="steps">
+        <li>
+          <h4>Abra "Clientes" e crie um novo</h4>
+          <p>Menu lateral → <strong>Clientes</strong> → <strong>Novo cliente</strong>. Nome, telefone e documento.</p>
+          <p class="expect"><span><b>Esperado:</b> aparece na lista. Telefone repetido é bloqueado (é a chave única por conta).</span></p>
+        </li>
+        <li>
+          <h4>(Opcional) Importe em massa por CSV</h4>
+          <p>O assistente sobe vários de uma vez e atualiza os que já existem pelo telefone.</p>
+          <p class="expect"><span><b>Esperado:</b> um resumo "criados / atualizados".</span></p>
+        </li>
+      </ol>
+    </section>
+
+    <section id="dono-fatura">
+      <h3><span class="num">4.</span> Faturas — <span style="color:var(--muted);font-weight:600">as cobranças</span></h3>
+      <p class="section-sub"><b>O que é:</b> cada cobrança que você emite. <b>Como se relaciona:</b> nasce de um cliente (ou de uma assinatura), usa o <em>gateway</em> da Configuração, gera o <em>link do Adimplo</em> e alimenta o Painel. Estados: <span class="pill pend">Pendente</span> <span class="pill paid">Paga</span> <span class="pill over">Vencida</span> <span class="pill reneg">Renegociada</span>.</p>
+      <ol class="steps">
+        <li>
+          <h4>Gere uma fatura</h4>
+          <p><strong>Faturas</strong> → <strong>Nova cobrança</strong>, escolha um cliente, informe valor e vencimento.</p>
+          <p class="expect"><span><b>Esperado:</b> nasce <span class="pill pend">Pendente</span>, com um PIX e um <strong>link próprio do Adimplo</strong> gerado por baixo dos panos.</span></p>
+        </li>
+      </ol>
+      <div class="call info">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
+        <div><p>No teste, o pagamento é <strong>simulado</strong>. Para marcar como paga, use <strong>Dar baixa</strong> (passo 6) — ou, no fluxo real, o gateway confirma sozinho.</p></div>
+      </div>
+    </section>
+
+    <section id="dono-config">
+      <h3><span class="num">5.</span> Configuração — <span style="color:var(--muted);font-weight:600">como cobrar e o que oferecer</span></h3>
+      <p class="section-sub"><b>O que é:</b> os ajustes da sua conta. <b>Como se relaciona:</b> não faz nada sozinha — ela <em>governa</em> as faturas (por qual gateway o dinheiro é cobrado, como a mensagem é enviada e o que o pagador que hesita recebe). São três blocos:</p>
+      <dl class="concepts">
+        <div class="concept"><dt>💳 Gateway de pagamento <span class="pill new">novo</span></dt><dd>Onde <em>você</em> recebe. Agora com 5 provedores + teste: <strong>Asaas, PagBank (PagSeguro), Efí, Stripe, Pagar.me</strong> ou <strong>Simulado</strong>. Você informa as credenciais do provedor escolhido — elas ficam <strong>criptografadas em repouso</strong>.</dd></div>
+        <div class="concept"><dt>💬 WhatsApp</dt><dd>Por qual número a cobrança é enviada. "Simulado" só registra (não envia); "Meta Cloud API" envia de verdade com suas credenciais.</dd></div>
+        <div class="concept"><dt>✨ Botão de Alívio de Caixa</dt><dd>Liga a autonegociação e define os limites: desconto à vista, nº de parcelas e prazo/taxa de adiamento.</dd></div>
+      </dl>
+      <ol class="steps">
+        <li>
+          <h4>Escolha o gateway de pagamento <span class="pill new">novo</span></h4>
+          <p>Menu → <strong>Configurações</strong> → <strong>Gateway de pagamento</strong>. Em teste, deixe <strong>Simulado</strong>. Para um provedor real, escolha (ex.: <strong>Asaas</strong>) e cole as credenciais dele.</p>
+          <p class="expect"><span><b>Esperado:</b> "Gateway salvo". As próximas cobranças passam a nascer nesse provedor, e o webhook dele passa a dar baixa automática.</span></p>
+        </li>
+        <li>
+          <h4>Configure o Botão de Alívio</h4>
+          <p>Na seção <strong>Botão de Alívio de Caixa</strong>. Ative e defina, por exemplo: dispara após <strong>3</strong> aberturas · <strong>desconto de 10%</strong> à vista · <strong>até 3×</strong> · <strong>adiar 7 dias</strong> com 5% de taxa.</p>
+          <p class="expect"><span><b>Esperado:</b> "Regras de alívio salvas". A partir daí, o pagador que hesitar vê essas opções (passo 11).</span></p>
+        </li>
+      </ol>
+      <div class="call info">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
+        <div><p><strong>Credenciais seguras:</strong> a chave secreta de cada gateway é guardada <strong>criptografada</strong> (AES-256-GCM) — nunca aparece de volta na tela nem trafega em texto puro. Trocar de provedor é configuração, não reprogramação.</p></div>
+      </div>
+    </section>
+
+    <section id="dono-baixa">
+      <h3><span class="num">6.</span> Dar baixa — <span style="color:var(--muted);font-weight:600">registrar um pagamento</span></h3>
+      <p class="section-sub"><b>O que é:</b> marcar uma fatura como recebida. <b>Como se relaciona:</b> é a fonte do "dinheiro que entrou" quando o pagamento vem <em>por fora</em> (dinheiro na recepção, PIX manual). O que entra pelo gateway o sistema baixa sozinho.</p>
+      <ol class="steps">
+        <li>
+          <h4>Marque uma fatura como recebida</h4>
+          <p>Na lista de faturas, clique em <strong>Dar baixa</strong>. Escolha o meio (PIX, dinheiro, transferência…), confirme valor e data.</p>
+          <p class="expect"><span><b>Esperado:</b> vira <span class="pill paid">Paga</span> e passa a listar um "Recebimento".</span></p>
+        </li>
+        <li>
+          <h4>Volte ao Painel Geral</h4>
+          <p class="expect"><span><b>Esperado:</b> "Recebido" subiu e "A receber" caiu — o caixa reflete na hora.</span></p>
+        </li>
+      </ol>
+    </section>
+
+    <section id="dono-assinatura">
+      <h3><span class="num">7.</span> Assinaturas — <span style="color:var(--muted);font-weight:600">a mensalidade recorrente (dos seus clientes)</span></h3>
+      <p class="section-sub"><b>O que é:</b> um molde de cobrança que se repete. <b>Como se relaciona:</b> a cada mês, gera uma fatura sozinho — daí em diante é uma fatura como as outras. <em>Não confunda</em> com o <strong>seu</strong> plano Adimplo (passo 8): aqui é você cobrando o cliente; lá é o Adimplo cobrando você.</p>
+      <ol class="steps">
+        <li>
+          <h4>Veja as mensalidades</h4>
+          <p>Em <strong>Assinaturas</strong>: o seed já traz "Plano Mensal Odonto" e "Clareamento". Crie uma se quiser.</p>
+          <p class="expect"><span><b>Esperado:</b> fica <span class="pill paid">Ativa</span>, com dia de vencimento e valor mensal.</span></p>
+        </li>
+      </ol>
+      <div class="call info">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
+        <div><p>A geração roda por um <strong>agendador diário</strong> (um dos "bastidores"). Uma assinatura gera <strong>uma</strong> fatura por mês — rodar duas vezes não duplica.</p></div>
+      </div>
+    </section>
+
+    <section id="dono-plano">
+      <h3><span class="num">8.</span> Seu plano Adimplo — <span style="color:var(--muted);font-weight:600">a assinatura que <em>você</em> paga ao SaaS</span> <span class="pill new">novo</span></h3>
+      <p class="section-sub"><b>O que é:</b> quanto <em>o dono da clínica</em> paga para usar o Adimplo. <b>Como se relaciona:</b> o plano <strong>governa</strong> o que a conta pode fazer — no trial e no Pro tudo é liberado; se expirar sem plano pago, as ações de escrita <strong>bloqueiam</strong> (paywall) e só a regularização destrava.</p>
+
+      <figure class="fig">
+        <pre class="mermaid">
+%%{init: {'theme':'base','themeVariables':{'fontFamily':'system-ui, sans-serif','fontSize':'14px','lineColor':'#8aa0a8'}}}%%
+flowchart LR
+  T["🎁 Trial 14 dias<br/>(recursos Pro)"]:::owner --> D{"Escolheu um<br/>plano pago?"}:::sys
+  D -->|"Sim"| CO["💳 Checkout<br/>(gateway da plataforma)"]:::sys --> WH["🔔 Webhook ativa/renova"]:::sys --> ACT["✅ Plano ativo<br/>ações liberadas"]:::owner
+  D -->|"Não / expirou"| BLK["🔒 Paywall<br/>escrita bloqueada"]:::payer
+  BLK -->|"regularizar"| CO
+  classDef owner fill:#0c7a6f,stroke:#0a5f57,color:#ffffff;
+  classDef payer fill:#b45309,stroke:#8a4308,color:#ffffff;
+  classDef sys fill:#475569,stroke:#334155,color:#ffffff;
+        </pre>
+        <figcaption>O ciclo do seu plano: trial → checkout → ativo; ou expira → paywall → regulariza.</figcaption>
+      </figure>
+
+      <div class="tablewrap">
+      <table class="data">
+        <thead><tr><th>Plano</th><th>Preço</th><th>Para quem</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Free</strong></td><td class="num">R$ 0</td><td>Uso básico, com limites (ex.: volume de faturas).</td></tr>
+          <tr><td><strong>Essencial</strong></td><td class="num">R$ 49/mês</td><td>Operação do dia a dia sem os limites do Free.</td></tr>
+          <tr><td><strong>Pro</strong></td><td class="num">R$ 199/mês</td><td>Tudo liberado — inclui os recursos avançados (é o que o trial dá).</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <ol class="steps">
+        <li>
+          <h4>Veja o seu plano e o trial</h4>
+          <p>Menu → <strong>Plano</strong> (<code>/plano</code>). No topo do app, um banner mostra os dias restantes do teste.</p>
+          <p class="expect"><span><b>Esperado:</b> conta nova entra em <span class="pill new">trial</span> por 14 dias com recursos Pro; o banner conta os dias.</span></p>
+        </li>
+        <li>
+          <h4>Escolha um plano (checkout simulado)</h4>
+          <p>Clique em <strong>Escolher um plano</strong> → Essencial ou Pro → checkout. Em teste, o gateway da plataforma é <strong>mock</strong>.</p>
+          <p class="expect"><span><b>Esperado:</b> o webhook do plano ativa a assinatura e o banner some — conta fica <span class="pill paid">ativa</span>.</span></p>
+        </li>
+        <li>
+          <h4>(Opcional) Veja o paywall em ação</h4>
+          <p>Numa conta com trial expirado e sem plano, tente criar uma fatura.</p>
+          <p class="expect"><span><b>Esperado:</b> aparece o aviso "plano expirou" e as ações de <strong>escrita bloqueiam</strong>; leitura e a tela <code>/plano</code> continuam acessíveis.</span></p>
+        </li>
+      </ol>
+      <div class="call info">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
+        <div><p>Uma <strong>varredura diária</strong> (cron) revisa trials e renovações: expira quem passou do prazo e mantém ativo quem pagou. O gateway <strong>real</strong> da plataforma é o último passo antes de cobrar de verdade.</p></div>
+      </div>
+    </section>
+
+    <hr class="div">
+
+    <section id="cons-link">
+      <h2><span class="persona payer">● Pagador / Cliente</span></h2>
+      <p class="section-sub">É o cliente do dono — quem <em>recebe</em> a cobrança. Ele <strong>não faz login</strong>: interage só por um link. Faça esta trilha idealmente no celular, como um cliente real. A jornada completa:</p>
+
+      <figure class="fig">
+        <pre class="mermaid">
+%%{init: {'theme':'base','themeVariables':{'fontFamily':'system-ui, sans-serif','fontSize':'14px','lineColor':'#8aa0a8'}}}%%
+flowchart TD
+  N["📩 Recebe a notificação<br/>com o link"]:::payer --> O["🔗 Abre o link /r/<br/>(o Adimplo registra 'abriu')"]:::sys
+  O --> Q{"Está hesitando?<br/>abriu 3× sem pagar<br/>e o dono ativou o alívio"}:::sys
+  Q -->|"Não"| PAY["💳 Página de pagamento<br/>Pagar agora"]:::payer
+  Q -->|"Sim"| REL["✨ Botão de Alívio<br/>desconto · parcelar · adiar"]:::payer
+  PAY --> PIX["PIX / checkout"]:::sys --> OK["✅ Fatura paga"]:::done
+  REL -->|"escolhe a condição"| NEW["🧾 Nova cobrança<br/>com a condição<br/>(a original vira Renegociada)"]:::sys
+  NEW --> PIX2["Paga a nova"]:::sys --> OK
+  OK --> WH["🔔 Gateway avisa o Adimplo<br/>→ baixa automática"]:::sys --> PG["📊 Painel do dono atualiza"]:::owner
+
+  classDef owner fill:#0c7a6f,stroke:#0a5f57,color:#ffffff;
+  classDef payer fill:#b45309,stroke:#8a4308,color:#ffffff;
+  classDef sys fill:#475569,stroke:#334155,color:#ffffff;
+  classDef done fill:#167c3c,stroke:#0f5c2b,color:#ffffff;
+        </pre>
+        <figcaption>Do recebimento ao pagamento — com o desvio da autonegociação quando o pagador hesita.</figcaption>
+      </figure>
+
+      <h3><span class="num">9.</span> Receber e abrir a cobrança</h3>
+      <ol class="steps">
+        <li>
+          <h4>Você recebe uma mensagem com um link do Adimplo</h4>
+          <p>A cobrança chega (em teste, o WhatsApp está simulado) com algo como:<br><em>"Olá Ana · Valor: R$ 89,90 · Pague aqui: useadimplo.com.br/r/…"</em></p>
+        </li>
+        <li>
+          <h4>Ao tocar no link, o Adimplo registra e te leva ao pagamento</h4>
+          <p>O endereço <code>/r/&lt;código&gt;</code> é o <strong>Elo</strong>: ele <strong>anota que você abriu</strong> (para o dono saber que a mensagem chegou e foi vista) e te leva à <strong>página de pagamento do Adimplo</strong> (<code>/pagar/&lt;código&gt;</code>).</p>
+          <p class="expect"><span><b>Esperado:</b> abre a página com o valor e o botão "Pagar agora"; nos bastidores nasce um evento "aberto".</span></p>
+        </li>
+      </ol>
+      <div class="call warn">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+        <div><p><strong>Privacidade:</strong> o Adimplo <em>não</em> guarda o seu IP. Guarda só um código embaralhado (hash) para saber se foi "a mesma pessoa que reabriu" — sem identificar você.</p></div>
+      </div>
+    </section>
+
+    <section id="cons-pagar">
+      <h3><span class="num">10.</span> Pagar</h3>
+      <ol class="steps">
+        <li>
+          <h4>Conclua o pagamento</h4>
+          <p>Na página, toque em <strong>Pagar agora</strong>. Com checkout, você é levado a ele; sem checkout, aparece o <strong>PIX copia-e-cola</strong> com botão de copiar.</p>
+          <p class="expect"><span><b>Esperado (fluxo real):</b> ao pagar, o gateway avisa o Adimplo e a fatura vira <span class="pill paid">Paga</span> sozinha. No teste, quem confirma é a baixa do dono (passo 6).</span></p>
+        </li>
+      </ol>
+    </section>
+
+    <section id="cons-alivio">
+      <h3><span class="num">11.</span> O Botão de Alívio de Caixa <span style="color:var(--warning);font-weight:700">★ o "uau"</span></h3>
+      <p class="section-sub"><b>O que é:</b> quando o pagador <em>hesita</em> (abre o link várias vezes e não paga), a página oferece <strong>sozinha</strong> uma saída — dentro das regras que o dono configurou (passo 5). Sem ninguém negociar no zap.</p>
+      <ol class="steps">
+        <li>
+          <h4>Na página, aparecem as opções de alívio</h4>
+          <p>Abaixo do "Pagar agora": <strong>"Essa semana está apertada?"</strong> com os cartões que o dono habilitou — <em>pagar à vista com desconto</em>, <em>parcelar em Nx</em> ou <em>adiar o vencimento</em>, cada um já com o valor calculado.</p>
+        </li>
+        <li>
+          <h4>Escolha uma condição</h4>
+          <p>Ao tocar, o Adimplo <strong>gera uma nova cobrança</strong> com aquela condição e mostra o PIX dela. A cobrança <em>original</em> vira <span class="pill reneg">Renegociada</span> (some da inadimplência) e o acordo fica registrado.</p>
+          <p class="expect"><span><b>Esperado:</b> "Acordo confirmado!" + o novo valor a pagar. Ao pagar a nova, o acordo é dado como cumprido.</span></p>
+        </li>
+      </ol>
+      <div class="call info">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
+        <div><p>Se o dono <strong>não</strong> ligou o alívio (ou o cliente não hesitou), a página mostra só "Pagar agora" — nenhuma oferta aparece. É o dono quem decide os limites; o Adimplo só executa.</p></div>
+      </div>
+    </section>
+
+    <hr class="div">
+
+    <section id="console">
+      <h2><span class="persona plat">● Console da Plataforma</span> <span class="pill new">novo</span></h2>
+      <p class="section-sub">Este é o painel do <strong>dono do SaaS — você</strong>, não do dono da clínica. É <strong>totalmente separado</strong> do app dos clientes: identidade, login, sessão e telas próprias. O objetivo é profissional e de segurança: quem administra a plataforma nunca se mistura com quem apenas usa a plataforma.</p>
+
+      <figure class="fig">
+        <pre class="mermaid">
+%%{init: {'theme':'base','themeVariables':{'fontFamily':'system-ui, sans-serif','fontSize':'14px','lineColor':'#8aa0a8'}}}%%
+flowchart TB
+  subgraph PLATW["🛡️ Mundo da plataforma (você)"]
+    direction TB
+    PA["Super-admin<br/>(identidade própria, sem clínica)"]:::plat
+    CONL["/console/login → /console"]:::plat
+    PA --> CONL
+  end
+  subgraph APPW["🏢 Mundo do cliente (dono da clínica)"]
+    direction TB
+    U["Dono / usuário da clínica"]:::owner
+    APPL["/login → app do negócio"]:::owner
+    U --> APPL
+  end
+  CONL -.impersonar (com auditoria).-> APPL
+  X["🚫 Sessões isoladas:<br/>token do cliente NÃO abre o console<br/>token do console NÃO abre o app"]:::sys
+  PLATW --- X --- APPW
+
+  classDef owner fill:#0c7a6f,stroke:#0a5f57,color:#ffffff;
+  classDef sys fill:#475569,stroke:#334155,color:#ffffff;
+  classDef plat fill:#4338ca,stroke:#3730a3,color:#ffffff;
+        </pre>
+        <figcaption>Dois mundos separados por desenho. A única ponte é a <em>impersonação</em> — e ela é auditada.</figcaption>
+      </figure>
+
+      <div class="call plat">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3l7 4v5c0 4.4-3 8.3-7 9-4-.7-7-4.6-7-9V7l7-4Z"/><path d="M9.5 12l1.8 1.8L15 10"/></svg>
+        <div>
+          <p class="t">Por que separado? (o "profissional")</p>
+          <p>O super-admin é uma <strong>identidade própria</strong> (não é uma clínica). Recebe um <strong>token de escopo de plataforma</strong> — sem clínica associada. Por isso: um token de cliente <strong>nunca</strong> acessa o console (403); um token de console <strong>nunca</strong> acessa rotas de cliente. Nada de "aba admin" pendurada no app do dono.</p>
+        </div>
+      </div>
+
+      <section id="console-entrar">
+        <h3><span class="num">12.</span> Entrar no console</h3>
+        <ol class="steps">
+          <li>
+            <h4>Acesse o login próprio da plataforma</h4>
+            <p>Abra <a href="https://useadimplo.com.br/console/login">useadimplo.com.br/console/login</a> — uma tela distinta, com o selo <strong>"Console da plataforma"</strong>. Entre com <code>cassio_souza@live.com</code> e a senha entregue em separado.</p>
+            <p class="expect"><span><b>Esperado:</b> você cai no <strong>/console</strong>. O primeiro admin foi criado por <em>script + variável de ambiente</em> (não há auto-cadastro de admin — seria uma falha de segurança).</span></p>
+          </li>
+          <li>
+            <h4>Confirme o isolamento</h4>
+            <p>Estando logado no app de cliente, tente abrir <code>/console</code>; e vice-versa.</p>
+            <p class="expect"><span><b>Esperado:</b> cada sessão só abre o seu mundo. As duas podem coexistir no mesmo navegador sem colidir (chaves de token distintas).</span></p>
+          </li>
+        </ol>
+      </section>
+
+      <section id="console-metricas">
+        <h3><span class="num">13.</span> Métricas & MRR — <span style="color:var(--muted);font-weight:600">a saúde do negócio</span></h3>
+        <p class="section-sub"><b>O que é:</b> a visão agregada de <em>todos</em> os assinantes. <b>Como se relaciona:</b> soma os planos ativos (passo 8 de cada cliente) para mostrar receita e adoção.</p>
+        <ol class="steps">
+          <li>
+            <h4>Leia os cartões do topo</h4>
+            <p>No <strong>/console</strong>: número de <strong>assinantes</strong>, quantos em <strong>trial</strong>, quantos <strong>ativos/suspensos</strong> e o <strong>MRR</strong> (receita recorrente mensal).</p>
+            <p class="expect"><span><b>Esperado:</b> os números batem com os planos das contas — mexeu num plano, o MRR reflete.</span></p>
+          </li>
+        </ol>
+      </section>
+
+      <section id="console-tenants">
+        <h3><span class="num">14.</span> Gerir assinantes — <span style="color:var(--muted);font-weight:600">suspender, mudar plano, entrar como</span></h3>
+        <p class="section-sub"><b>O que é:</b> as ações administrativas sobre cada conta. <b>Como se relaciona:</b> tudo que você faz aqui recai sobre a conta do cliente (o gating do passo 8) — e fica <strong>registrado na auditoria</strong>.</p>
+        <ol class="steps">
+          <li>
+            <h4>Busque um assinante na tabela</h4>
+            <p>Lista com nome, plano, status e datas. Use a busca para achar uma conta.</p>
+          </li>
+          <li>
+            <h4>Suspenda / reative ou mude o plano</h4>
+            <p>Nas ações da linha: <strong>Suspender</strong> (bloqueia a escrita da conta), <strong>Reativar</strong> ou <strong>Mudar plano</strong> (Free/Essencial/Pro).</p>
+            <p class="expect"><span><b>Esperado:</b> a conta reflete na hora; suspensa → o dono dela vê o bloqueio. Cada ação grava um registro de auditoria (quem fez, quando).</span></p>
+          </li>
+          <li>
+            <h4>Impersonar para dar suporte</h4>
+            <p>Clique em <strong>Entrar como</strong>. O console gera um token de <em>cliente</em> temporário e abre o app daquela conta.</p>
+            <p class="expect"><span><b>Esperado:</b> um <strong>banner "Você está vendo como &lt;empresa&gt; (suporte)"</strong> no topo; o botão <strong>Sair</strong> encerra a impersonação e volta ao <code>/console</code> — sem novo login.</span></p>
+          </li>
+        </ol>
+        <div class="call plat">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3l7 4v5c0 4.4-3 8.3-7 9-4-.7-7-4.6-7-9V7l7-4Z"/><path d="M9.5 12l1.8 1.8L15 10"/></svg>
+          <div><p>A impersonação usa um token de <strong>curta duração</strong>, marcado com o e-mail do admin que a iniciou (<code>imp</code>) — para que qualquer ação feita "como" o cliente seja rastreável de volta a você.</p></div>
+        </div>
+      </section>
+    </section>
+
+    <hr class="div">
+
+    <section id="bastidores">
+      <h2>Os bastidores — o que <em>não</em> aparece na tela</h2>
+      <p class="section-sub">Boa parte do valor do Adimplo roda por baixo dos panos. Você não vê estas peças, mas são elas que fazem a cobrança sair, o pagamento voltar e o Painel ficar em dia.</p>
+
+      <figure class="fig">
+        <pre class="mermaid">
+%%{init: {'theme':'base','themeVariables':{'fontFamily':'system-ui, sans-serif','fontSize':'14px','lineColor':'#8aa0a8'}}}%%
+flowchart LR
+  FA["🧾 Cobrança criada"]:::owner --> Q[["📥 Fila de<br/>notificação"]]:::sys
+  Q --> W["⚙️ Worker<br/>envia o WhatsApp"]:::sys
+  W --> PAY(("💬 Pagador")):::payer
+  PAY -->|"paga"| GW["🏦 Gateway<br/>(Asaas/PagBank/Efí/<br/>Stripe/Pagar.me/mock)"]:::sys
+  GW -->|"webhook: 'foi pago'"| CO["🔗 Conciliação<br/>baixa automática"]:::sys
+  CO --> PG["📊 Painel atualiza"]:::owner
+  SCH["⏰ Agendador diário"]:::sys -.->|"gera faturas de assinatura<br/>+ varre trials/planos"| FA
+
+  classDef owner fill:#0c7a6f,stroke:#0a5f57,color:#ffffff;
+  classDef payer fill:#b45309,stroke:#8a4308,color:#ffffff;
+  classDef sys fill:#475569,stroke:#334155,color:#ffffff;
+        </pre>
+        <figcaption>As engrenagens invisíveis: fila → worker → gateway → webhook → conciliação, mais o agendador (assinaturas + planos do SaaS).</figcaption>
+      </figure>
+
+      <dl class="concepts">
+        <div class="concept"><dt>Fila + Worker</dt><dd>Cobrar não trava a tela: a cobrança entra numa <strong>fila</strong> e um <strong>worker</strong> envia o WhatsApp em segundo plano. Se falhar, ele tenta de novo; falhas repetidas vão para uma "caixa de problemas" (DLQ) sem travar o resto.</dd></div>
+        <div class="concept"><dt>Webhook + Conciliação</dt><dd>Quando o pagador paga, o <strong>gateway "liga de volta"</strong> (webhook) e o Adimplo dá a <strong>baixa automática</strong> — sem ninguém marcar na mão. É idempotente: o mesmo aviso duas vezes não conta dobrado.</dd></div>
+        <div class="concept"><dt>Seam de gateway <span class="pill new">novo</span></dt><dd>A lógica de cobrança é <strong>agnóstica de provedor</strong>: Asaas, PagBank, Efí, Stripe, Pagar.me e o Simulado entram pela mesma "tomada". Trocar de provedor é configuração; cada um tem seu roteamento de webhook.</dd></div>
+        <div class="concept"><dt>Cofre de credenciais <span class="pill new">novo</span></dt><dd>As chaves de cada gateway ficam <strong>criptografadas em repouso</strong> (AES-256-GCM). O sistema decifra só na hora de chamar o provedor — nunca devolve o segredo para a tela.</dd></div>
+        <div class="concept"><dt>Eventos do Elo</dt><dd>Cada interação (link criado, enviado, <strong>aberto</strong>, tentou pagar, pago) vira um <strong>evento</strong>. É a matéria-prima do "Hesitando", do Botão de Alívio e, no futuro, do score do pagador.</dd></div>
+        <div class="concept"><dt>Auditoria do console <span class="pill new">novo</span></dt><dd>Toda ação do super-admin (suspender, mudar plano, impersonar) grava <strong>quem fez e quando</strong>. Rastreabilidade é regra, não opção.</dd></div>
+        <div class="concept"><dt>Multi-tenant</dt><dd>Cada empresa é uma "conta" isolada. Um dono nunca vê o dado do outro — a conta demo vive num espaço só dela.</dd></div>
+        <div class="concept"><dt>Agendador diário</dt><dd>Todo dia, sozinho, gera as faturas das assinaturas vencendo, dispara as cobranças programadas e <strong>varre os planos do SaaS</strong> (expira trials, renova pagos).</dd></div>
+      </dl>
+    </section>
+
+    <hr class="div">
+
+    <section id="sim">
+      <h2>Simulações (cenários reais)</h2>
+      <p class="section-sub">Aqui o Adimplo se diferencia. Reproduza estes cenários para ver o <em>comportamento</em>, não só a cobrança.</p>
+
+      <div class="scenario">
+        <h3>Cenário A · O cliente que hesita → Botão de Alívio</h3>
+        <div class="flow"><span>cria fatura</span><span class="arw">→</span><span>abre o link 3×</span><span class="arw">→</span><span>não paga</span><span class="arw">→</span><span>vira "Hesitando"</span><span class="arw">→</span><span>recebe a oferta</span></div>
+        <p>O cenário-estrela: o cliente abre o link várias vezes mas trava na hora de pagar. O Adimplo detecta a dúvida <strong>e age</strong>.</p>
+        <p><strong>Como reproduzir:</strong></p>
+        <ol class="steps">
+          <li><h4>Ligue o alívio</h4><p>Configurações → Botão de Alívio → ative com desconto/parcelas/adiamento (passo 5).</p></li>
+          <li><h4>Crie uma fatura e abra o link 3×</h4><p>Crie a cobrança (passo 4) e abra o <code>/r/&lt;código&gt;</code> dela três vezes (recarregando).</p></li>
+          <li><h4>Veja como pagador</h4><p class="expect"><span><b>Esperado:</b> na página de pagamento aparece o <strong>Botão de Alívio</strong> com as opções. Escolha uma → nasce a nova cobrança e a original vira <span class="pill reneg">Renegociada</span>.</span></p></li>
+          <li><h4>Volte ao Painel (como dono)</h4><p class="expect"><span><b>Esperado:</b> a fatura aparece em <strong>"Hesitando"</strong> enquanto não há acordo; após o acordo, sai da inadimplência.</span></p></li>
+        </ol>
+      </div>
+
+      <div class="scenario">
+        <h3>Cenário B · Pagamento por fora (dinheiro na recepção)</h3>
+        <div class="flow"><span>fatura pendente</span><span class="arw">→</span><span>cliente paga em dinheiro</span><span class="arw">→</span><span>dono dá baixa</span><span class="arw">→</span><span>caixa atualiza</span></div>
+        <p>Nem todo pagamento passa pelo sistema. O Adimplo não fica cego a isso.</p>
+        <ol class="steps">
+          <li><h4>Dê baixa escolhendo "Dinheiro"</h4><p>Passo 6, meio = Dinheiro.</p></li>
+          <li><h4>Cheque o Painel</h4><p class="expect"><span><b>Esperado:</b> "Recebido" sobe mesmo sem o cliente ter passado pelo link.</span></p></li>
+        </ol>
+      </div>
+
+      <div class="scenario">
+        <h3>Cenário C · O bom pagador × o inadimplente</h3>
+        <div class="flow"><span>Fernanda (pagou)</span><span class="arw">vs</span><span>Carlos (2 vencidas)</span></div>
+        <p>Os dados demo já trazem os dois extremos. Compare no Painel e na lista de faturas:</p>
+        <div class="tablewrap">
+        <table class="data">
+          <thead><tr><th>Cliente</th><th>Situação</th><th>Fatura</th></tr></thead>
+          <tbody>
+            <tr><td>Fernanda Lima</td><td>Em dia</td><td><span class="pill paid">Paga</span> R$ 430,00</td></tr>
+            <tr><td>Rodrigo Silva</td><td>Atrasado 8 dias</td><td><span class="pill over">Vencida</span> R$ 320,50</td></tr>
+            <tr><td>Carlos Mendes</td><td>Atrasado (2 faturas)</td><td><span class="pill over">Vencida</span> R$ 540,00</td></tr>
+          </tbody>
+        </table>
+        </div>
+        <p class="expect"><span><b>Esperado:</b> o aging e a inadimplência do Painel refletem esses atrasos.</span></p>
+      </div>
+
+      <div class="scenario" style="border-left-color: var(--plat);">
+        <h3>Cenário D · Administrar um assinante pelo console <span class="pill new">novo</span></h3>
+        <div class="flow"><span>entra no /console</span><span class="arw">→</span><span>acha a conta</span><span class="arw">→</span><span>muda plano / suspende</span><span class="arw">→</span><span>impersona p/ conferir</span></div>
+        <p>O fluxo de dono do SaaS: você opera de fora, sobre todas as contas.</p>
+        <ol class="steps">
+          <li><h4>Entre no console</h4><p>Passo 12, com o login próprio da plataforma.</p></li>
+          <li><h4>Mude o plano de uma conta</h4><p>Passo 14 → Mudar plano.</p><p class="expect"><span><b>Esperado:</b> o MRR do topo (passo 13) reflete a mudança; a auditoria registra.</span></p></li>
+          <li><h4>Impersone e volte</h4><p class="expect"><span><b>Esperado:</b> abre o app daquela conta com o banner de suporte; "Sair" volta ao console sem novo login.</span></p></li>
+        </ol>
+      </div>
+    </section>
+
+    <hr class="div">
+
+    <section id="modos">
+      <h2>Modo teste × Produção</h2>
+      <p class="section-sub">Tudo que você testa hoje roda em <strong>modo teste</strong> (nada cobra de verdade). O que muda para valer quando for para produção:</p>
+      <div class="tablewrap">
+      <table class="data">
+        <thead><tr><th>Área</th><th>Modo teste (agora)</th><th>Produção</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Pagamento (cliente)</strong></td>
+            <td>Gateway <strong>simulado</strong> (mock): PIX fictício; "pago" via baixa manual ou webhook simulado.</td>
+            <td>Gateway <strong>real</strong> (Asaas / PagBank / Efí / Stripe / Pagar.me): PIX/cartão de verdade; baixa <strong>automática</strong> pelo webhook.</td>
+          </tr>
+          <tr>
+            <td><strong>Plano do Adimplo</strong></td>
+            <td>Checkout e webhook <strong>simulados</strong>: trial, ativação e paywall testáveis ponta a ponta.</td>
+            <td>Gateway <strong>real da plataforma</strong> cobra o dono de verdade (Free/Essencial/Pro).</td>
+          </tr>
+          <tr>
+            <td><strong>Console da plataforma</strong></td>
+            <td>Já funcional: métricas, MRR, suspender, mudar plano, impersonar, auditoria.</td>
+            <td>Mesmo painel — sobre contas e receita reais.</td>
+          </tr>
+          <tr>
+            <td><strong>WhatsApp</strong></td>
+            <td>Simulado (registra, não envia) — ou número de teste.</td>
+            <td>Envio real: exige <strong>template aprovado</strong> + verificação do negócio na Meta.</td>
+          </tr>
+          <tr>
+            <td><strong>Botão de Alívio</strong></td>
+            <td>Gera a nova cobrança no gateway simulado — fluxo completo testável.</td>
+            <td>Mesma lógica, gera cobrança <strong>real</strong> (só depende do gateway real estar ligado).</td>
+          </tr>
+          <tr>
+            <td><strong>Dados</strong></td>
+            <td>Tenant <strong>demo</strong> isolado — pode bagunçar à vontade.</td>
+            <td>Conta real do cliente, com dados reais (LGPD aplica).</td>
+          </tr>
+          <tr>
+            <td><strong>Acesso</strong></td>
+            <td><code>localhost</code> (dev) ou o demo online.</td>
+            <td>Domínio do cliente, com HTTPS e backup.</td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+
+      <h3>O que ainda falta para o "produção de verdade"</h3>
+      <dl class="concepts">
+        <div class="concept"><dt>Contas reais dos gateways</dt><dd>Abrir a conta em cada provedor (Asaas/PagBank/Efí/Stripe/Pagar.me), validar o webhook com a doc oficial e fazer um teste com R$ de verdade.</dd></div>
+        <div class="concept"><dt>Gateway real da plataforma</dt><dd>Ligar a cobrança do <em>próprio</em> Adimplo (o plano do dono) num provedor real — hoje é mock.</dd></div>
+        <div class="concept"><dt>WhatsApp real (template Meta)</dt><dd>A aprovação da Meta leva dias — é o item com maior prazo. Começar cedo destrava o disparo em massa.</dd></div>
+        <div class="concept"><dt>LGPD (parte jurídica)</dt><dd>Política de privacidade, termos e base legal — o código de export/anonimização já existe.</dd></div>
+      </dl>
+    </section>
+
+    <section id="checklist">
+      <h2>Checklist de verificação</h2>
+      <p class="section-sub">Marque conforme for testando — cobre os três lados e os bastidores.</p>
+      <ul class="check">
+        <li><span class="box"></span><div>Entrei com a conta demo e caí no Painel Geral.</div></li>
+        <li><span class="box"></span><div>Os indicadores (a receber, em atraso, recebido, inadimplência) e o aging fazem sentido.</div></li>
+        <li><span class="box"></span><div>Criei um cliente e uma cobrança nova.</div></li>
+        <li><span class="box"></span><div>Abri Configurações, escolhi um <strong>gateway</strong> e liguei o <strong>Botão de Alívio</strong>.</div></li>
+        <li><span class="box"></span><div>Dei baixa numa fatura e vi o Painel atualizar.</div></li>
+        <li><span class="box"></span><div>Vi o meu <strong>plano Adimplo</strong> em <code>/plano</code>, o banner de trial e (opcional) o paywall bloqueando a escrita.</div></li>
+        <li><span class="box"></span><div>Abri o link de cobrança pelo celular e caí na página de pagamento.</div></li>
+        <li><span class="box"></span><div>Reproduzi o "Hesitando" (abri 3×) e vi o <strong>Botão de Alívio</strong> aparecer.</div></li>
+        <li><span class="box"></span><div>Escolhi uma condição e a original virou <span class="pill reneg">Renegociada</span> com uma nova cobrança.</div></li>
+        <li><span class="box"></span><div>Entrei no <strong>/console</strong> com o login da plataforma e confirmei que o token de cliente não abre o console.</div></li>
+        <li><span class="box"></span><div>Vi as <strong>métricas/MRR</strong>, mudei o plano de um assinante e <strong>impersonei</strong> uma conta (com banner de suporte).</div></li>
+        <li><span class="box"></span><div>Entendi o que roda nos bastidores (fila, worker, webhook, conciliação, auditoria).</div></li>
+      </ul>
+    </section>
+
+    <div class="foot">
+      <p><strong>Atualizado em 21/07/2026.</strong> Inclui multi-gateway de pagamento (Asaas, PagBank, Efí, Stripe, Pagar.me), a cobrança do próprio Adimplo (planos Free/Essencial/Pro com trial e paywall) e o Console da Plataforma separado (<code>/console</code>). Guia de testes do Adimplo · ambiente de demonstração. No online, acesse pelo celular (4G/5G) se a rede da empresa bloquear o domínio. Pagamentos seguem <strong>simulados</strong> até ligar contas reais dos provedores. Para reiniciar os dados demo, fale com o time técnico.</p>
+    </div>
+  </main>
+</div>
+</div>
+
+<script>
+  // Scrollspy: destaca o item do índice da seção visível.
+  (function () {
+    var links = Array.prototype.slice.call(document.querySelectorAll('nav.toc a'));
+    if (!links.length) return;
+    var map = {};
+    links.forEach(function (a) {
+      var id = a.getAttribute('href').slice(1);
+      var el = document.getElementById(id);
+      if (el) map[id] = a;
+    });
+    var obs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) {
+          links.forEach(function (l) { l.classList.remove('active'); });
+          var a = map[e.target.id];
+          if (a) a.classList.add('active');
+        }
+      });
+    }, { rootMargin: '-15% 0px -70% 0px', threshold: 0 });
+    Object.keys(map).forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) obs.observe(el);
+    });
+  })();
+</script>

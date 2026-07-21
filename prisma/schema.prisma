@@ -25,6 +25,7 @@ model Account {
   agreements Agreement[]
   platformSubscription PlatformSubscription?
   platformInvoices PlatformInvoice[]
+  onboardingState OnboardingState?
 }
 
 // Assinatura do PRÓPRIO SaaS (spec 0020): a Adimplo cobra o tenant. 1:1 com
@@ -109,6 +110,21 @@ model Agreement {
   @@index([originalInvoiceId])
   @@index([tenantId])
   @@index([originalInvoiceId, status]) // guarda do "1 acordo ativo por fatura" (RN-NEG3)
+}
+
+// Estado do ONBOARDING guiado por tenant (spec 0021). O progresso dos passos é
+// DERIVADO de dados reais (tem gateway? tem cliente? tem fatura?); esta tabela só
+// guarda as flags de UI que não dão para derivar: dispensa manual do checklist e
+// "pular" o passo opcional de WhatsApp. A linha só nasce quando o dono dispensa/pula.
+model OnboardingState {
+  id              String   @id @default(uuid())
+  dismissed       Boolean  @default(false) // dono fechou o checklist manualmente
+  whatsappSkipped Boolean  @default(false) // pulou o passo opcional de WhatsApp
+  createdAt       DateTime @default(now())
+  lastUpdate      DateTime @updatedAt
+
+  tenantId        String   @unique
+  account         Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 // Configuração de WhatsApp POR TENANT (spec 0014). Cada empresa envia pelo

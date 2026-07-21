@@ -71,6 +71,11 @@ fluxo de caixa do dono sem queimar a relação com o cliente"*.
   (`PlatformAdmin`, não é tenant), login e token próprios (`scope:platform`) e UI própria em
   **`/console`**. Lá você vê MRR + métricas, lista/gere tenants, suspende/reativa, muda plano e
   **impersona** (com auditoria). Nenhuma clínica vê ou acessa o console — isolamento real.
+- **Onboarding guiado (spec 0021, entregue — Fase 0).** No primeiro acesso, um checklist
+  de ativação guia o dono do zero à **1ª cobrança**: configurar recebimento (gateway),
+  conectar o WhatsApp (opcional), cadastrar o 1º cliente e emitir a 1ª cobrança. O
+  progresso é **derivado de dados reais** (prod-ready) e some sozinho ao concluir/dispensar.
+  Reduz o abandono no trial de 14 dias — leva ao "aha" antes do teste acabar.
 
 ---
 
