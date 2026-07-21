@@ -85,23 +85,30 @@ export class InvoiceRepository {
     status: string;
     paidAt?: Date;
   }): Promise<{ duplicate: boolean; invoice: unknown }> {
-    const result = await prisma.$transaction(async (tx) => {
-      // Idempotência atômica: o insert na PK do WebhookEvent é a trava.
+    // Idempotência — fast-path FORA da transação: no reenvio comum (mesmo
+    // eventId), detecta o duplicado sem tentar um INSERT que falha. Isso evita
+    // abortar a transação no Postgres (erro 25P02: "current transaction is
+    // aborted"), que quebrava quando o catch do P2002 seguia consultando na
+    // MESMA transação já abortada.
+    if (params.eventId) {
+      const already = await prisma.webhookEvent.findUnique({ where: { id: params.eventId } });
+      if (already) {
+        const invoice = await prisma.invoice.findUnique({ where: { id: params.invoiceId } });
+        return { duplicate: true, invoice };
+      }
+    }
+
+    let result: { duplicate: boolean; invoice: unknown };
+    try {
+      result = await prisma.$transaction(async (tx) => {
+      // Trava atômica contra CORRIDA: o insert na PK do WebhookEvent garante
+      // que dois requests simultâneos com o mesmo eventId não processem os dois.
+      // Se colidir (P2002), a transação inteira faz rollback e o catch externo
+      // trata como duplicado (transação limpa, sem 25P02).
       if (params.eventId) {
-        try {
-          await tx.webhookEvent.create({
-            data: { id: params.eventId, provider: params.provider },
-          });
-        } catch (error) {
-          if (
-            error instanceof Prisma.PrismaClientKnownRequestError &&
-            error.code === 'P2002'
-          ) {
-            const invoice = await tx.invoice.findUnique({ where: { id: params.invoiceId } });
-            return { duplicate: true, invoice };
-          }
-          throw error;
-        }
+        await tx.webhookEvent.create({
+          data: { id: params.eventId, provider: params.provider },
+        });
       }
 
       // Backstop atômico da máquina de estados (evita TOCTOU com o check do service).
@@ -154,7 +161,19 @@ export class InvoiceRepository {
       }
 
       return { duplicate: false, invoice };
-    });
+      });
+    } catch (error) {
+      // Corrida: outro request inseriu o mesmo eventId em paralelo entre o
+      // fast-path e o INSERT. A transação já fez rollback (limpa) → é duplicado.
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        const invoice = await prisma.invoice.findUnique({ where: { id: params.invoiceId } });
+        return { duplicate: true, invoice };
+      }
+      throw error;
+    }
 
     await this.clearPendingInvoicesCache();
     return result;
