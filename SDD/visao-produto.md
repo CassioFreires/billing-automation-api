@@ -61,6 +61,11 @@ fluxo de caixa do dono sem queimar a relação com o cliente"*.
   Stripe, Pagar.me, mock) e informa as credenciais dele — **cifradas em repouso**.
   Remove a objeção de venda "funciona com o que eu já uso?". Ligar cada conta real
   em produção é D-23 (mock/sandbox já valida o fluxo).
+- **Cobrança do próprio SaaS (spec 0020, entregue — Fase 0 destravada).** Planos
+  Free/Essencial/Pro, trial de 14 dias (Pro), gating que bloqueia escrita ao expirar
+  (com paywall) e cobrança da assinatura via gateway de plataforma. É o que permite
+  **faturar os tenants**. Cobrança real/renovação automática em produção é D-24
+  (mock já ativa/renova a assinatura no fluxo).
 
 ---
 
