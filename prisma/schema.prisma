@@ -342,3 +342,16 @@ model AdminAuditLog {
   @@index([targetTenantId])
   @@index([createdAt])
 }
+
+// Administrador da PLATAFORMA (spec 0031). Identidade do staff do SaaS (você),
+// TOTALMENTE separada de User/Account (tenant): não tem tenantId, clínica nem
+// trial. Criado por script (npm run create-admin), nunca por auto-cadastro.
+model PlatformAdmin {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  role         String   @default("SUPERADMIN") // SUPERADMIN | SUPPORT
+  createdAt    DateTime @default(now())
+  lastUpdate   DateTime @updatedAt
+}
