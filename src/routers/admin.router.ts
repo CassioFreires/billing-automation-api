@@ -1,15 +1,17 @@
 import { Router } from 'express';
 import { AdminController } from '../controllers/admin.controller.js';
-import { jwtAuth } from '../middlewares/auth.middleware.js';
+import { authLimiter } from '../middlewares/rate-limit.middleware.js';
 import { requirePlatformAdmin } from '../middlewares/require-admin.middleware.js';
 
 const adminRouter = Router();
-
-// Painel super-admin (spec 0023): exige JWT + e-mail na allowlist de admins.
-adminRouter.use(jwtAuth);
-adminRouter.use(requirePlatformAdmin);
-
 const c = new AdminController();
+
+// Login do console (spec 0031): PÚBLICO (identidade própria PlatformAdmin, token
+// de escopo 'platform'). Limite estrito de tentativas.
+adminRouter.post('/auth/login', authLimiter, c.login);
+
+// Demais rotas do console exigem token de PLATAFORMA (scope platform).
+adminRouter.use(requirePlatformAdmin);
 
 adminRouter.get('/me', c.me);
 adminRouter.get('/metrics', c.metrics);

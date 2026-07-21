@@ -1,21 +1,46 @@
 import { Request, Response } from 'express';
 import { AdminService, AdminError } from '../services/admin.service.js';
-import { validateAdminChangePlan } from '../dtos/admin.dto.js';
+import { PlatformAdminService, PlatformAdminAuthError } from '../services/platform-admin.service.js';
+import { validateAdminChangePlan, validateAdminLogin } from '../dtos/admin.dto.js';
 
-function adminEmailOf(req: Request): string {
-  return (req as Request & { adminEmail?: string }).adminEmail ?? '';
+interface AdminIdentity {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
 }
 
-/** Painel super-admin (spec 0023). Todas as rotas exigem requirePlatformAdmin. */
+function adminOf(req: Request): AdminIdentity {
+  return (req as Request & { admin?: AdminIdentity }).admin as AdminIdentity;
+}
+
+/** Console da plataforma (spec 0031). Rotas sob requirePlatformAdmin, exceto login. */
 export class AdminController {
   private service: AdminService;
+  private auth: PlatformAdminService;
 
   constructor() {
     this.service = new AdminService();
+    this.auth = new PlatformAdminService();
   }
 
+  /** Login do console (público): e-mail/senha → token de plataforma. */
+  login = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { email, password } = validateAdminLogin(req.body);
+      res.json(await this.auth.login(email, password));
+    } catch (error: any) {
+      if (error instanceof PlatformAdminAuthError) {
+        res.status(401).json({ error: 'E-mail ou senha inválidos' });
+        return;
+      }
+      res.status(400).json({ error: error?.message ?? 'Erro no login' });
+    }
+  };
+
   me = async (req: Request, res: Response): Promise<void> => {
-    res.json({ isPlatformAdmin: true, email: adminEmailOf(req) });
+    const admin = adminOf(req);
+    res.json({ isPlatformAdmin: true, email: admin.email, name: admin.name, role: admin.role });
   };
 
   metrics = async (_req: Request, res: Response): Promise<void> => {
@@ -50,7 +75,7 @@ export class AdminController {
 
   suspend = async (req: Request, res: Response): Promise<void> => {
     try {
-      await this.service.suspend(adminEmailOf(req), String(req.params.id));
+      await this.service.suspend(adminOf(req).email, String(req.params.id));
       res.json({ success: true, status: 'SUSPENDED' });
     } catch (error: any) {
       res.status(400).json({ error: error?.message ?? 'Erro ao suspender' });
@@ -59,7 +84,7 @@ export class AdminController {
 
   activate = async (req: Request, res: Response): Promise<void> => {
     try {
-      await this.service.activate(adminEmailOf(req), String(req.params.id));
+      await this.service.activate(adminOf(req).email, String(req.params.id));
       res.json({ success: true, status: 'ACTIVE' });
     } catch (error: any) {
       res.status(400).json({ error: error?.message ?? 'Erro ao reativar' });
@@ -69,7 +94,7 @@ export class AdminController {
   changePlan = async (req: Request, res: Response): Promise<void> => {
     try {
       const { plan } = validateAdminChangePlan(req.body);
-      await this.service.changePlan(adminEmailOf(req), String(req.params.id), plan);
+      await this.service.changePlan(adminOf(req).email, String(req.params.id), plan);
       res.json({ success: true, plan });
     } catch (error: any) {
       if (error instanceof AdminError && error.code === 'INVALID_PLAN') {
@@ -82,7 +107,7 @@ export class AdminController {
 
   impersonate = async (req: Request, res: Response): Promise<void> => {
     try {
-      const token = await this.service.impersonate(adminEmailOf(req), String(req.params.id));
+      const token = await this.service.impersonate(adminOf(req).email, String(req.params.id));
       res.json(token);
     } catch (error: any) {
       if (error?.message === 'OWNER_NOT_FOUND') {
