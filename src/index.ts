@@ -12,6 +12,7 @@ import { lgpdRouter } from './routers/lgpd.router.js';
 import { cockpitRouter } from './routers/cockpit.router.js';
 import { publicAgreementRouter } from './routers/agreement.router.js';
 import { billingRouter } from './routers/billing.router.js';
+import { adminRouter } from './routers/admin.router.js';
 
 const appRouter = Router();
 
@@ -37,6 +38,8 @@ appRouter.use('/subscriptions', subscriptionRouter);
 appRouter.use('/settings', settingsRouter);
 // Cobrança do próprio SaaS (spec 0020): plano/checkout (JWT) + webhook (público).
 appRouter.use('/billing', billingRouter);
+// Painel super-admin (spec 0023): cross-tenant, restrito à allowlist de admins.
+appRouter.use('/admin', adminRouter);
 appRouter.use('/system', systemRouter);
 appRouter.use('/lgpd', lgpdRouter);
 appRouter.use('/cockpit', cockpitRouter);

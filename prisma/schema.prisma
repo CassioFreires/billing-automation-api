@@ -328,3 +328,17 @@ model InteractionEvent {
   @@index([invoiceId, type])      // contagem do Botão de Alívio (open>=N e sem paid)
   @@index([tenantId, occurredAt]) // timeline / Cockpit (M4)
 }
+
+// Auditoria de ações do super-admin da plataforma (spec 0023). Rastro de quem
+// (adminEmail), o quê (action), em qual tenant (targetTenantId) e quando.
+model AdminAuditLog {
+  id             String   @id @default(uuid())
+  adminEmail     String
+  action         String // suspend | activate | change_plan | impersonate
+  targetTenantId String
+  meta           Json?
+  createdAt      DateTime @default(now())
+
+  @@index([targetTenantId])
+  @@index([createdAt])
+}

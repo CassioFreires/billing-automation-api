@@ -12,6 +12,19 @@ export class UserRepository {
     return prisma.user.findUnique({ where: { email } });
   }
 
+  /** Busca por id (GLOBAL) — usado pelo gating de super-admin (spec 0023). */
+  findById(id: string) {
+    return prisma.user.findUnique({ where: { id } });
+  }
+
+  /** Usuário OWNER de um tenant (GLOBAL) — alvo da impersonação (spec 0023). */
+  findOwnerByTenant(tenantId: string) {
+    return prisma.user.findFirst({
+      where: { tenantId, role: 'OWNER' },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
   /** Cria a conta (tenant) + usuário dono + trial de plataforma, atomicamente (RN-U3). */
   async createAccountWithOwner(input: {
     accountName: string;

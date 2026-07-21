@@ -41,7 +41,7 @@ export class PlatformSubscriptionService {
   /** Entitlements do tenant atual (usado por middleware, quota e feature gates). */
   async entitlementsForCurrentTenant(now: Date = new Date()): Promise<Entitlements> {
     const sub = await this.subs.findByTenant();
-    return resolveEntitlements(sub, now);
+    return resolveEntitlements(sub, now, (sub as { account?: { status?: string } } | null)?.account?.status);
   }
 
   /** true se emitir mais uma fatura estoura a quota do plano (spec 0020). */
@@ -54,7 +54,11 @@ export class PlatformSubscriptionService {
   /** Estado do plano p/ a tela: plano, status, entitlements, uso e catálogo. */
   async getStatus(now: Date = new Date()) {
     const sub = await this.subs.findByTenant();
-    const ent = resolveEntitlements(sub, now);
+    const ent = resolveEntitlements(
+      sub,
+      now,
+      (sub as { account?: { status?: string } } | null)?.account?.status
+    );
     const invoicesThisMonth = await this.tenantInvoices.countCreatedThisMonth(now);
 
     return {

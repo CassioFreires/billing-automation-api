@@ -89,7 +89,7 @@ export interface Entitlements {
   maxInvoicesPerMonth: number | null;
   features: PlanFeatures;
   /** Motivo do bloqueio, quando `canWrite` é false. */
-  reason?: 'TRIAL_EXPIRED' | 'PLAN_EXPIRED';
+  reason?: 'TRIAL_EXPIRED' | 'PLAN_EXPIRED' | 'SUSPENDED';
 }
 
 const READONLY_FALLBACK: Omit<Entitlements, 'reason'> = {
@@ -105,7 +105,16 @@ const READONLY_FALLBACK: Omit<Entitlements, 'reason'> = {
  * - active com período vigente → recursos do plano, escrita liberada.
  * - trial expirado / período vencido / past_due / canceled → só leitura (paywall).
  */
-export function resolveEntitlements(sub: SubscriptionState | null, now: Date): Entitlements {
+export function resolveEntitlements(
+  sub: SubscriptionState | null,
+  now: Date,
+  accountStatus?: string
+): Entitlements {
+  // Suspensão pelo super-admin (spec 0023) tem precedência: bloqueia escrita.
+  if (accountStatus === 'SUSPENDED') {
+    return { ...READONLY_FALLBACK, reason: 'SUSPENDED' };
+  }
+
   if (!sub) {
     // Sem registro: trata como bloqueado (o backfill garante que contas reais têm um).
     return { ...READONLY_FALLBACK, reason: 'PLAN_EXPIRED' };

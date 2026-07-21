@@ -7,9 +7,12 @@ import { requireTenantId } from '../context/tenant-context.js';
  * tenant — entrada legítima como findByGatewayId/findByLinkToken).
  */
 export class PlatformSubscriptionRepository {
-  /** Assinatura do tenant atual (tela de plano). */
+  /** Assinatura do tenant atual (tela de plano) + status da conta (gating de suspensão). */
   async findByTenant() {
-    return prisma.platformSubscription.findUnique({ where: { tenantId: requireTenantId() } });
+    return prisma.platformSubscription.findUnique({
+      where: { tenantId: requireTenantId() },
+      include: { account: { select: { status: true } } },
+    });
   }
 
   /** Assinatura de um tenant específico (webhook/cron, sem contexto). */
