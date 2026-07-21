@@ -1,14 +1,17 @@
 import { Request, Response } from 'express';
 import { BillingSchedulerService } from '../services/billing-scheduler.service.js';
 import { NotificationSchedulerService } from '../services/notification-scheduler.service.js';
+import { PlatformSubscriptionService } from '../services/platform-subscription.service.js';
 
 export class SystemController {
   private scheduler: BillingSchedulerService;
   private notificationScheduler: NotificationSchedulerService;
+  private platform: PlatformSubscriptionService;
 
   constructor() {
     this.scheduler = new BillingSchedulerService();
     this.notificationScheduler = new NotificationSchedulerService();
+    this.platform = new PlatformSubscriptionService();
   }
 
   /**
@@ -39,6 +42,19 @@ export class SystemController {
         message: 'Notificações de vencidos enfileiradas.',
         ...result,
       });
+    } catch (error: any) {
+      return res.status(500).json({ error: error.message });
+    }
+  }
+
+  /**
+   * Varredura da cobrança do SaaS (spec 0020): expira trials vencidos e marca
+   * assinaturas pagas com período vencido como inadimplentes. Chamado pelo cron.
+   */
+  async runPlatformBilling(_req: Request, res: Response) {
+    try {
+      const result = await this.platform.runRenewals();
+      return res.status(200).json({ message: 'Varredura de assinaturas concluída.', ...result });
     } catch (error: any) {
       return res.status(500).json({ error: error.message });
     }

@@ -15,4 +15,7 @@ systemRouter.post('/billing/run', controller.runBilling.bind(controller));
 // Disparo cross-tenant das notificações de vencidos (spec 0013).
 systemRouter.post('/notifications/run', controller.runNotifications.bind(controller));
 
+// Varredura da cobrança do SaaS (spec 0020): expira trials/períodos vencidos.
+systemRouter.post('/platform-billing/run', controller.runPlatformBilling.bind(controller));
+
 export { systemRouter };
