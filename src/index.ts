@@ -10,6 +10,7 @@ import { settingsRouter } from './routers/settings.router.js';
 import { healthRouter } from './routers/health.router.js';
 import { lgpdRouter } from './routers/lgpd.router.js';
 import { cockpitRouter } from './routers/cockpit.router.js';
+import { publicAgreementRouter } from './routers/agreement.router.js';
 
 const appRouter = Router();
 
@@ -36,6 +37,8 @@ appRouter.use('/settings', settingsRouter);
 appRouter.use('/system', systemRouter);
 appRouter.use('/lgpd', lgpdRouter);
 appRouter.use('/cockpit', cockpitRouter);
+// Autonegociação PÚBLICA (spec 0018 — M2): sem JWT, tenant resolvido pela fatura.
+appRouter.use('/public/agreements', publicAgreementRouter);
 appRouter.use('/health', healthRouter);
 
 export { appRouter };

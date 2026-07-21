@@ -39,3 +39,15 @@ export const linkLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: 'Muitas aberturas em pouco tempo. Aguarde um instante.' },
 });
+
+/**
+ * Limite do ACEITE de acordo (spec 0018 — M2). Rota pública que CRIA uma
+ * cobrança nova no gateway → mais sensível que só abrir o link. Estreito por IP.
+ */
+export const agreementLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 15,                  // 15 aceites/15min por IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Muitas tentativas de acordo. Aguarde alguns minutos.' },
+});

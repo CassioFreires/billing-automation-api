@@ -17,4 +17,8 @@ settingsRouter.put('/payment', controller.updatePayment.bind(controller));
 settingsRouter.get('/whatsapp', controller.getWhatsapp.bind(controller));
 settingsRouter.put('/whatsapp', controller.updateWhatsapp.bind(controller));
 
+// Regras de autonegociação do tenant (spec 0018 — M2, Botão de Alívio).
+settingsRouter.get('/negotiation', controller.getNegotiation.bind(controller));
+settingsRouter.put('/negotiation', controller.updateNegotiation.bind(controller));
+
 export { settingsRouter };
