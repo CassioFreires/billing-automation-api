@@ -13,8 +13,12 @@ const agreementController = new AgreementController();
 // Rota que o seu Front-end vai chamar para gerar uma cobrança manual (JWT)
 invoiceRouter.post('/', jwtAuth, invoiceController.create);
 // Webhook do gateway: a verificação de autenticidade é feita pelo provider ativo
-// (mock: x-webhook-secret; mercadopago: assinatura x-signature).
+// (mock: x-webhook-secret; mercadopago: assinatura x-signature). Rota legada
+// (provider global do .env) mantida para compatibilidade.
 invoiceRouter.post('/webhook', invoiceController.handleWebhook);
+// Webhook multi-gateway (spec 0019): o provider vem da URL e a credencial é a
+// do tenant dono da fatura (asaas | pagbank | efi | stripe | pagarme | ...).
+invoiceRouter.post('/webhook/:provider', invoiceController.handleWebhookByProvider);
 
 // Consultas (JWT). ATENÇÃO à ordem: rotas literais ('/overdue') ANTES da
 // paramétrica ('/:id'), senão '/overdue' cairia no handler de ':id'.

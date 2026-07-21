@@ -48,6 +48,11 @@ _(nenhum item aberto no momento)_
 - **O quê**: a baixa manual (spec 0015) v1 (a) **quita total** (não trata pagamento parcial / saldo devedor); (b) **não tem estorno** (desfazer baixa manual esbarra na máquina de estados — `PAID` é terminal); (c) comprovante é só **URL** (sem upload de arquivo).
 - **Ação**: (a) status `PARCIAL` + saldo; (b) fluxo de estorno explícito (transição controlada saindo de `PAID`); (c) upload do comprovante pro S3 (reusar bucket do backup).
 
+### D-23 · Gateways multi-provider: contas reais / corpo cru / cert PIX (spec 0019)
+- **O quê**: os 5 novos gateways (Asaas, PagBank, Efí, Stripe, Pagar.me) estão **implementados e testados com `fetch` mockado**, mas faltam 3 pré-requisitos de PRODUÇÃO por provider: (a) **conta/credenciais reais** validadas ponta-a-ponta em sandbox → produção; (b) **corpo cru** nas rotas de webhook para Stripe/Pagar.me (hoje a assinatura usa `JSON.stringify(body)` — casa nos testes, mas produção precisa do byte-exato); (c) **certificado mTLS** do Efí para PIX (só boleto/cartão por link funcionam sem ele). Além disso, o webhook do **Mercado Pago por tenant** ainda cai no fallback por env (o payload do MP não traz `external_reference`).
+- **Impacto**: dev/demo 100% ok em mock/sandbox; para faturar de verdade com esses gateways, resolver (a)-(c) por provider conforme adoção. Não bloqueia desenvolvimento.
+- **Ação**: por provider ativado — validar credenciais reais; adicionar middleware de corpo cru nas rotas Stripe/Pagar.me; subir o certificado do Efí (por tenant, cifrado) para PIX; embutir `tenant` na `notification_url` do MP. Ver `SDD/specs/0019-multi-gateway-pagamento.md`.
+
 ### D-07 · `status` como String livre (sem enum) — 🟡 parcial 2026-07-04
 - **Feito**: constantes centralizadas em `src/domain/status.ts` (`InvoiceStatus`/`ClientStatus`/`SubscriptionStatus`) + **máquina de estados** da fatura (`canTransitionInvoice`, ligada no webhook — `PAID` não regride). Testado.
 - **Pendente**: converter as colunas `status` para **enum NATIVO do Postgres** (integridade no banco). Adiado por ter efeito cascata de tipos + cast de migração em runtime (não coberto pelos testes que mockam o banco) — fazer como PR próprio, verificável ponta a ponta. Adotar as constantes de `domain/status.ts` nos demais pontos que ainda usam string literal também fica para essa passada.

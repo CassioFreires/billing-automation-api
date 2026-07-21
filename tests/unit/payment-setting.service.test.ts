@@ -36,21 +36,59 @@ describe('PaymentSettingService.getForCurrentTenant', () => {
   });
 });
 
+describe('PaymentSettingService.getForCurrentTenant', () => {
+  it('inclui as credenciais decifradas para resolver o gateway', async () => {
+    const { service, repository } = make();
+    repository.findByTenant.mockResolvedValue({
+      provider: 'stripe',
+      infinitepayHandle: null,
+      redirectUrl: null,
+      credentials: { secretKey: 'sk_live_x', webhookSecret: 'whsec_y' },
+    });
+
+    const config = await service.getForCurrentTenant();
+    expect(config.provider).toBe('stripe');
+    expect(config.credentials).toEqual({ secretKey: 'sk_live_x', webhookSecret: 'whsec_y' });
+  });
+});
+
+describe('PaymentSettingService.get (mascarado)', () => {
+  it('NUNCA devolve segredos — só credentialStatus (quais estão setados)', async () => {
+    const { service, repository } = make();
+    repository.findByTenant.mockResolvedValue({
+      provider: 'asaas',
+      infinitepayHandle: null,
+      redirectUrl: null,
+      credentials: { apiKey: 'super-secreto' },
+    });
+
+    const masked = await service.get();
+    // segredo não vaza em lugar nenhum
+    expect(JSON.stringify(masked)).not.toContain('super-secreto');
+    expect(masked.provider).toBe('asaas');
+    expect(masked.credentialStatus.apiKey).toBe(true);
+    expect(masked.credentialStatus.secretKey).toBe(false);
+  });
+});
+
 describe('PaymentSettingService.update', () => {
-  it('delega o upsert ao repositório', async () => {
+  it('delega o upsert ao repositório (incluindo credenciais)', async () => {
     const { service, repository } = make();
     repository.upsert.mockResolvedValue({ id: 'p1' });
+    repository.findByTenant.mockResolvedValue(null);
 
     await service.update({
-      provider: 'infinitepay',
-      infinitepayHandle: 'loja',
+      provider: 'asaas',
+      infinitepayHandle: null,
       redirectUrl: null,
+      credentials: { apiKey: 'k1' },
     } as any);
 
     expect(repository.upsert).toHaveBeenCalledWith({
-      provider: 'infinitepay',
-      infinitepayHandle: 'loja',
+      provider: 'asaas',
+      infinitepayHandle: null,
       redirectUrl: null,
+      credentials: { apiKey: 'k1' },
     });
   });
 });

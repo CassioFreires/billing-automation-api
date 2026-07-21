@@ -27,14 +27,12 @@ export function mapMercadoPagoStatus(status: string): InvoiceStatus {
   }
 }
 
-function baseUrl(): string {
-  return process.env.MP_BASE_URL ?? 'https://api.mercadopago.com';
-}
-
-function accessToken(): string {
-  const token = process.env.MP_ACCESS_TOKEN;
-  if (!token) throw new Error('MP_ACCESS_TOKEN não configurado');
-  return token;
+/** Config por tenant (spec 0019); cai para as envs quando não informada. */
+export interface MercadoPagoConfig {
+  accessToken?: string;
+  webhookSecret?: string;
+  baseUrl?: string;
+  notificationUrl?: string;
 }
 
 /**
@@ -45,11 +43,23 @@ function accessToken(): string {
 export class MercadoPagoGateway implements PaymentGatewayProvider {
   readonly name = 'mercadopago';
 
+  constructor(private readonly config: MercadoPagoConfig = {}) {}
+
+  private baseUrl(): string {
+    return this.config.baseUrl ?? process.env.MP_BASE_URL ?? 'https://api.mercadopago.com';
+  }
+
+  private accessToken(): string {
+    const token = this.config.accessToken ?? process.env.MP_ACCESS_TOKEN;
+    if (!token) throw new Error('MP_ACCESS_TOKEN não configurado');
+    return token;
+  }
+
   async createCharge(input: CreateChargeInput): Promise<ChargeResult> {
-    const res = await fetch(`${baseUrl()}/checkout/preferences`, {
+    const res = await fetch(`${this.baseUrl()}/checkout/preferences`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${accessToken()}`,
+        Authorization: `Bearer ${this.accessToken()}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -62,7 +72,7 @@ export class MercadoPagoGateway implements PaymentGatewayProvider {
           },
         ],
         external_reference: input.reference,
-        notification_url: process.env.MP_NOTIFICATION_URL,
+        notification_url: this.config.notificationUrl ?? process.env.MP_NOTIFICATION_URL,
         payer: input.payerEmail ? { email: input.payerEmail } : undefined,
       }),
     });
@@ -103,8 +113,8 @@ export class MercadoPagoGateway implements PaymentGatewayProvider {
     this.verifySignature(req, dataId);
 
     // Consulta o pagamento para obter status e referência.
-    const res = await fetch(`${baseUrl()}/v1/payments/${dataId}`, {
-      headers: { Authorization: `Bearer ${accessToken()}` },
+    const res = await fetch(`${this.baseUrl()}/v1/payments/${dataId}`, {
+      headers: { Authorization: `Bearer ${this.accessToken()}` },
     });
 
     if (!res.ok) {
@@ -130,7 +140,7 @@ export class MercadoPagoGateway implements PaymentGatewayProvider {
 
   /** Valida a assinatura `x-signature` do Mercado Pago (HMAC-SHA256). */
   private verifySignature(req: WebhookRequest, dataId: string): void {
-    const secret = process.env.MP_WEBHOOK_SECRET;
+    const secret = this.config.webhookSecret ?? process.env.MP_WEBHOOK_SECRET;
     if (!secret) {
       throw new Error('MP_WEBHOOK_SECRET não configurado');
     }

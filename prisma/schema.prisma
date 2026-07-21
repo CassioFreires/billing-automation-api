@@ -91,15 +91,18 @@ model WhatsappSetting {
   account       Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
-// Configuração de pagamento POR TENANT (spec 0012). Cada empresa recebe na
-// própria conta, então escolhe o provider e informa suas credenciais.
-// v1: só campos NÃO-secretos (ex.: handle do InfinitePay é público). Credenciais
-// secretas (token MP) ficam para depois, com criptografia em repouso.
+// Configuração de pagamento POR TENANT (spec 0012 + 0019 multi-gateway).
+// Cada empresa escolhe o provider que já usa e informa suas credenciais.
+// provider: infinitepay | mercadopago | mock | asaas | pagbank | efi | stripe | pagarme
+// - Campos NÃO-secretos ficam em colunas (ex.: handle público do InfinitePay).
+// - Segredos (apiKey/token/secretKey/...) ficam em `credentialsEnc`: um JSON
+//   específico do provider, CIFRADO em repouso (AES-256-GCM, prefixo enc:v1:).
 model PaymentSetting {
   id                String   @id @default(uuid())
-  provider          String   @default("infinitepay") // infinitepay | mercadopago | mock
+  provider          String   @default("infinitepay")
   infinitepayHandle String?  // handle público do lojista (checkout.infinitepay.io/<handle>)
   redirectUrl       String?  // retorno opcional pós-pagamento
+  credentialsEnc    String?  // JSON de segredos do provider, cifrado (spec 0019)
   createdAt         DateTime @default(now())
   lastUpdate        DateTime @updatedAt
 
