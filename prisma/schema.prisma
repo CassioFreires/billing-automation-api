@@ -30,6 +30,7 @@ model Account {
   platformInvoices PlatformInvoice[]
   onboardingState OnboardingState?
   reguaSetting ReguaSetting?
+  channelSetting ChannelSetting?
 }
 
 // Assinatura do PRÓPRIO SaaS (spec 0020): a Adimplo cobra o tenant. 1:1 com
@@ -145,6 +146,19 @@ model ReguaSetting {
   account    Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
+// Canal de envio das cobranças POR TENANT (spec 0032). A empresa escolhe por
+// onde a régua dispara: whatsapp (padrão), email ou both (ambos). O e-mail é
+// mock-first (provider 'log') — plugar SMTP/SendGrid real fica para depois.
+model ChannelSetting {
+  id         String   @id @default(uuid())
+  channel    String   @default("whatsapp") // whatsapp | email | both
+  createdAt  DateTime @default(now())
+  lastUpdate DateTime @updatedAt
+
+  tenantId   String   @unique
+  account    Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
 // Configuração de WhatsApp POR TENANT (spec 0014). Cada empresa envia pelo
 // próprio número. provider 'log' (default) não envia; 'cloud' usa a Meta Cloud
 // API com as credenciais do tenant.
@@ -208,6 +222,7 @@ model Client {
   name      String
   phone     String
   document  String
+  email     String?  // canal de e-mail (spec 0032) — opcional
   status    String   @default("EM_DIA")
   debtValue Decimal  @default(0.0) @db.Decimal(12, 2)
   processed     Boolean   @default(false)

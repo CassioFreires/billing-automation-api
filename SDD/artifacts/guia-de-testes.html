@@ -332,6 +332,7 @@
       <h2>O que há de novo nesta versão</h2>
       <p class="section-sub">Estes blocos entraram nas últimas revisões deste guia. Estão marcados com <span class="pill new">novo</span> ao longo do texto.</p>
       <dl class="concepts">
+        <div class="concept"><dt>📣 Canais de envio (WhatsApp / E-mail) <span class="pill new">novo</span></dt><dd>Em Configurações você escolhe <strong>por onde a régua dispara</strong>: só WhatsApp (padrão), só e-mail, ou ambos. Cadastre o e-mail do cliente (na tela de Clientes ou no import CSV). Se o canal for e-mail e o cliente não tiver e-mail, cai <strong>automaticamente no WhatsApp</strong> (nunca deixa de cobrar). O e-mail está em <strong>modo simulado</strong> — nada é enviado de verdade ainda, igual ao WhatsApp.</dd></div>
         <div class="concept"><dt>👥 Equipe e papéis <span class="pill new">novo</span></dt><dd>A conta agora tem <strong>vários usuários</strong>: Dono, Administrador e Membro. Cada papel tem seu nível de acesso; a aba "Equipe" aparece só para quem gerencia. Convide pessoas em Equipe.</dd></div>
         <div class="concept"><dt>🌐 Portal do pagador <span class="pill new">novo</span></dt><dd>Uma página pública por cliente (<code>/portal/&lt;token&gt;</code>) com <strong>todas</strong> as cobranças dele — em aberto (com botão Pagar) e histórico. O dono copia o link na lista de Clientes e envia.</dd></div>
         <div class="concept"><dt>⏰ Régua de cobrança <span class="pill new">novo</span></dt><dd>Uma <strong>sequência de lembretes</strong> automática (ex.: 3 dias antes, no dia, 3 e 7 depois), com mensagem por passo usando {nome}/{valor}. O agendador envia o passo certo de cada fatura, uma vez cada. Configurável em Configurações.</dd></div>
@@ -972,6 +973,8 @@ flowchart LR
         <li><span class="box"></span><div>Criei uma <strong>conta nova</strong> e vi o card <strong>"Comece por aqui"</strong> guiando (0 de 4), marcando cada passo até sumir.</div></li>
         <li><span class="box"></span><div>Vi o <strong>aceite dos Termos</strong> no cadastro, abri <code>/privacidade</code> e <code>/termos</code>, e testei em Configurações → <strong>Privacidade e dados</strong> (exportar/anonimizar cliente, exportar conta).</div></li>
         <li><span class="box"></span><div>Importei <strong>faturas por CSV</strong> (Faturas → Importar CSV) e vi o resumo criadas/ignoradas.</div></li>
+        <li><span class="box"></span><div>Escolhi o <strong>canal de envio</strong> (Configurações → Canal de envio): testei WhatsApp, e-mail e ambos, e vi o <strong>fallback</strong> quando o cliente não tem e-mail.</div></li>
+        <li><span class="box"></span><div>Cadastrei o <strong>e-mail</strong> de um cliente (form e/ou import CSV) e confirmei o envio simulado por e-mail no log do worker.</div></li>
         <li><span class="box"></span><div>Configurei a <strong>régua de cobrança</strong> (Configurações) com passos e mensagens {nome}/{valor}.</div></li>
         <li><span class="box"></span><div>Copiei o <strong>link do portal</strong> de um cliente (ícone de link em Clientes) e abri <code>/portal/&lt;token&gt;</code> — vi abertas + histórico.</div></li>
         <li><span class="box"></span><div>Convidei alguém em <strong>Equipe</strong>, defini o papel e confirmei que Membro não vê a aba Equipe.</div></li>
@@ -981,7 +984,7 @@ flowchart LR
     </section>
 
     <div class="foot">
-      <p><strong>Atualizado em 21/07/2026.</strong> Inclui multi-usuário e papéis (Equipe), o portal do pagador, a régua de cobrança multi-passo, o valor recuperado (ROI) e o import de faturas por CSV, o onboarding guiado ("Comece por aqui"), a camada de LGPD visível (Política/Termos, aceite no cadastro, exportar/anonimizar/encerrar), o multi-gateway de pagamento (Asaas, PagBank, Efí, Stripe, Pagar.me), a cobrança do próprio Adimplo (planos Free/Essencial/Pro com trial e paywall) e o Console da Plataforma separado (<code>/console</code>). Guia de testes do Adimplo · ambiente de demonstração. No online, acesse pelo celular (4G/5G) se a rede da empresa bloquear o domínio. Pagamentos seguem <strong>simulados</strong> até ligar contas reais dos provedores. Para reiniciar os dados demo, fale com o time técnico.</p>
+      <p><strong>Atualizado em 21/07/2026.</strong> Inclui os canais de envio (WhatsApp/e-mail, com fallback), multi-usuário e papéis (Equipe), o portal do pagador, a régua de cobrança multi-passo, o valor recuperado (ROI) e o import de faturas por CSV, o onboarding guiado ("Comece por aqui"), a camada de LGPD visível (Política/Termos, aceite no cadastro, exportar/anonimizar/encerrar), o multi-gateway de pagamento (Asaas, PagBank, Efí, Stripe, Pagar.me), a cobrança do próprio Adimplo (planos Free/Essencial/Pro com trial e paywall) e o Console da Plataforma separado (<code>/console</code>). Guia de testes do Adimplo · ambiente de demonstração. No online, acesse pelo celular (4G/5G) se a rede da empresa bloquear o domínio. Pagamentos seguem <strong>simulados</strong> até ligar contas reais dos provedores. Para reiniciar os dados demo, fale com o time técnico.</p>
     </div>
   </main>
 </div>

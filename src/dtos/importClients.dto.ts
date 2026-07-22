@@ -19,6 +19,14 @@ export const importClientRowSchema = z.object({
     .string()
     .min(11, 'Documento inválido'),
 
+  // Canal de e-mail (spec 0032) — opcional na importação.
+  email: z
+    .string()
+    .trim()
+    .email('E-mail inválido')
+    .optional()
+    .nullable(),
+
   status: z
     .enum(['EM_DIA', 'EM_ATRASO'])
     .optional(),
