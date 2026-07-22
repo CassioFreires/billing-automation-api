@@ -11,9 +11,11 @@ import { healthRouter } from './routers/health.router.js';
 import { lgpdRouter } from './routers/lgpd.router.js';
 import { cockpitRouter } from './routers/cockpit.router.js';
 import { publicAgreementRouter } from './routers/agreement.router.js';
+import { publicPortalRouter } from './routers/portal.router.js';
 import { billingRouter } from './routers/billing.router.js';
 import { adminRouter } from './routers/admin.router.js';
 import { onboardingRouter } from './routers/onboarding.router.js';
+import { teamRouter } from './routers/team.router.js';
 
 const appRouter = Router();
 
@@ -39,6 +41,8 @@ appRouter.use('/subscriptions', subscriptionRouter);
 appRouter.use('/settings', settingsRouter);
 // Onboarding guiado do tenant (spec 0021): checklist de ativação (JWT, sem gating).
 appRouter.use('/onboarding', onboardingRouter);
+// Gestão de equipe do tenant (spec 0030): OWNER/ADMIN gerenciam usuários e papéis.
+appRouter.use('/team', teamRouter);
 // Cobrança do próprio SaaS (spec 0020): plano/checkout (JWT) + webhook (público).
 appRouter.use('/billing', billingRouter);
 // Painel super-admin (spec 0023): cross-tenant, restrito à allowlist de admins.
@@ -48,6 +52,8 @@ appRouter.use('/lgpd', lgpdRouter);
 appRouter.use('/cockpit', cockpitRouter);
 // Autonegociação PÚBLICA (spec 0018 — M2): sem JWT, tenant resolvido pela fatura.
 appRouter.use('/public/agreements', publicAgreementRouter);
+// Portal do pagador PÚBLICO (spec 0027): sem JWT, cliente resolvido pelo portalToken.
+appRouter.use('/public/portal', publicPortalRouter);
 appRouter.use('/health', healthRouter);
 
 export { appRouter };

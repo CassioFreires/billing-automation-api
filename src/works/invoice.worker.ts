@@ -25,14 +25,16 @@ interface ChargeMessageData {
   linkUrl?: string | null;
   checkoutUrl?: string | null;
   pixCopyPaste?: string | null;
+  /** Texto do passo da régua (spec 0026); substitui o cabeçalho padrão se presente. */
+  intro?: string | null;
 }
 
 /** Monta a mensagem de cobrança com os dados REAIS da fatura (D-15). */
 export function buildChargeMessage(data: ChargeMessageData): string {
-  const lines = [
-    `Olá ${data.clientName}`,
-    `Valor: R$ ${Number(data.value ?? 0).toFixed(2)}`,
-  ];
+  // Régua (spec 0026): se o passo trouxe um texto, ele é o cabeçalho; senão, o padrão.
+  const lines = data.intro
+    ? [data.intro]
+    : [`Olá ${data.clientName}`, `Valor: R$ ${Number(data.value ?? 0).toFixed(2)}`];
 
   // Preferência: link próprio (Elo) → checkout do gateway → PIX cru. O link
   // próprio é o que permite detectar dúvida (open) e a autonegociação (M2).
@@ -116,6 +118,7 @@ export async function initInvoiceWorker() {
               linkUrl,
               checkoutUrl: invoice.checkoutUrl,
               pixCopyPaste: invoice.pixCopyPaste,
+              intro: data.message, // texto do passo da régua (spec 0026), se houver
             }),
           });
 
@@ -125,7 +128,11 @@ export async function initInvoiceWorker() {
             throw new Error(`Falha no envio WhatsApp (${result.provider}): ${result.error}`);
           }
 
-          await invoiceRepository.markNotificationSent(data.id);
+          // Régua (spec 0026): o passo já foi avançado pelo agendador ao enfileirar;
+          // aqui só garantimos a marca de "notificada" nos envios sem passo (legado/avulso).
+          if (data.step === undefined) {
+            await invoiceRepository.markNotificationSent(data.id);
+          }
 
           // Evento `sent` do Elo (spec 0016). Best-effort: não derruba o ack.
           try {
@@ -135,7 +142,7 @@ export async function initInvoiceWorker() {
               invoiceId: invoice.id,
               clientId: invoice.clientId,
               channel: InteractionChannel.WHATSAPP,
-              metadata: { provider: result.provider },
+              metadata: { provider: result.provider, ...(data.step ? { step: data.step } : {}) },
             });
           } catch (err) {
             console.error('⚠️ Falha ao registrar evento sent (segue):', err);

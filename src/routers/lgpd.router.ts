@@ -12,4 +12,8 @@ const controller = new LgpdController();
 lgpdRouter.get('/clients/:clientId/export', controller.exportData);
 lgpdRouter.post('/clients/:clientId/anonymize', controller.anonymize);
 
+// Direitos sobre a própria conta (spec 0022): portabilidade e eliminação.
+lgpdRouter.get('/account/export', controller.exportAccount);
+lgpdRouter.post('/account/delete', controller.deleteAccount);
+
 export { lgpdRouter };

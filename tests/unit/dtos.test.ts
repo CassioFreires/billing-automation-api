@@ -151,12 +151,13 @@ describe('loginSchema', () => {
 });
 
 describe('registerSchema', () => {
-  it('aceita cadastro válido', () => {
+  it('aceita cadastro válido (com aceite dos termos)', () => {
     const r = registerSchema.safeParse({
       accountName: 'Acme',
       name: 'Ana',
       email: 'ana@acme.com',
       password: 'segredo123',
+      acceptedTerms: true,
     });
     expect(r.success).toBe(true);
   });
@@ -167,6 +168,7 @@ describe('registerSchema', () => {
       name: 'Ana',
       email: 'nao-email',
       password: 'segredo123',
+      acceptedTerms: true,
     });
     expect(r.success).toBe(false);
   });
@@ -177,7 +179,14 @@ describe('registerSchema', () => {
       name: 'Ana',
       email: 'ana@acme.com',
       password: '123',
+      acceptedTerms: true,
     });
     expect(r.success).toBe(false);
+  });
+
+  it('rejeita sem aceitar os termos (RN-2201)', () => {
+    const base = { accountName: 'Acme', name: 'Ana', email: 'ana@acme.com', password: 'segredo123' };
+    expect(registerSchema.safeParse({ ...base }).success).toBe(false); // ausente
+    expect(registerSchema.safeParse({ ...base, acceptedTerms: false }).success).toBe(false); // recusado
   });
 });

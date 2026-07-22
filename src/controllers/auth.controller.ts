@@ -29,6 +29,17 @@ export class AuthController {
     }
   };
 
+  /** Perfil do usuário autenticado (spec 0030). Requer jwtAuth. */
+  me = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const auth = (req as Request & { auth?: { sub?: string } }).auth;
+      const profile = await this.authService.getProfile(String(auth?.sub ?? ''));
+      res.status(200).json(profile);
+    } catch {
+      res.status(404).json({ error: 'Usuário não encontrado' });
+    }
+  };
+
   login = async (req: Request, res: Response): Promise<void> => {
     try {
       const data = loginSchema.parse(req.body);

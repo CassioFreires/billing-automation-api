@@ -81,6 +81,19 @@ export class AuthService {
     return this.issue(user.id, user.tenantId, user.role);
   }
 
+  /** Perfil do usuário logado (spec 0030) — para o front saber o papel. */
+  async getProfile(userId: string) {
+    const user = await this.users.findById(userId);
+    if (!user) throw new Error('USER_NOT_FOUND');
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      tenantId: user.tenantId,
+    };
+  }
+
   /**
    * Login por e-mail/senha (RN-U4). Fallback: conta de serviço via env (RN-U5).
    * Lança AUTH_NOT_CONFIGURED / INVALID_CREDENTIALS conforme o caso.

@@ -21,4 +21,8 @@ settingsRouter.put('/whatsapp', controller.updateWhatsapp.bind(controller));
 settingsRouter.get('/negotiation', controller.getNegotiation.bind(controller));
 settingsRouter.put('/negotiation', controller.updateNegotiation.bind(controller));
 
+// Régua de cobrança multi-passo do tenant (spec 0026).
+settingsRouter.get('/regua', controller.getRegua.bind(controller));
+settingsRouter.put('/regua', controller.updateRegua.bind(controller));
+
 export { settingsRouter };

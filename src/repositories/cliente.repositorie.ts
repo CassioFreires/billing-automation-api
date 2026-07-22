@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import prisma from '../database/prisma.js';
 import { Prisma } from '@prisma/client';
 import { requireTenantId } from '../context/tenant-context.js';
@@ -92,6 +93,42 @@ export class ClientRepository {
           phone
         }
       }
+    });
+  }
+
+  /**
+   * Resolve um cliente pelo `portalToken` (spec 0027). ENTRADA GLOBAL legítima
+   * (como findByLinkToken): a rota do portal é pública e o tenant vem do cliente.
+   */
+  async findByPortalToken(token: string) {
+    return prisma.client.findUnique({
+      where: { portalToken: token },
+      select: { id: true, name: true, tenantId: true, anonymizedAt: true },
+    });
+  }
+
+  /**
+   * Garante um portalToken para o cliente (spec 0027). Tenant-scoped (ação do
+   * dono). Gera se ainda não existir e devolve o token.
+   */
+  async ensurePortalToken(id: string): Promise<string | null> {
+    const client = await prisma.client.findFirst({
+      where: { id, tenantId: requireTenantId() },
+      select: { id: true, portalToken: true },
+    });
+    if (!client) return null;
+    if (client.portalToken) return client.portalToken;
+    const token = randomUUID();
+    await prisma.client.update({ where: { id: client.id }, data: { portalToken: token } });
+    return token;
+  }
+
+  /** Resolve vários clientes por telefone numa query (spec 0024 — import de faturas). */
+  async findByPhones(phones: string[]) {
+    if (phones.length === 0) return [];
+    return prisma.client.findMany({
+      where: { tenantId: requireTenantId(), phone: { in: phones } },
+      select: { id: true, phone: true },
     });
   }
 

@@ -4,6 +4,9 @@ import { randomUUID } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import { InvoiceRepository } from '../repositories/invoice.repository.js';
 import { InteractionEventRepository } from '../repositories/interaction-event.repository.js';
+import { ClientRepository } from '../repositories/cliente.repositorie.js';
+import { ImportInvoiceRowDTO } from '../dtos/importInvoices.dto.js';
+import { planInvoiceImport } from '../utils/import-invoice-plan.js';
 import {
   PaymentGatewayProvider,
   WebhookRequest,
@@ -29,17 +32,20 @@ export class InvoiceService {
   private injectedGateway?: PaymentGatewayProvider;
   private paymentSettings: PaymentSettingService;
   private events: InteractionEventRepository;
+  private clients: ClientRepository;
 
   constructor(deps?: {
     invoiceRepository?: InvoiceRepository;
     gateway?: PaymentGatewayProvider;
     paymentSettings?: PaymentSettingService;
     events?: InteractionEventRepository;
+    clients?: ClientRepository;
   }) {
     this.invoiceRepository = deps?.invoiceRepository ?? new InvoiceRepository();
     this.injectedGateway = deps?.gateway;
     this.paymentSettings = deps?.paymentSettings ?? new PaymentSettingService();
     this.events = deps?.events ?? new InteractionEventRepository();
+    this.clients = deps?.clients ?? new ClientRepository();
   }
 
   /**
@@ -124,6 +130,51 @@ export class InvoiceService {
       await this.invoiceRepository.deleteById(reserved.id).catch(() => {});
       throw error;
     }
+  }
+
+  /**
+   * Importa faturas em lote a partir de linhas de CSV (spec 0024). Resolve o
+   * cliente pelo telefone (uma query batch) e cria cada fatura pelo MESMO fluxo
+   * de `createPayment` (reserva → cobra → link/PIX). Best-effort por linha:
+   * um erro numa linha não aborta as demais (RN-2403).
+   */
+  async importInvoices(rows: ImportInvoiceRowDTO[]): Promise<{
+    criados: number;
+    ignorados: number;
+    erros: { linha: number; clientPhone: string; motivo: string }[];
+  }> {
+    const phones = [...new Set(rows.map((r) => r.clientPhone))];
+    const found = await this.clients.findByPhones(phones);
+    const clientIdByPhone = new Map(found.map((c) => [c.phone, c.id]));
+
+    const { toCreate, erros } = planInvoiceImport(rows, clientIdByPhone);
+
+    let criados = 0;
+    for (const planned of toCreate) {
+      const { row, index, clientId } = planned;
+      try {
+        await this.createPayment({
+          clientId,
+          dueDate: row.dueDate,
+          items: [
+            {
+              description: row.description ?? 'Cobrança',
+              quantity: 1,
+              unitPrice: row.value,
+            },
+          ],
+        });
+        criados += 1;
+      } catch (err) {
+        erros.push({
+          linha: index + 1,
+          clientPhone: row.clientPhone,
+          motivo: err instanceof Error ? err.message : 'Falha ao criar a fatura',
+        });
+      }
+    }
+
+    return { criados, ignorados: erros.length, erros };
   }
 
   /**

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { InvoiceService } from '../services/invoice.service.js';
 import { createInvoiceSchema } from '../dtos/createInvoice.dto.js';
+import { validateImportInvoices } from '../dtos/importInvoices.dto.js';
 import { PaymentGatewayAPI } from '../apis/payment/index.js';
 
 export class InvoiceController {
@@ -19,6 +20,17 @@ export class InvoiceController {
       res.status(201).json(invoice);
     } catch (error: any) {
       res.status(400).json({ error: error.message || 'Erro ao criar cobrança' });
+    }
+  };
+
+  /** Importação de faturas em lote via CSV (spec 0024). */
+  import = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { invoices } = validateImportInvoices(req.body);
+      const result = await this.invoiceService.importInvoices(invoices);
+      res.status(200).json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message || 'Erro ao importar faturas' });
     }
   };
 

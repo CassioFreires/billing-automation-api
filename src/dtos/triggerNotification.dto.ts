@@ -7,6 +7,9 @@ export interface TriggerNotificationDTO {
   debtValue?: number;
   value?:number;
   tenantId?: string; // carimbado ao enfileirar; usado pelo worker (RN-T5)
+  // Régua multi-passo (spec 0026): passo atual e mensagem já parametrizada.
+  step?: number;
+  message?: string;
 }
 
 export function validateTriggerNotification(
@@ -49,6 +52,8 @@ export function validateTriggerNotification(
     phone: payload.phone,
     clientName: payload.clientName,
     debtValue: payload.debtValue ? Number(payload.debtValue) : undefined,
-    value: payload.value ? Number(payload.value) : undefined
+    value: payload.value ? Number(payload.value) : undefined,
+    step: typeof payload.step === 'number' ? payload.step : undefined,
+    message: typeof payload.message === 'string' ? payload.message : undefined,
   };
 }

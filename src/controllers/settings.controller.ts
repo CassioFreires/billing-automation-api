@@ -5,16 +5,20 @@ import { WhatsappSettingService } from '../services/whatsapp-setting.service.js'
 import { validateUpdateWhatsappSettings } from '../dtos/whatsappSettings.dto.js';
 import { NegotiationSettingService } from '../services/negotiation-setting.service.js';
 import { validateUpdateNegotiationSettings } from '../dtos/negotiationSettings.dto.js';
+import { ReguaSettingService } from '../services/regua-setting.service.js';
+import { validateUpdateReguaSettings } from '../dtos/reguaSettings.dto.js';
 
 export class SettingsController {
   private paymentSettings: PaymentSettingService;
   private whatsappSettings: WhatsappSettingService;
   private negotiationSettings: NegotiationSettingService;
+  private reguaSettings: ReguaSettingService;
 
   constructor() {
     this.paymentSettings = new PaymentSettingService();
     this.whatsappSettings = new WhatsappSettingService();
     this.negotiationSettings = new NegotiationSettingService();
+    this.reguaSettings = new ReguaSettingService();
   }
 
   async getPayment(_req: Request, res: Response) {
@@ -78,6 +82,26 @@ export class SettingsController {
           code: 'PLAN_FEATURE_REQUIRED',
         });
       }
+      return res.status(400).json({ error: error.message });
+    }
+  }
+
+  // Régua de cobrança do tenant (spec 0026).
+  async getRegua(_req: Request, res: Response) {
+    try {
+      const settings = await this.reguaSettings.get();
+      return res.json(settings);
+    } catch (error: any) {
+      return res.status(500).json({ error: error.message });
+    }
+  }
+
+  async updateRegua(req: Request, res: Response) {
+    try {
+      const data = validateUpdateReguaSettings(req.body);
+      const settings = await this.reguaSettings.update(data);
+      return res.json(settings);
+    } catch (error: any) {
       return res.status(400).json({ error: error.message });
     }
   }

@@ -76,6 +76,31 @@ fluxo de caixa do dono sem queimar a relação com o cliente"*.
   conectar o WhatsApp (opcional), cadastrar o 1º cliente e emitir a 1ª cobrança. O
   progresso é **derivado de dados reais** (prod-ready) e some sozinho ao concluir/dispensar.
   Reduz o abandono no trial de 14 dias — leva ao "aha" antes do teste acabar.
+- **Multi-usuário e papéis (spec 0030, entregue — Fase 2).** A conta deixa de ser de um único
+  usuário: o dono convida a equipe e define o papel — **Dono**, **Administrador** (gerencia equipe
+  e configurações) ou **Membro** (opera o dia a dia). Autorização por papel no backend; aba
+  "Equipe" só para quem gerencia. Base para vender a contas com mais de uma pessoa.
+- **Portal do pagador (spec 0027, entregue — Fase 2).** Uma página pública por cliente
+  (`/portal/:token`) com **todas** as cobranças dele — em aberto (com botão Pagar) e histórico.
+  O dono copia o link e envia; o pagador vê tudo num lugar, sem login. Aumenta transparência e
+  recuperação. Respeita LGPD (não expõe titular anonimizado nem segredos).
+- **Régua de cobrança multi-passo (spec 0026, entregue — Fase 2).** Cada tenant configura uma
+  sequência de lembretes (ex.: 3 dias antes, no dia, 3 e 7 dias depois), com mensagem por passo
+  ({nome}/{valor}). O agendador diário envia o passo certo de cada fatura, uma vez cada — cobrança
+  vira processo automático. Régua desligada mantém o comportamento simples anterior.
+- **Métrica "valor recuperado" (spec 0025, entregue — Fase 1).** O Cockpit destaca quanto de
+  dinheiro **atrasado** virou caixa (pagamentos que entraram após o vencimento). É a prova de
+  ROI da ferramenta — o número que justifica a assinatura.
+- **Import de faturas por CSV (spec 0024, entregue — Fase 1).** Além do import de clientes
+  (0008), agora dá para **lançar cobranças em lote** por planilha: o assistente mapeia colunas,
+  valida e cria as faturas (resolvendo o cliente pelo telefone). Tira o atrito de quem chega
+  com uma carteira já formada — complementa o onboarding.
+- **LGPD visível (spec 0022, entregue — Fase 0).** Páginas públicas de **Política de
+  Privacidade** e **Termos de Uso** (modelo versionado), **aceite obrigatório** no cadastro
+  (com prova: data + versão), banner de privacidade, nota no link do pagador, e uma seção
+  **"Privacidade e dados"** nas Configurações: exportar/anonimizar um cliente (reusa 0004) e
+  **exportar/encerrar a própria conta**. Remove a objeção de conformidade na venda. Parte
+  jurídica final (base legal, DPO, DPA, ROPA) segue como follow-up (spec 0004 §11).
 
 ---
 

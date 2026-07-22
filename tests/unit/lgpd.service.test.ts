@@ -4,8 +4,13 @@ import { LgpdService } from '../../src/services/lgpd.service.js';
 function makeService() {
   const clients = { findById: vi.fn(), anonymize: vi.fn() };
   const invoices = { findByClientId: vi.fn() };
-  const service = new LgpdService({ clients: clients as any, invoices: invoices as any });
-  return { service, clients, invoices };
+  const accounts = { findCurrent: vi.fn(), exportCurrent: vi.fn(), deleteCurrent: vi.fn() };
+  const service = new LgpdService({
+    clients: clients as any,
+    invoices: invoices as any,
+    accounts: accounts as any,
+  });
+  return { service, clients, invoices, accounts };
 }
 
 describe('LgpdService.exportClientData', () => {
@@ -58,5 +63,47 @@ describe('LgpdService.anonymizeClient', () => {
 
     await expect(service.anonymizeClient('x')).rejects.toThrow('CLIENT_NOT_FOUND');
     expect(clients.anonymize).not.toHaveBeenCalled();
+  });
+});
+
+describe('LgpdService.exportAccountData (spec 0022)', () => {
+  it('exporta os dados da própria conta', async () => {
+    const { service, accounts } = makeService();
+    accounts.exportCurrent.mockResolvedValue({ id: 't1', name: 'Clínica X', clients: [], invoices: [] });
+
+    const result = await service.exportAccountData();
+
+    expect(result.account).toMatchObject({ id: 't1', name: 'Clínica X' });
+    expect(typeof result.exportedAt).toBe('string');
+  });
+});
+
+describe('LgpdService.deleteAccount (spec 0022)', () => {
+  it('encerra a conta quando o nome confere', async () => {
+    const { service, accounts } = makeService();
+    accounts.findCurrent.mockResolvedValue({ id: 't1', name: 'Clínica X' });
+    accounts.deleteCurrent.mockResolvedValue({ id: 't1' });
+
+    const result = await service.deleteAccount('Clínica X');
+
+    expect(accounts.deleteCurrent).toHaveBeenCalled();
+    expect(result).toEqual({ deleted: true });
+  });
+
+  it('tolera espaços em volta na confirmação', async () => {
+    const { service, accounts } = makeService();
+    accounts.findCurrent.mockResolvedValue({ id: 't1', name: 'Clínica X' });
+    accounts.deleteCurrent.mockResolvedValue({ id: 't1' });
+
+    await service.deleteAccount('  Clínica X  ');
+    expect(accounts.deleteCurrent).toHaveBeenCalled();
+  });
+
+  it('rejeita com NAME_MISMATCH quando o nome não confere e NÃO apaga', async () => {
+    const { service, accounts } = makeService();
+    accounts.findCurrent.mockResolvedValue({ id: 't1', name: 'Clínica X' });
+
+    await expect(service.deleteAccount('outra coisa')).rejects.toThrow('NAME_MISMATCH');
+    expect(accounts.deleteCurrent).not.toHaveBeenCalled();
   });
 });

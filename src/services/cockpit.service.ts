@@ -31,12 +31,14 @@ export class CockpitService {
   async getOverview(days: number, now: Date = new Date()) {
     const since = new Date(now.getTime() - days * DAY_MS);
 
-    const [open, recebidoNoPeriodo, porStatus, hesitando] = await Promise.all([
-      this.repo.findOpenInvoices(),
-      this.repo.sumReceivedSince(since),
-      this.repo.countByStatus(),
-      this.repo.findHesitating(DEFAULT_HESITATION_OPENS),
-    ]);
+    const [open, recebidoNoPeriodo, recuperadoNoPeriodo, porStatus, hesitando] =
+      await Promise.all([
+        this.repo.findOpenInvoices(),
+        this.repo.sumReceivedSince(since),
+        this.repo.sumRecoveredSince(since),
+        this.repo.countByStatus(),
+        this.repo.findHesitating(DEFAULT_HESITATION_OPENS),
+      ]);
 
     const s = summarizeOpenInvoices(open, now);
 
@@ -55,6 +57,7 @@ export class CockpitService {
         emAtraso: round2(s.emAtraso),
         taxaInadimplencia: round4(inadimplenciaRate(s.emAtraso, s.aReceber)),
         recebidoNoPeriodo: round2(recebidoNoPeriodo),
+        recuperadoNoPeriodo: round2(recuperadoNoPeriodo),
       },
       porStatus: {
         PENDING: porStatus[InvoiceStatus.PENDING] ?? 0,
