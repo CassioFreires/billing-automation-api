@@ -57,6 +57,7 @@ describe('AuthService.register', () => {
       name: 'Ana',
       email: 'ana@acme.com',
       password: 'segredo123',
+      acceptedTerms: true,
     });
 
     const payload = jwt.verify(token, 'test-secret') as jwt.JwtPayload;
@@ -75,7 +76,7 @@ describe('AuthService.register', () => {
     repo.findByEmail.mockResolvedValue({ id: 'x' });
 
     await expect(
-      svc.register({ accountName: 'Acme', name: 'Ana', email: 'ana@acme.com', password: 'segredo123' })
+      svc.register({ accountName: 'Acme', name: 'Ana', email: 'ana@acme.com', password: 'segredo123', acceptedTerms: true })
     ).rejects.toThrow('EMAIL_TAKEN');
     expect(repo.createAccountWithOwner).not.toHaveBeenCalled();
   });

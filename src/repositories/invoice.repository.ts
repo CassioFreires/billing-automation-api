@@ -536,6 +536,77 @@ export class InvoiceRepository {
     return result;
   }
 
+  /**
+   * Faturas em aberto candidatas à régua (spec 0026): PENDING/OVERDUE, do tenant
+   * atual, com os dados mínimos para decidir/enviar o passo. Ordena por dueDate.
+   */
+  async findReguaCandidates(limit = 500) {
+    const tenantId = requireTenantId();
+    const rows = await prisma.invoice.findMany({
+      where: { tenantId, status: { in: ['PENDING', 'OVERDUE'] } },
+      orderBy: { dueDate: 'asc' },
+      take: limit,
+      select: {
+        id: true,
+        status: true,
+        value: true,
+        dueDate: true,
+        reminderStep: true,
+        clientId: true,
+        client: { select: { name: true, phone: true, document: true } },
+      },
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      status: r.status,
+      value: Number(r.value),
+      dueDate: r.dueDate,
+      reminderStep: r.reminderStep,
+      clientId: r.clientId,
+      clientName: r.client.name,
+      phone: r.client.phone,
+      document: r.client.document,
+    }));
+  }
+
+  /**
+   * Faturas de um cliente para o Portal do pagador (spec 0027). ENTRADA GLOBAL
+   * legítima (a rota é pública, o cliente já foi resolvido pelo portalToken).
+   * Retorna dados mínimos e seguros (sem gatewayId/segredos).
+   */
+  async findForPortal(clientId: string) {
+    const rows = await prisma.invoice.findMany({
+      where: { clientId },
+      orderBy: [{ status: 'asc' }, { dueDate: 'asc' }],
+      select: {
+        id: true,
+        value: true,
+        status: true,
+        dueDate: true,
+        paidAt: true,
+        linkToken: true,
+      },
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      value: Number(r.value),
+      status: r.status,
+      dueDate: r.dueDate,
+      paidAt: r.paidAt,
+      linkToken: r.linkToken,
+    }));
+  }
+
+  /** Avança o passo da régua da fatura e marca o horário (spec 0026). */
+  async markReminderStep(id: string, step: number) {
+    const result = await prisma.invoice.update({
+      where: { id },
+      data: { reminderStep: step, lastReminderAt: new Date(), notificationSent: true },
+    });
+    await this.clearPendingInvoicesCache();
+    return result;
+  }
+
   async clearPendingInvoicesCache() {
 
     try {

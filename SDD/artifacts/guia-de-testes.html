@@ -330,8 +330,15 @@
 
     <section id="novidades">
       <h2>O que há de novo nesta versão</h2>
-      <p class="section-sub">Três blocos entraram desde a última revisão deste guia. Estão marcados com <span class="pill new">novo</span> ao longo do texto.</p>
+      <p class="section-sub">Estes blocos entraram nas últimas revisões deste guia. Estão marcados com <span class="pill new">novo</span> ao longo do texto.</p>
       <dl class="concepts">
+        <div class="concept"><dt>👥 Equipe e papéis <span class="pill new">novo</span></dt><dd>A conta agora tem <strong>vários usuários</strong>: Dono, Administrador e Membro. Cada papel tem seu nível de acesso; a aba "Equipe" aparece só para quem gerencia. Convide pessoas em Equipe.</dd></div>
+        <div class="concept"><dt>🌐 Portal do pagador <span class="pill new">novo</span></dt><dd>Uma página pública por cliente (<code>/portal/&lt;token&gt;</code>) com <strong>todas</strong> as cobranças dele — em aberto (com botão Pagar) e histórico. O dono copia o link na lista de Clientes e envia.</dd></div>
+        <div class="concept"><dt>⏰ Régua de cobrança <span class="pill new">novo</span></dt><dd>Uma <strong>sequência de lembretes</strong> automática (ex.: 3 dias antes, no dia, 3 e 7 depois), com mensagem por passo usando {nome}/{valor}. O agendador envia o passo certo de cada fatura, uma vez cada. Configurável em Configurações.</dd></div>
+        <div class="concept"><dt>📈 Valor recuperado <span class="pill new">novo</span></dt><dd>O Cockpit destaca quanto de dinheiro <strong>atrasado</strong> virou caixa (pagamentos que entraram após o vencimento). É a prova de ROI — o número que justifica a assinatura.</dd></div>
+        <div class="concept"><dt>📥 Import de faturas por CSV <span class="pill new">novo</span></dt><dd>Lance cobranças em <strong>lote</strong> por planilha: o assistente mapeia colunas, valida e cria as faturas resolvendo o cliente pelo telefone. Complementa o import de clientes.</dd></div>
+        <div class="concept"><dt>🚀 Onboarding guiado <span class="pill new">novo</span></dt><dd>No primeiro acesso, um checklist <strong>"Comece por aqui"</strong> leva o dono do zero à 1ª cobrança em 4 passos (gateway → WhatsApp → cliente → cobrança). O progresso é <strong>derivado de dados reais</strong> e o card some sozinho ao concluir. Cobertura na trilha do Dono, abaixo.</dd></div>
+        <div class="concept"><dt>🛡️ LGPD visível <span class="pill new">novo</span></dt><dd>Páginas públicas de <strong>Política de Privacidade</strong> e <strong>Termos</strong>, <strong>aceite obrigatório</strong> no cadastro (com prova de data+versão), banner de privacidade, nota no link do pagador e uma seção <strong>"Privacidade e dados"</strong> nas Configurações: exportar/anonimizar um cliente e exportar/encerrar a própria conta. <em>Textos são modelo — revisar com jurídico.</em></dd></div>
         <div class="concept"><dt>💳 Multi-gateway de pagamento <span class="pill new">novo</span></dt><dd>Além do Simulado, o dono escolhe entre <strong>Asaas, PagBank (PagSeguro), Efí, Stripe e Pagar.me</strong>. As credenciais ficam <strong>criptografadas em repouso</strong> e cada provedor tem seu próprio webhook. (Contas reais dependem só de ligar o provedor.)</dd></div>
         <div class="concept"><dt>🏷️ Cobrança do próprio Adimplo <span class="pill new">novo</span></dt><dd>O SaaS agora cobra de <em>você</em>: planos <strong>Free</strong>, <strong>Essencial (R$49)</strong> e <strong>Pro (R$199)</strong>, com <strong>14 dias de teste grátis</strong> (recursos Pro). Ao expirar, as ações de escrita bloqueiam até regularizar (paywall).</dd></div>
         <div class="concept"><dt>🛡️ Console da Plataforma <span class="pill new">novo</span></dt><dd>Um painel <strong>totalmente separado</strong> (<code>/console</code>), só para você (dono/dev do SaaS): métricas, MRR, e gestão dos assinantes (suspender, mudar plano, entrar como). O dono da clínica <strong>nunca</strong> vê nem acessa.</dd></div>
@@ -389,6 +396,7 @@ flowchart TD
       <dl class="concepts">
         <div class="concept"><dt>Painel Geral (Cockpit)</dt><dd>A tela de abertura: quanto você tem a receber, quanto atrasou, quanto entrou e o que fazer hoje.</dd></div>
         <div class="concept"><dt>Aging</dt><dd>O "envelhecimento" das dívidas: a vencer, e atrasado de 0–30, 31–60 ou 60+ dias.</dd></div>
+        <div class="concept"><dt>Valor recuperado <span class="pill new">novo</span></dt><dd>Quanto de dinheiro <strong>atrasado</strong> virou caixa no período (pagos após o vencimento). É a prova de ROI do Adimplo — subconjunto do "recebido".</dd></div>
         <div class="concept"><dt>Elo (link próprio)</dt><dd>O link de cobrança é do <em>Adimplo</em>, não do banco. Quando o cliente abre, o sistema <strong>registra</strong> e leva ao pagamento.</dd></div>
         <div class="concept"><dt>Hesitando</dt><dd>Cliente que <strong>abriu o link 3× e não pagou</strong>. Sinal de "está em dúvida" — gatilho do Botão de Alívio.</dd></div>
         <div class="concept"><dt>Botão de Alívio</dt><dd>Quando o cliente hesita, o Adimplo oferece <strong>sozinho</strong> desconto à vista, parcelar ou adiar — dentro das regras que o dono definiu.</dd></div>
@@ -400,6 +408,8 @@ flowchart TD
         <div class="concept"><dt>Trial <span class="pill new">novo</span></dt><dd>14 dias com recursos Pro liberados. No fim, ou vira um plano pago, ou as ações de escrita bloqueiam.</dd></div>
         <div class="concept"><dt>Console da plataforma <span class="pill new">novo</span></dt><dd>O painel do <strong>dono do SaaS</strong> (você). Identidade e login próprios, separados do app do cliente.</dd></div>
         <div class="concept"><dt>Impersonar <span class="pill new">novo</span></dt><dd>Do console, você "entra como" um assinante para dar suporte — com auditoria. Um banner avisa e o "Sair" volta ao console.</dd></div>
+        <div class="concept"><dt>Onboarding guiado <span class="pill new">novo</span></dt><dd>O checklist "Comece por aqui" do primeiro acesso. Cada passo se marca sozinho quando o dado real existe (gateway salvo, 1º cliente, 1ª cobrança); some ao concluir ou ao dispensar.</dd></div>
+        <div class="concept"><dt>Direitos do titular (LGPD) <span class="pill new">novo</span></dt><dd>Exportar dados, anonimizar (remove PII e mantém as faturas) e encerrar a conta. Consentimento é registrado no cadastro com data e versão do texto.</dd></div>
         <div class="concept"><dt>Multi-tenant</dt><dd>Cada empresa é uma "conta" isolada. Um dono nunca vê o dado do outro.</dd></div>
       </dl>
     </section>
@@ -421,6 +431,16 @@ flowchart LR
         <figcaption>A trilha do dono. Faça-a logado, com a conta demo.</figcaption>
       </figure>
 
+      <div class="call info">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg>
+        <div>
+          <p class="t">🚀 "Comece por aqui" — o onboarding guiado <span class="pill new">novo</span></p>
+          <p>Numa <strong>conta nova</strong>, o Dashboard abre com um card <strong>"Comece por aqui"</strong> no topo: uma barra de progresso e 4 passos que levam da conta vazia à 1ª cobrança —
+          <strong>(1) configurar recebimento</strong> (gateway), <strong>(2) conectar o WhatsApp</strong> (opcional, dá para pular), <strong>(3) cadastrar o 1º cliente</strong> e <strong>(4) emitir a 1ª cobrança</strong>. Cada botão leva direto à ação (os de cliente/cobrança já <em>abrem o formulário</em>).</p>
+          <p>O progresso é <strong>derivado de dados reais</strong>: o passo se marca sozinho quando o dado existe. Some ao concluir os 4 ou ao clicar em dispensar (<strong>×</strong>). Em outras telas, uma faixa fina mostra "Configuração inicial: X de 4". <em>A conta demo não mostra o checklist</em> (já vem configurada) — para vê-lo, crie uma conta nova.</p>
+        </div>
+      </div>
+
       <h3><span class="num">1.</span> Entrar na plataforma</h3>
       <ol class="steps">
         <li>
@@ -437,7 +457,7 @@ flowchart LR
       <ol class="steps">
         <li>
           <h4>Confira os indicadores de caixa</h4>
-          <p>No topo, 4 números: <strong>A receber</strong>, <strong>Em atraso</strong>, <strong>Recebido</strong> (seletor 7/30/90 dias) e <strong>Inadimplência</strong>.</p>
+          <p>No topo, 4 números: <strong>A receber</strong>, <strong>Em atraso</strong>, <strong>Recebido</strong> (seletor 7/30/90 dias) e <strong>Inadimplência</strong>. Logo abaixo, um card destacado de <strong>Valor recuperado</strong> <span class="pill new">novo</span> — o dinheiro atrasado que virou caixa no período.</p>
           <p class="expect"><span><b>Esperado:</b> com os dados demo, "A receber" ≈ <code>R$ 1.300,40</code> e "Inadimplência" alta (a clínica tem coisa vencida de propósito).</span></p>
         </li>
         <li>
@@ -495,6 +515,7 @@ flowchart LR
       <dl class="concepts">
         <div class="concept"><dt>💳 Gateway de pagamento <span class="pill new">novo</span></dt><dd>Onde <em>você</em> recebe. Agora com 5 provedores + teste: <strong>Asaas, PagBank (PagSeguro), Efí, Stripe, Pagar.me</strong> ou <strong>Simulado</strong>. Você informa as credenciais do provedor escolhido — elas ficam <strong>criptografadas em repouso</strong>.</dd></div>
         <div class="concept"><dt>💬 WhatsApp</dt><dd>Por qual número a cobrança é enviada. "Simulado" só registra (não envia); "Meta Cloud API" envia de verdade com suas credenciais.</dd></div>
+        <div class="concept"><dt>⏰ Régua de cobrança <span class="pill new">novo</span></dt><dd>Ative a sequência de lembretes e defina os passos (offset em dias + mensagem). Desligada, os lembretes seguem o modo simples.</dd></div>
         <div class="concept"><dt>✨ Botão de Alívio de Caixa</dt><dd>Liga a autonegociação e define os limites: desconto à vista, nº de parcelas e prazo/taxa de adiamento.</dd></div>
       </dl>
       <ol class="steps">
@@ -891,6 +912,16 @@ flowchart LR
             <td>Mesmo painel — sobre contas e receita reais.</td>
           </tr>
           <tr>
+            <td><strong>Onboarding guiado</strong></td>
+            <td>Checklist derivado de dados reais — funciona igual em teste e produção.</td>
+            <td>Sem mudança: o passo de gateway já conta para provedores reais quando ligados.</td>
+          </tr>
+          <tr>
+            <td><strong>LGPD</strong></td>
+            <td>Fluxo completo: aceite, export, anonimizar, encerrar conta. Textos são <strong>modelo</strong>.</td>
+            <td>Textos revisados pelo jurídico + base legal, DPO, DPA, ROPA e retenção.</td>
+          </tr>
+          <tr>
             <td><strong>WhatsApp</strong></td>
             <td>Simulado (registra, não envia) — ou número de teste.</td>
             <td>Envio real: exige <strong>template aprovado</strong> + verificação do negócio na Meta.</td>
@@ -938,12 +969,19 @@ flowchart LR
         <li><span class="box"></span><div>Escolhi uma condição e a original virou <span class="pill reneg">Renegociada</span> com uma nova cobrança.</div></li>
         <li><span class="box"></span><div>Entrei no <strong>/console</strong> com o login da plataforma e confirmei que o token de cliente não abre o console.</div></li>
         <li><span class="box"></span><div>Vi as <strong>métricas/MRR</strong>, mudei o plano de um assinante e <strong>impersonei</strong> uma conta (com banner de suporte).</div></li>
+        <li><span class="box"></span><div>Criei uma <strong>conta nova</strong> e vi o card <strong>"Comece por aqui"</strong> guiando (0 de 4), marcando cada passo até sumir.</div></li>
+        <li><span class="box"></span><div>Vi o <strong>aceite dos Termos</strong> no cadastro, abri <code>/privacidade</code> e <code>/termos</code>, e testei em Configurações → <strong>Privacidade e dados</strong> (exportar/anonimizar cliente, exportar conta).</div></li>
+        <li><span class="box"></span><div>Importei <strong>faturas por CSV</strong> (Faturas → Importar CSV) e vi o resumo criadas/ignoradas.</div></li>
+        <li><span class="box"></span><div>Configurei a <strong>régua de cobrança</strong> (Configurações) com passos e mensagens {nome}/{valor}.</div></li>
+        <li><span class="box"></span><div>Copiei o <strong>link do portal</strong> de um cliente (ícone de link em Clientes) e abri <code>/portal/&lt;token&gt;</code> — vi abertas + histórico.</div></li>
+        <li><span class="box"></span><div>Convidei alguém em <strong>Equipe</strong>, defini o papel e confirmei que Membro não vê a aba Equipe.</div></li>
+        <li><span class="box"></span><div>Dei baixa numa fatura <strong>vencida</strong> e vi o card <strong>"Valor recuperado"</strong> subir no Cockpit.</div></li>
         <li><span class="box"></span><div>Entendi o que roda nos bastidores (fila, worker, webhook, conciliação, auditoria).</div></li>
       </ul>
     </section>
 
     <div class="foot">
-      <p><strong>Atualizado em 21/07/2026.</strong> Inclui multi-gateway de pagamento (Asaas, PagBank, Efí, Stripe, Pagar.me), a cobrança do próprio Adimplo (planos Free/Essencial/Pro com trial e paywall) e o Console da Plataforma separado (<code>/console</code>). Guia de testes do Adimplo · ambiente de demonstração. No online, acesse pelo celular (4G/5G) se a rede da empresa bloquear o domínio. Pagamentos seguem <strong>simulados</strong> até ligar contas reais dos provedores. Para reiniciar os dados demo, fale com o time técnico.</p>
+      <p><strong>Atualizado em 21/07/2026.</strong> Inclui multi-usuário e papéis (Equipe), o portal do pagador, a régua de cobrança multi-passo, o valor recuperado (ROI) e o import de faturas por CSV, o onboarding guiado ("Comece por aqui"), a camada de LGPD visível (Política/Termos, aceite no cadastro, exportar/anonimizar/encerrar), o multi-gateway de pagamento (Asaas, PagBank, Efí, Stripe, Pagar.me), a cobrança do próprio Adimplo (planos Free/Essencial/Pro com trial e paywall) e o Console da Plataforma separado (<code>/console</code>). Guia de testes do Adimplo · ambiente de demonstração. No online, acesse pelo celular (4G/5G) se a rede da empresa bloquear o domínio. Pagamentos seguem <strong>simulados</strong> até ligar contas reais dos provedores. Para reiniciar os dados demo, fale com o time técnico.</p>
     </div>
   </main>
 </div>

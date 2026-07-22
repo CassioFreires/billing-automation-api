@@ -14,7 +14,13 @@ Conta contratante. **Todo dado de negócio pertence a um Account** (multi-tenanc
 | `name` | String | — | Nome da conta |
 | `status` | String | `ACTIVE` | `ACTIVE`, `SUSPENDED` |
 | `createdAt` | DateTime | `now()` | — |
+| `acceptedTermsAt` | DateTime? | — | Prova de aceite dos Termos/Política no cadastro (spec 0022) |
+| `acceptedTermsVersion` | String? | — | Versão do texto legal aceita (`LEGAL_VERSION`) — spec 0022 |
 | `clients` / `invoices` / `users` | relações | — | 1-N |
+
+**Direitos do titular do SaaS (spec 0022):** o dono pode **exportar** os dados da própria
+conta (`GET /api/lgpd/account/export`) e **encerrá-la** (`POST /api/lgpd/account/delete`,
+exige o nome exato como confirmação — remove o tenant em cascata).
 
 ### User (Usuário)
 
@@ -26,7 +32,7 @@ Usuário que loga na plataforma, vinculado a um `Account` (ver `../specs/0002-us
 | `email` | String | — | **Único global** (identificador de login) |
 | `passwordHash` | String | — | Hash `bcryptjs` (nunca texto puro) |
 | `name` | String | — | — |
-| `role` | String | `OWNER` | `OWNER` (futuro: `ADMIN`, `MEMBER`) |
+| `role` | String | `OWNER` | `OWNER`, `ADMIN`, `MEMBER` (papéis por tenant — spec 0030) |
 | `createdAt` | DateTime | `now()` | — |
 | `tenantId` | String | — | FK → Account (`onDelete: Cascade`) |
 
@@ -111,6 +117,20 @@ Uma linha por tenant. Diz **em qual conta** o tenant recebe.
 | `infinitepayHandle` | String? | — | Handle público que recebe (ex.: `@loja`) |
 | `redirectUrl` | String? | — | Retorno pós-checkout |
 | `mpAccessToken` | String? | — | Token MP (**segredo** — mascarado na API, texto no banco por ora) |
+
+### ReguaSetting (Régua de cobrança por tenant) — spec 0026
+
+Uma linha por tenant. Sequência de lembretes automáticos.
+
+| Campo | Tipo | Padrão | Notas |
+|---|---|---|---|
+| `tenantId` | String | — | PK/único — 1 por tenant |
+| `enabled` | Boolean | `false` | Liga a régua (desligada = modo simples legado) |
+| `steps` | Json | `[]` | `[{ offsetDays, message? }]` ordenado por offset crescente |
+
+Rastreio por fatura: `Invoice.reminderStep` (passos já enviados) e `Invoice.lastReminderAt`.
+O agendador diário (`POST /api/system/notifications/run`) envia o próximo passo devido de cada
+fatura em aberto (RN-2603).
 
 ### WhatsappSetting (Config de WhatsApp por tenant) — spec 0014
 

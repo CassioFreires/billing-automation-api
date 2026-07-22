@@ -8,6 +8,7 @@ function makeService() {
   const repo = {
     findOpenInvoices: vi.fn(),
     sumReceivedSince: vi.fn(),
+    sumRecoveredSince: vi.fn().mockResolvedValue(0),
     countByStatus: vi.fn(),
     findHesitating: vi.fn(),
   };
@@ -23,6 +24,7 @@ describe('CockpitService.getOverview', () => {
       { id: 'b', value: 300, dueDate: d('2026-06-01T12:00:00Z'), clientName: 'Bruno' }, // ~49d atraso
     ]);
     repo.sumReceivedSince.mockResolvedValue(555.5);
+    repo.sumRecoveredSince.mockResolvedValue(240);
     repo.countByStatus.mockResolvedValue({ PENDING: 2, PAID: 7 });
     repo.findHesitating.mockResolvedValue([
       { invoiceId: 'b', clientName: 'Bruno', value: 300, opens: 4 },
@@ -36,6 +38,7 @@ describe('CockpitService.getOverview', () => {
     expect(r.kpis.emAtraso).toBe(300);
     expect(r.kpis.taxaInadimplencia).toBe(0.75); // 300/400
     expect(r.kpis.recebidoNoPeriodo).toBe(555.5);
+    expect(r.kpis.recuperadoNoPeriodo).toBe(240); // pagos após o vencimento (spec 0025)
 
     // porStatus preenche os 4 status (default 0 nos ausentes)
     expect(r.porStatus).toEqual({ PENDING: 2, PAID: 7, OVERDUE: 0, FAILED: 0 });

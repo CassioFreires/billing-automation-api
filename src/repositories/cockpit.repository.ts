@@ -39,6 +39,27 @@ export class CockpitRepository {
     return Number(agg._sum.amount ?? 0);
   }
 
+  /**
+   * "Valor recuperado" (spec 0025): soma dos recebimentos desde `since` cujo
+   * pagamento entrou APÓS o vencimento da fatura (paidAt > dueDate) — ou seja,
+   * inadimplência que virou caixa. É a prova de ROI do Adimplo. Comparação
+   * entre duas colunas → filtra em memória (volume por tenant/período é baixo).
+   */
+  async sumRecoveredSince(since: Date): Promise<number> {
+    const tenantId = requireTenantId();
+    const payments = await prisma.payment.findMany({
+      where: { tenantId, paidAt: { gte: since } },
+      select: { amount: true, paidAt: true, invoice: { select: { dueDate: true } } },
+    });
+    let total = 0;
+    for (const p of payments) {
+      if (p.invoice && p.paidAt.getTime() > p.invoice.dueDate.getTime()) {
+        total += Number(p.amount);
+      }
+    }
+    return total;
+  }
+
   /** Contagem de faturas por status. */
   async countByStatus(): Promise<Record<string, number>> {
     const tenantId = requireTenantId();

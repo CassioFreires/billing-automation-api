@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import { ClientController } from '../controllers/clients.controller.js';
+import { PortalController } from '../controllers/portal.controller.js';
 import { jwtAuth } from '../middlewares/auth.middleware.js';
 import { requireWriteAccess } from '../middlewares/require-plan.middleware.js';
 
@@ -13,11 +14,15 @@ clientRouter.use(requireWriteAccess);
 
 const controller =
   new ClientController();
+const portalController = new PortalController();
 
 clientRouter.post(
   '/',
   controller.create.bind(controller)
 );
+
+// Link do Portal do pagador de um cliente (spec 0027) — gera/recupera o token.
+clientRouter.get('/:id/portal-link', portalController.getPortalLink);
 
 // Importação em lote (upsert idempotente por telefone) — literal antes de :id
 clientRouter.post(

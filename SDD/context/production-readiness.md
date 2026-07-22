@@ -18,7 +18,7 @@ Prioridades: **P0** bloqueia ter produto para vender · **P1** necessário para 
 | PR-03 | **Idempotência do webhook** | ✅ Implementado (2026-07-01) | `WebhookEvent.recordIfNew` dedup por `eventId`. Falta: hardening transacional |
 | PR-04 | **Multi-tenancy** | ✅ Implementado (2026-07-01) | `Account` + `tenantId` em Client/Invoice, escopo via `tenant-context` + repositórios, tenant no JWT/fila. **Spec `specs/0001-multi-tenancy.md`**. Falta: validar escopo em banco real; migrar clientes reais para tenants próprios (hoje tudo no tenant default) |
 | PR-05 | **Auth real / usuários** | ✅ Implementado (2026-07-01) | Modelo `User` + signup/login por e-mail (bcrypt), vínculo ao tenant. Spec `specs/0002`. Falta: verificação de e-mail, reset de senha, convites/multiusuário, RBAC |
-| PR-06 | **LGPD** | 🟡 Parcial (2026-07-01) | ✅ Código: direitos do titular (`/api/lgpd` — export/portabilidade + anonimização, spec 0004). ⏳ Falta a parte **jurídica/documental**: base legal, política de privacidade, termos, DPA, DPO (ver spec 0004 §11 — precisa de revisão jurídica) |
+| PR-06 | **LGPD** | 🟡 Parcial (2026-07-21) | ✅ Código+UI: direitos do titular (`/api/lgpd` — export/anonimização de cliente, spec 0004; export/encerrar da própria conta, spec 0022), páginas públicas de Política/Termos, **aceite no cadastro** (data+versão), banner e nota no /pagar. ⏳ Falta a parte **jurídica/documental**: base legal por finalidade, DPA, DPO/canal, ROPA, retenção (ver spec 0004 §11 — precisa de revisão jurídica; textos atuais são modelo) |
 
 ## 🟠 P1 — Necessário para operar em produção
 

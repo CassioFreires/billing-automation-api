@@ -13,6 +13,9 @@ model Account {
   name      String
   status    String   @default("ACTIVE") // ACTIVE, SUSPENDED
   createdAt DateTime @default(now())
+  // Prova de aceite dos Termos/Política no cadastro (spec 0022, LGPD).
+  acceptedTermsAt      DateTime?
+  acceptedTermsVersion String?
   clients   Client[]
   invoices  Invoice[]
   users     User[]
@@ -26,6 +29,7 @@ model Account {
   platformSubscription PlatformSubscription?
   platformInvoices PlatformInvoice[]
   onboardingState OnboardingState?
+  reguaSetting ReguaSetting?
 }
 
 // Assinatura do PRÓPRIO SaaS (spec 0020): a Adimplo cobra o tenant. 1:1 com
@@ -127,6 +131,20 @@ model OnboardingState {
   account         Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
+// Régua de cobrança POR TENANT (spec 0026). Sequência de lembretes ao longo do
+// tempo. `steps` é um JSON: [{ offsetDays, message? }] ordenado por offset. O
+// agendador diário envia o próximo passo devido de cada fatura em aberto.
+model ReguaSetting {
+  id         String   @id @default(uuid())
+  enabled    Boolean  @default(false)
+  steps      Json     @default("[]") // [{ offsetDays: number, message?: string }]
+  createdAt  DateTime @default(now())
+  lastUpdate DateTime @updatedAt
+
+  tenantId   String   @unique
+  account    Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
 // Configuração de WhatsApp POR TENANT (spec 0014). Cada empresa envia pelo
 // próprio número. provider 'log' (default) não envia; 'cloud' usa a Meta Cloud
 // API com as credenciais do tenant.
@@ -193,6 +211,7 @@ model Client {
   status    String   @default("EM_DIA")
   debtValue Decimal  @default(0.0) @db.Decimal(12, 2)
   processed     Boolean   @default(false)
+  portalToken   String?   @unique // link do Portal do pagador (spec 0027) — todas as cobranças dele
   anonymizedAt  DateTime? // LGPD: quando o titular foi anonimizado (spec 0004)
   lastUpdate    DateTime  @updatedAt
   createdAt DateTime @default(now())
@@ -221,6 +240,9 @@ model Invoice {
   paidAt        DateTime? // Data que o webhook confirmou o pagamento
   createdAt     DateTime  @default(now())
   notificationSent  Boolean   @default(false)
+  // Régua de cobrança (spec 0026): quantos passos já enviados e quando o último.
+  reminderStep   Int       @default(0)
+  lastReminderAt DateTime?
 
   clientId      String
   client        Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)

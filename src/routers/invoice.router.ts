@@ -14,6 +14,9 @@ const agreementController = new AgreementController();
 // Rota que o seu Front-end vai chamar para gerar uma cobrança manual (JWT).
 // Gating do plano (spec 0020): exige plano ativo + respeita a quota de faturas.
 invoiceRouter.post('/', jwtAuth, requireWriteAccess, enforceInvoiceQuota, invoiceController.create);
+// Importação em lote via CSV (spec 0024). Gating de escrita; a quota por linha
+// é follow-up (ver spec 0024 §9).
+invoiceRouter.post('/import', jwtAuth, requireWriteAccess, invoiceController.import);
 // Webhook do gateway: a verificação de autenticidade é feita pelo provider ativo
 // (mock: x-webhook-secret; mercadopago: assinatura x-signature). Rota legada
 // (provider global do .env) mantida para compatibilidade.
