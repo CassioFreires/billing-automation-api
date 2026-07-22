@@ -2,7 +2,9 @@
 import { rabbitMQ } from '../config/rabbitmql.config.js';
 import { InvoiceRepository } from '../repositories/invoice.repository.js';
 import { WhatsappAPI, resolveWhatsappForTenant } from '../apis/whatsapp.api.js';
+import { EmailAPI } from '../apis/email.api.js';
 import { WhatsappSettingService } from '../services/whatsapp-setting.service.js';
+import { ChannelSettingService } from '../services/channel-setting.service.js';
 import { TriggerNotificationDTO } from '../dtos/triggerNotification.dto.js';
 import {
   INVOICE_QUEUE,
@@ -13,9 +15,12 @@ import { runWithTenant } from '../context/tenant-context.js';
 import { PermanentError, shouldRequeue } from '../infrastructure/errors.js';
 import { InteractionEventRepository } from '../repositories/interaction-event.repository.js';
 import { InteractionType, InteractionChannel } from '../domain/interaction.js';
+import { resolveChannels } from '../domain/channels.js';
 
 const invoiceRepository = new InvoiceRepository();
 const whatsappSettings = new WhatsappSettingService();
+const channelSettings = new ChannelSettingService();
+const emailAPI = new EmailAPI();
 const interactionEvents = new InteractionEventRepository();
 
 interface ChargeMessageData {
@@ -47,6 +52,11 @@ export function buildChargeMessage(data: ChargeMessageData): string {
   }
 
   return lines.join('\n');
+}
+
+/** Assunto do e-mail de cobrança (spec 0032). Curto e reconhecível. */
+export function buildChargeSubject(data: { clientName: string }): string {
+  return `Cobrança em aberto — ${data.clientName}`;
 }
 
 /** Base pública para o link do Elo (`APP_URL/r/:token`). Sem barra final. */
@@ -98,54 +108,88 @@ export async function initInvoiceWorker() {
             return;
           }
 
-          // Resolve o provider de WhatsApp DO TENANT (spec 0014): cada empresa
-          // envia pelo próprio número. Sem config, cai no log (não envia).
-          const whatsappConfig = await whatsappSettings.getForCurrentTenant();
-          const whatsappAPI = new WhatsappAPI(resolveWhatsappForTenant(whatsappConfig));
-
           // Link próprio do Elo (spec 0016): a mensagem aponta para o Adimplo,
           // não direto para o gateway — é o que captura "open" e habilita o M2.
           const linkUrl = invoice.linkToken
             ? `${appBaseUrl()}/r/${invoice.linkToken}`
             : undefined;
 
-          // Envia PRIMEIRO; só marca como notificada se o envio deu certo.
-          const result = await whatsappAPI.sendMessageWhatsapp(data, {
-            targetPhone: invoice.phone,
-            messagePayload: buildChargeMessage({
-              clientName: invoice.clientName,
-              value: invoice.value,
-              linkUrl,
-              checkoutUrl: invoice.checkoutUrl,
-              pixCopyPaste: invoice.pixCopyPaste,
-              intro: data.message, // texto do passo da régua (spec 0026), se houver
-            }),
+          // Corpo compartilhado entre os canais (a régua já injeta o `intro`).
+          const messageBody = buildChargeMessage({
+            clientName: invoice.clientName,
+            value: invoice.value,
+            linkUrl,
+            checkoutUrl: invoice.checkoutUrl,
+            pixCopyPaste: invoice.pixCopyPaste,
+            intro: data.message, // texto do passo da régua (spec 0026), se houver
           });
 
-          // Falha de envio → lança para cair no catch (nack → retry → DLQ),
-          // em vez de "engolir" e perder a cobrança.
-          if (!result.success) {
-            throw new Error(`Falha no envio WhatsApp (${result.provider}): ${result.error}`);
+          // Canais de envio DO TENANT (spec 0032): whatsapp | email | both, com
+          // fallback para WhatsApp quando o cliente não tem e-mail.
+          const { channel: preferred } = await channelSettings.get();
+          const channels = resolveChannels(preferred, { hasEmail: Boolean(invoice.email) });
+
+          // Registro best-effort do evento `sent` por canal (não derruba o ack).
+          const recordSent = async (channel: string, provider: string) => {
+            try {
+              await interactionEvents.record({
+                type: InteractionType.SENT,
+                tenantId: data.tenantId!,
+                invoiceId: invoice.id,
+                clientId: invoice.clientId,
+                channel,
+                metadata: { provider, ...(data.step ? { step: data.step } : {}) },
+              });
+            } catch (err) {
+              console.error('⚠️ Falha ao registrar evento sent (segue):', err);
+            }
+          };
+
+          // Envia por cada canal resolvido. Sucesso em QUALQUER canal já conta
+          // como notificada; falha em todos → lança (nack → retry → DLQ).
+          let anySuccess = false;
+
+          for (const ch of channels) {
+            if (ch === 'whatsapp') {
+              // Provider de WhatsApp DO TENANT (spec 0014): cada empresa pelo
+              // próprio número. Sem config, cai no log (não envia de verdade).
+              const whatsappConfig = await whatsappSettings.getForCurrentTenant();
+              const whatsappAPI = new WhatsappAPI(resolveWhatsappForTenant(whatsappConfig));
+              const result = await whatsappAPI.sendMessageWhatsapp(data, {
+                targetPhone: invoice.phone,
+                messagePayload: messageBody,
+              });
+              if (result.success) {
+                anySuccess = true;
+                await recordSent(InteractionChannel.WHATSAPP, result.provider);
+              } else {
+                console.error(`⚠️ Falha WhatsApp (${result.provider}): ${result.error}`);
+              }
+            } else if (ch === 'email' && invoice.email) {
+              const result = await emailAPI.sendEmail({
+                to: invoice.email,
+                subject: buildChargeSubject({ clientName: invoice.clientName }),
+                body: messageBody,
+              });
+              if (result.success) {
+                anySuccess = true;
+                await recordSent(InteractionChannel.EMAIL, result.provider);
+              } else {
+                console.error(`⚠️ Falha e-mail (${result.provider}): ${result.error}`);
+              }
+            }
+          }
+
+          if (!anySuccess) {
+            throw new Error(
+              `Falha no envio da cobrança ${data.id} em todos os canais (${channels.join(', ')})`
+            );
           }
 
           // Régua (spec 0026): o passo já foi avançado pelo agendador ao enfileirar;
           // aqui só garantimos a marca de "notificada" nos envios sem passo (legado/avulso).
           if (data.step === undefined) {
             await invoiceRepository.markNotificationSent(data.id);
-          }
-
-          // Evento `sent` do Elo (spec 0016). Best-effort: não derruba o ack.
-          try {
-            await interactionEvents.record({
-              type: InteractionType.SENT,
-              tenantId: data.tenantId!,
-              invoiceId: invoice.id,
-              clientId: invoice.clientId,
-              channel: InteractionChannel.WHATSAPP,
-              metadata: { provider: result.provider, ...(data.step ? { step: data.step } : {}) },
-            });
-          } catch (err) {
-            console.error('⚠️ Falha ao registrar evento sent (segue):', err);
           }
 
           console.log(`✅ Processado: ${data.id}`);

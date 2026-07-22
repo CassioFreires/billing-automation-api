@@ -11,7 +11,15 @@ export const createClientSchema = z.object({
 
   document: z
     .string()
-    .min(11, 'Documento inválido')
+    .min(11, 'Documento inválido'),
+
+  // Canal de e-mail (spec 0032) — opcional.
+  email: z
+    .string()
+    .trim()
+    .email('E-mail inválido')
+    .optional()
+    .nullable(),
 });
 
 export type CreateClientDTO = z.infer<

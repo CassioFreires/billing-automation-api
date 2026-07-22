@@ -63,6 +63,7 @@ export class ClientRepository {
             name: row.name,
             phone: row.phone,
             document: row.document,
+            ...(row.email ? { email: row.email } : {}),
             ...(row.status ? { status: row.status } : {}),
             tenantId,
           })),
@@ -76,6 +77,7 @@ export class ClientRepository {
           data: {
             name: row.name,
             document: row.document,
+            ...(row.email ? { email: row.email } : {}),
             ...(row.status ? { status: row.status } : {}),
           },
         });

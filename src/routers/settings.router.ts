@@ -25,4 +25,8 @@ settingsRouter.put('/negotiation', controller.updateNegotiation.bind(controller)
 settingsRouter.get('/regua', controller.getRegua.bind(controller));
 settingsRouter.put('/regua', controller.updateRegua.bind(controller));
 
+// Canal de envio das cobranças do tenant (spec 0032).
+settingsRouter.get('/channel', controller.getChannel.bind(controller));
+settingsRouter.put('/channel', controller.updateChannel.bind(controller));
+
 export { settingsRouter };

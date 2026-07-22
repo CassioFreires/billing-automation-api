@@ -365,6 +365,7 @@ export class InvoiceRepository {
       value: Number(invoice.value), // Decimal → number para uso interno/mensagem
       dueDate: invoice.dueDate,
       phone: invoice.client.phone,
+      email: invoice.client.email, // canal de e-mail (spec 0032)
       document: invoice.client.document,
       clientName: invoice.client.name,
       pixCopyPaste: invoice.pixCopyPaste,
