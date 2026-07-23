@@ -8,8 +8,10 @@ import {
 function makeService() {
   const invoices = { findById: vi.fn(), settleManually: vi.fn() };
   const payments = { findByInvoice: vi.fn() };
-  const service = new PaymentService({ invoices: invoices as any, payments: payments as any });
-  return { service, invoices, payments };
+  // Recuperação (spec 0033): mock hermético — baixa manual fecha o caso, se houver.
+  const recovery = { closeByInvoiceId: vi.fn().mockResolvedValue({ closed: false }) };
+  const service = new PaymentService({ invoices: invoices as any, payments: payments as any, recovery: recovery as any });
+  return { service, invoices, payments, recovery };
 }
 
 describe('PaymentService.registerManual (baixa manual)', () => {
