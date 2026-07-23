@@ -17,7 +17,7 @@ import {
 } from '../apis/payment/index.js';
 import { PaymentSettingService } from './payment-setting.service.js';
 import { CreateInvoiceDTO, UpdateInvoiceStatusDTO } from '../dtos/createInvoice.dto.js';
-import { canTransitionInvoice } from '../domain/status.js';
+import { canTransitionInvoice, effectiveInvoiceStatus } from '../domain/status.js';
 import { InteractionType } from '../domain/interaction.js';
 import { runWithTenant } from '../context/tenant-context.js';
 
@@ -340,12 +340,27 @@ export class InvoiceService {
 
   /** Lista todas as faturas do tenant (paginado, filtro opcional por status). */
   async listInvoices(page?: number, limit?: number, status?: string) {
-    return this.invoiceRepository.findAll(page, limit, status);
+    const result = await this.invoiceRepository.findAll(page, limit, status);
+    const now = new Date();
+    return {
+      ...result,
+      // statusEfetivo = verdade de "vencida" derivada da data (spec 0034). A UI
+      // exibe este campo; o `status` cru continua no payload para compatibilidade.
+      invoices: result.invoices.map((inv) => ({
+        ...inv,
+        statusEfetivo: effectiveInvoiceStatus(inv.status, inv.dueDate, now),
+      })),
+    };
   }
 
   /** Busca uma fatura do tenant pelo id (null se não existir). */
   async getInvoiceById(id: string) {
-    return this.invoiceRepository.findById(id);
+    const invoice = await this.invoiceRepository.findById(id);
+    if (!invoice) return null;
+    return {
+      ...invoice,
+      statusEfetivo: effectiveInvoiceStatus(invoice.status, invoice.dueDate, new Date()),
+    };
   }
 
   /**

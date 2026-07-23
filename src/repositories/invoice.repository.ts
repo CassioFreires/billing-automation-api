@@ -260,10 +260,23 @@ export class InvoiceRepository {
     const tenantId = requireTenantId();
     const skip = (page - 1) * limit;
 
-    const where = {
-      tenantId,
-      ...(status ? { status } : {}),
-    };
+    // Filtro ciente da data (spec 0034): "vencida" é derivada da data, então
+    // filtrar por OVERDUE/PENDING não pode olhar só o campo cru — senão o filtro
+    // discordaria do selo (statusEfetivo). OVERDUE = já-vencidas (persistidas OU
+    // PENDING com data passada); PENDING = ainda-em-aberto (data futura).
+    const now = new Date();
+    let statusWhere: Record<string, unknown> = {};
+    if (status === 'OVERDUE') {
+      statusWhere = {
+        OR: [{ status: 'OVERDUE' }, { status: 'PENDING', dueDate: { lt: now } }],
+      };
+    } else if (status === 'PENDING') {
+      statusWhere = { status: 'PENDING', dueDate: { gte: now } };
+    } else if (status) {
+      statusWhere = { status };
+    }
+
+    const where = { tenantId, ...statusWhere };
 
     const [invoices, totalItems] = await prisma.$transaction([
       prisma.invoice.findMany({

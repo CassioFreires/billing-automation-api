@@ -261,6 +261,14 @@ PENDING ──► PAID
 - `PENDING` → `PAID`: via webhook, preenche `paidAt`.
 - **Máquina de estados** (`canTransitionInvoice`): `PAID` é **terminal** (não regride); mesmo-status é no-op. Aplicada no webhook (RN-P7).
 - ⚠️ No banco `status` ainda é `String` (não enum nativo Postgres) — conversão pendente (D-07/PR-15).
+- **Status EFETIVO / "vencida" derivada (spec 0034):** `OVERDUE` é, na prática, um
+  **status derivado da data** — `effectiveInvoiceStatus(status, dueDate, now)` devolve
+  `OVERDUE` quando `status === PENDING` **e** `dueDate < now`. A **exibição** (tela
+  Faturas, via `statusEfetivo`) e o Cockpit usam essa **fonte única**, então "vencida"
+  aparece no instante em que a data passa — sem depender de job. O `status` **persistido**
+  reflete só eventos explícitos (`PAID`/`FAILED`/`RENEGOTIATED`); o sweep da recuperação
+  (0033) o mantém como **cache** de `OVERDUE`, mas a UI não depende dele. Regra da
+  exibição ("está vencida?") ≠ regra da ação ("recuperar agora?", motor 0033, 1x/dia).
 
 ### Status do RecoveryCase (spec 0033)
 ```

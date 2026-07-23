@@ -63,3 +63,27 @@ export function shouldRecordGatewayPayment(
 ): boolean {
   return newStatus === InvoiceStatus.PAID && previousStatus !== InvoiceStatus.PAID;
 }
+
+/**
+ * Status EFETIVO da fatura para EXIBIÇÃO (spec 0034). "Vencida" é um fato
+ * DERIVADO da data — não um estado que precisa ser gravado/mantido por um job:
+ *
+ *   vencida = ainda não paga  E  a data de vencimento já passou.
+ *
+ * Regra: só uma fatura `PENDING` cuja `dueDate` já passou vira `OVERDUE` (na
+ * leitura). Qualquer outro status (PAID/FAILED/RENEGOTIATED, ou OVERDUE já
+ * persistido pelo sweep) é preservado. É a FONTE ÚNICA da verdade de "vencida",
+ * reusada em todas as telas — some a defasagem entre Faturas e Cockpit.
+ *
+ * `now` é injetável para teste (função pura).
+ */
+export function effectiveInvoiceStatus(
+  status: string,
+  dueDate: Date | string | null | undefined,
+  now: Date = new Date()
+): string {
+  if (status !== InvoiceStatus.PENDING || !dueDate) return status;
+  const due = dueDate instanceof Date ? dueDate : new Date(dueDate);
+  if (Number.isNaN(due.getTime())) return status;
+  return due.getTime() < now.getTime() ? InvoiceStatus.OVERDUE : status;
+}
