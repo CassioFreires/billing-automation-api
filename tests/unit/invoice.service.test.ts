@@ -18,14 +18,17 @@ function makeService() {
   const gateway = { name: 'mock', createCharge: vi.fn(), verifyAndParseWebhook: vi.fn() };
   // Eventos do Elo (spec 0016): mock para os testes ficarem herméticos (sem DB).
   const events = { record: vi.fn(), listByInvoice: vi.fn(), countsByInvoice: vi.fn() };
+  // Recuperação (spec 0033): mock hermético — fecha o caso no webhook PAID.
+  const recovery = { closeByInvoiceId: vi.fn().mockResolvedValue({ closed: false }) };
 
   const service = new InvoiceService({
     invoiceRepository: invoiceRepository as any,
     gateway: gateway as any,
     events: events as any,
+    recovery: recovery as any,
   });
 
-  return { service, invoiceRepository, gateway, events };
+  return { service, invoiceRepository, gateway, events, recovery };
 }
 
 describe('InvoiceService.createPayment', () => {

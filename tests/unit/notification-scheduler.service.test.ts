@@ -11,13 +11,16 @@ function make() {
   const notifications = { queueOverdueInvoices: vi.fn() };
   // Régua desligada por padrão → caminho legado nos testes existentes.
   const regua = { get: vi.fn().mockResolvedValue({ enabled: false, steps: [] }) };
+  // Recuperação (spec 0033): sem casos ativos por padrão → corte é no-op (sem regressão).
+  const recovery = { findActiveInvoiceIds: vi.fn().mockResolvedValue([]) };
   const service = new NotificationSchedulerService({
     accounts: accounts as any,
     invoices: invoices as any,
     notifications: notifications as any,
     regua: regua as any,
+    recovery: recovery as any,
   });
-  return { service, accounts, invoices, notifications, regua };
+  return { service, accounts, invoices, notifications, regua, recovery };
 }
 
 const overdue = (n: number) => ({

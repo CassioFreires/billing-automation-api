@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import { InvoiceRepository } from '../repositories/invoice.repository.js';
 import { InteractionEventRepository } from '../repositories/interaction-event.repository.js';
+import { RecoveryCaseRepository } from '../repositories/recovery-case.repository.js';
 import { ClientRepository } from '../repositories/cliente.repositorie.js';
 import { ImportInvoiceRowDTO } from '../dtos/importInvoices.dto.js';
 import { planInvoiceImport } from '../utils/import-invoice-plan.js';
@@ -33,6 +34,7 @@ export class InvoiceService {
   private paymentSettings: PaymentSettingService;
   private events: InteractionEventRepository;
   private clients: ClientRepository;
+  private recovery: RecoveryCaseRepository;
 
   constructor(deps?: {
     invoiceRepository?: InvoiceRepository;
@@ -40,12 +42,14 @@ export class InvoiceService {
     paymentSettings?: PaymentSettingService;
     events?: InteractionEventRepository;
     clients?: ClientRepository;
+    recovery?: RecoveryCaseRepository;
   }) {
     this.invoiceRepository = deps?.invoiceRepository ?? new InvoiceRepository();
     this.injectedGateway = deps?.gateway;
     this.paymentSettings = deps?.paymentSettings ?? new PaymentSettingService();
     this.events = deps?.events ?? new InteractionEventRepository();
     this.clients = deps?.clients ?? new ClientRepository();
+    this.recovery = deps?.recovery ?? new RecoveryCaseRepository();
   }
 
   /**
@@ -267,13 +271,21 @@ export class InvoiceService {
     }
 
     // Idempotência (registro do evento) + update do status na MESMA transação.
-    return this.invoiceRepository.applyWebhookAtomic({
+    const result = await this.invoiceRepository.applyWebhookAtomic({
       invoiceId: invoice.id,
       eventId: event.eventId,
       provider: 'gateway',
       status: event.status,
       paidAt: event.paidAt,
     });
+
+    // Pagamento confirmado → fecha o caso de recuperação, se houver (spec 0033,
+    // RN-3306). Best-effort: nunca derruba o webhook. Idempotente no repositório.
+    if (!result.duplicate && event.status === 'PAID') {
+      await this.recovery.closeByInvoiceId(invoice.id, 'paid').catch(() => {});
+    }
+
+    return result;
   }
 
   /**

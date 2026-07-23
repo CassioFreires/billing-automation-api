@@ -172,6 +172,19 @@ export class RecoveryCaseRepository {
     });
   }
 
+  /**
+   * IDs das faturas do tenant atual com caso ATIVO (open/recovering). Usado pela
+   * régua (spec 0026) para NÃO enviar em faturas que o motor de recuperação já
+   * está tratando — evita cobrança dobrada (spec 0033, corte pós-vencimento).
+   */
+  async findActiveInvoiceIds(): Promise<string[]> {
+    const rows = await prisma.recoveryCase.findMany({
+      where: { tenantId: requireTenantId(), status: { in: ['open', 'recovering'] } },
+      select: { invoiceId: true },
+    });
+    return rows.map((r) => r.invoiceId);
+  }
+
   /** Encerra o caso como perdido — passos esgotados (RN-3307). */
   async markLost(caseId: string) {
     return prisma.recoveryCase.update({
