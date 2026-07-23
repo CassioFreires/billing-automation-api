@@ -196,6 +196,47 @@ Alívio": `open>=N` e sem `paid`), `@@index([tenantId, occurredAt])` (timeline/C
 > tenants — é follow-up do M5 (com trava LGPD); aqui o evento se liga a
 > `invoiceId`/`clientId` (o `Client` já é o pagador dentro do tenant).
 
+### RecoveryCase (Caso de recuperação) — spec 0033 (F1)
+
+Orquestra a **recuperação de uma fatura vencida** até um desfecho explícito. **Um caso
+aberto por fatura** (idempotente). "Orbita" a fatura — não altera a máquina de estados dela.
+
+| Campo | Tipo | Padrão | Notas |
+|---|---|---|---|
+| `id` | String (uuid) | gerado | PK |
+| `reason` | String | `overdue` | `overdue`/`payment_failed`/`pix_unpaid`/`card_expired` |
+| `status` | String | `open` | `open`/`recovering`/`recovered`/`lost`/`cancelled` |
+| `amountAtRisk` | Decimal(12,2) | — | `= Invoice.value` na abertura |
+| `currentStep` | Int | `0` | Passo atual da sequência (máx. `DEFAULT_MAX_STEPS`) |
+| `lastChannel` | String? | — | Último canal usado (`whatsapp`/`email`) — base da troca de canal |
+| `reliefOffered` | Boolean | `false` | Se o passo de alívio (0018) já foi ofertado |
+| `nextActionAt` | DateTime? | — | Quando o próximo passo fica devido (avança 1/dia) |
+| `openedAt` / `resolvedAt` | DateTime | — | Abertura / desfecho |
+| `outcome` | String? | — | `paid`/`agreement`/`sem_resposta`/`cancelado_pelo_dono` |
+| `invoiceId` | String | — | **Único** (1 caso por fatura). FK → Invoice |
+| `clientId` / `subscriptionId` | String / String? | — | FKs |
+| `tenantId` | String | — | FK → Account. Escopo obrigatório |
+| `attempts` | RecoveryAttempt[] | — | Timeline 1-N |
+
+Índice: `@@index([tenantId, status, nextActionAt])` (o sweep busca casos devidos por tenant).
+
+### RecoveryAttempt (Tentativa de recuperação) — spec 0033
+
+Append-only: cada passo executado pelo sweep vira uma linha (timeline do caso).
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `id` | String (uuid) | PK |
+| `step` | Int | número do passo |
+| `channel` | String? | `whatsapp`/`email` |
+| `action` | String | `remind`/`switch_channel`/`offer_relief` (decisão do domínio) |
+| `result` | String? | `sent`/`failed`/`opened`/`paid` |
+| `occurredAt` | DateTime | quando ocorreu |
+| `caseId` | String | FK → RecoveryCase |
+| `tenantId` | String | escopo |
+
+Índice: `@@index([tenantId, caseId])`.
+
 ## Máquinas de estado
 
 ### Status do Cliente
@@ -220,6 +261,17 @@ PENDING ──► PAID
 - `PENDING` → `PAID`: via webhook, preenche `paidAt`.
 - **Máquina de estados** (`canTransitionInvoice`): `PAID` é **terminal** (não regride); mesmo-status é no-op. Aplicada no webhook (RN-P7).
 - ⚠️ No banco `status` ainda é `String` (não enum nativo Postgres) — conversão pendente (D-07/PR-15).
+
+### Status do RecoveryCase (spec 0033)
+```
+open ──► recovering ──► recovered   (pago / acordo)   [terminal]
+   │           │
+   │           ├───────► lost        (passos esgotados) [terminal]
+   │           │
+   └───────────┴───────► cancelled   (encerrado pelo dono) [terminal]
+```
+- Abre em `open`; ao avançar passos fica `recovering`.
+- `recovered`/`lost`/`cancelled` são **terminais** (fechamento idempotente).
 
 ## Regras de negócio
 
@@ -300,6 +352,19 @@ PENDING ──► PAID
 - **RN-ELO7**: A rota pública `/r/:token` tem **rate-limit próprio** (`linkLimiter`), separado do limite das rotas internas.
 - **RN-ELO8**: `type`/`channel` são constantes centralizadas (`src/domain/interaction.ts`); enum nativo é follow-up (junto de D-07).
 - **RN-ELO9**: **Semente da autonegociação (M2)**: `isHesitating` = `open >= N` e sem `paid`. v1 só expõe os dados (contagem por tipo em `GET /api/invoices/:id/events`); a oferta é do M2.
+
+### Recuperação de pagamento falho (ver `../specs/0033-recuperacao-pagamento-falho.md` — F1)
+- **RN-3301**: Ao uma fatura vencer, abre-se **um** `RecoveryCase` (idempotente: um caso aberto por fatura). `amountAtRisk = Invoice.value`.
+- **RN-3310**: Como não há job que marque vencidos por data, o **próprio sweep**, ao abrir o caso, marca a fatura `PENDING → OVERDUE` (`markOverdueByIds`) — o status reflete o vencimento em Faturas/Recuperações/Cockpit.
+- **RN-3302**: Enquanto o caso está aberto, a recuperação é a **dona da comunicação** da fatura; a régua (0026) **pula** faturas com caso ativo (`findActiveInvoiceIds`) — sem duplo envio.
+- **RN-3303**: O sweep avança **no máximo um passo/dia** por caso cujo `nextActionAt <= hoje` (idempotente por passo/dia).
+- **RN-3304**: O passo é **adaptativo** (`decideNextStep`, domínio puro): hesitação no Elo (`open >= hesitationOpens` e sem `pay_attempt`) com alívio ligado → `offer_relief`; senão `remind`.
+- **RN-3305**: Se o envio falha no canal atual, o próximo passo troca de canal (`switch_channel`, via `resolveChannels`/0032) antes de escalar.
+- **RN-3306**: Fecha como `recovered` no webhook `PAID`, na baixa manual (`outcome=paid`) **ou** no aceite de acordo (`outcome=agreement`) — via `closeCase(invoiceId, outcome)`, idempotente e cross-tenant.
+- **RN-3307**: Passos esgotados sem sucesso → `lost` (`outcome=sem_resposta`), visível no painel.
+- **RN-3308**: O dono pode encerrar manualmente → `cancelled` (`outcome=cancelado_pelo_dono`).
+- **RN-3309**: Tudo escopado por `tenantId`; cada ação grava um `RecoveryAttempt`.
+- Constantes do domínio: `DEFAULT_MAX_STEPS`, `DEFAULT_STEP_INTERVAL_DAYS` (`src/domain/recovery.ts`).
 
 ## Glossário
 

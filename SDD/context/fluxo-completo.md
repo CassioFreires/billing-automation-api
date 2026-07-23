@@ -147,6 +147,44 @@ Ou seja: **Assinatura** (molde mensal, spec 0009) + **Agendador de sistema** (fa
 
 ---
 
+## O terceiro ciclo: recuperação de pagamento falho (spec 0033 — F1)
+
+Os dois ciclos acima **cobram** e **desistem** quando a fatura vence sem pagar. O
+terceiro ciclo é quem **persegue a recuperação até um desfecho explícito** — o
+maior vazamento de um negócio recorrente é o churn involuntário (a assinatura
+morre porque um pagamento falhou e ninguém seguiu adiante).
+
+```
+[cron — 1 disparo/dia, ~11h05 (depois do billing 11h00)]
+   │ POST /api/system/recovery/run   (auth: x-cron-secret, cross-tenant)
+   ▼
+[RecoveryService.runAllTenants] → por tenant (runWithTenant):
+   ├─ ABRE casos: para cada fatura vencida sem caso, cria RecoveryCase
+   │    └─ e marca a fatura PENDING → OVERDUE (RN-3310), para o status bater
+   │       em Faturas / Recuperações / Cockpit (senão a fatura "nasce vencida"
+   │       ficaria como Pendente até a régua rodar)
+   └─ AVANÇA casos devidos (nextActionAt <= hoje), no máx. 1 passo/dia:
+        decideNextStep() [domínio puro] escolhe:
+          remind → switch_channel (se envio falhou) → offer_relief (se hesita
+          no Elo e o alívio 0018 está ligado) → give_up (passos esgotados)
+        enfileira o envio na invoice_queue (reusa o worker) e grava RecoveryAttempt
+```
+
+**Fronteira com a régua (0026):** enquanto um caso está **aberto**, ele é a
+**autoridade da comunicação** daquela fatura — a régua multipasso **pula** faturas
+com caso ativo (`findActiveInvoiceIds`), para **não haver duplo envio**. Régua =
+lembretes pré/pós-vencimento gentis; recuperação = orquestração pós-vencimento com
+desfecho.
+
+**Fechamento (RN-3306), fora do cron:** o caso fecha como `recovered` quando o
+**webhook confirma `PAID`** ou uma **baixa manual** acontece (`outcome = paid`), ou
+quando um **acordo é aceito** (`outcome = agreement`) — tudo idempotente, via
+`RecoveryService.closeCase(invoiceId, outcome)`. O dono ainda pode **encerrar
+manualmente** um caso (`cancelled`). Casos esgotados viram `lost` e aparecem no
+painel **Recuperações** e no card do Cockpit.
+
+---
+
 ## ⚠️ Divergência entre o README e o código (importante)
 
 O `README.md` descreve o envio assim: *"a API consome a fila e dispara um webhook para o **n8n**; o n8n aciona o WhatsApp"*. **No código atual não é assim.** O **worker chama o `WhatsappAPI` diretamente** (hoje em modo `log`). O n8n é o **agendador/orquestrador de entrada** (passos 1–3), não o destino final do worker.
