@@ -1,5 +1,6 @@
 import { InvoiceRepository } from '../repositories/invoice.repository.js';
 import { PaymentRepository } from '../repositories/payment.repository.js';
+import { RecoveryCaseRepository } from '../repositories/recovery-case.repository.js';
 import { RegisterManualPaymentDTO } from '../dtos/payment.dto.js';
 import { canTransitionInvoice, InvoiceStatus } from '../domain/status.js';
 
@@ -10,10 +11,16 @@ export class ConflictError extends Error {}
 export class PaymentService {
   private invoices: InvoiceRepository;
   private payments: PaymentRepository;
+  private recovery: RecoveryCaseRepository;
 
-  constructor(deps?: { invoices?: InvoiceRepository; payments?: PaymentRepository }) {
+  constructor(deps?: {
+    invoices?: InvoiceRepository;
+    payments?: PaymentRepository;
+    recovery?: RecoveryCaseRepository;
+  }) {
     this.invoices = deps?.invoices ?? new InvoiceRepository();
     this.payments = deps?.payments ?? new PaymentRepository();
+    this.recovery = deps?.recovery ?? new RecoveryCaseRepository();
   }
 
   /**
@@ -38,7 +45,7 @@ export class PaymentService {
     const amount = dto.amount ?? invoice.value; // RN-REC5: default = valor da fatura
     const paidAt = dto.paidAt ?? new Date();
 
-    return this.invoices.settleManually({
+    const settled = await this.invoices.settleManually({
       invoiceId,
       amount,
       method: dto.method,
@@ -46,6 +53,12 @@ export class PaymentService {
       note: dto.note,
       receiptUrl: dto.receiptUrl,
     });
+
+    // Fatura quitada por baixa manual → fecha o caso de recuperação, se houver
+    // (spec 0033, RN-3306). Best-effort e idempotente.
+    await this.recovery.closeByInvoiceId(invoiceId, 'paid').catch(() => {});
+
+    return settled;
   }
 
   /** Lista os pagamentos de uma fatura (escopo tenant). 404 se a fatura não existe. */

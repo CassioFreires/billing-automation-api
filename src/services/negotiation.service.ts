@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { InvoiceRepository } from '../repositories/invoice.repository.js';
 import { AgreementRepository } from '../repositories/agreement.repository.js';
 import { InteractionEventRepository } from '../repositories/interaction-event.repository.js';
+import { RecoveryCaseRepository } from '../repositories/recovery-case.repository.js';
 import { NegotiationSettingService } from './negotiation-setting.service.js';
 import { PaymentSettingService } from './payment-setting.service.js';
 import {
@@ -38,6 +39,7 @@ export class NegotiationService {
   private negotiationSettings: NegotiationSettingService;
   private paymentSettings: PaymentSettingService;
   private injectedGateway?: PaymentGatewayProvider;
+  private recovery: RecoveryCaseRepository;
 
   constructor(deps?: {
     invoiceRepository?: InvoiceRepository;
@@ -46,6 +48,7 @@ export class NegotiationService {
     negotiationSettings?: NegotiationSettingService;
     paymentSettings?: PaymentSettingService;
     gateway?: PaymentGatewayProvider;
+    recovery?: RecoveryCaseRepository;
   }) {
     this.invoiceRepository = deps?.invoiceRepository ?? new InvoiceRepository();
     this.agreements = deps?.agreements ?? new AgreementRepository();
@@ -53,6 +56,7 @@ export class NegotiationService {
     this.negotiationSettings = deps?.negotiationSettings ?? new NegotiationSettingService();
     this.paymentSettings = deps?.paymentSettings ?? new PaymentSettingService();
     this.injectedGateway = deps?.gateway;
+    this.recovery = deps?.recovery ?? new RecoveryCaseRepository();
   }
 
   private async gatewayForTenant(): Promise<PaymentGatewayProvider> {
@@ -186,6 +190,10 @@ export class NegotiationService {
           await this.invoiceRepository.deleteById(newInvoice.id).catch(() => {});
           return { created: false, agreement: result.agreement };
         }
+
+        // Acordo aceito supersede a original → fecha o caso de recuperação, se
+        // houver (spec 0033, RN-3306). Best-effort; idempotente no repositório.
+        await this.recovery.closeByInvoiceId(invoice.id, 'agreement').catch(() => {});
 
         return { created: true, agreement: result.agreement };
       } catch (error) {

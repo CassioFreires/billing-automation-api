@@ -31,6 +31,8 @@ model Account {
   onboardingState OnboardingState?
   reguaSetting ReguaSetting?
   channelSetting ChannelSetting?
+  recoveryCases RecoveryCase[]
+  recoveryAttempts RecoveryAttempt[]
 }
 
 // Assinatura do PRÓPRIO SaaS (spec 0020): a Adimplo cobra o tenant. 1:1 com
@@ -233,6 +235,7 @@ model Client {
   invoices  Invoice[]
   subscriptions Subscription[]
   interactionEvents InteractionEvent[]
+  recoveryCases RecoveryCase[]
 
   tenantId  String
   account   Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -268,6 +271,7 @@ model Invoice {
   items         InvoiceItem[] // detalhe do que está sendo cobrado (spec 0007)
   payments      Payment[]     // recebimentos (manual + gateway) — spec 0015
   events        InteractionEvent[] // eventos de interação (Elo) — spec 0016
+  recoveryCase  RecoveryCase? // caso de recuperação de pagamento falho (spec 0033, F1)
 
   // Autonegociação (spec 0018 — M2): acordos onde esta fatura é a ORIGINAL
   // (renegociada) ou a NOVA (gerada pelo acordo).
@@ -407,4 +411,56 @@ model PlatformAdmin {
   role         String   @default("SUPERADMIN") // SUPERADMIN | SUPPORT
   createdAt    DateTime @default(now())
   lastUpdate   DateTime @updatedAt
+}
+
+// Caso de recuperação de pagamento falho (spec 0033 — F1 "Guardião da Receita").
+// Orbita UMA fatura vencida: roda uma sequência adaptativa (lembrar → trocar canal
+// → ofertar alívio) até recuperar (webhook PAID / aceite de acordo) ou esgotar.
+model RecoveryCase {
+  id             String    @id @default(uuid())
+  reason         String    @default("overdue") // overdue | payment_failed | pix_unpaid | card_expired
+  status         String    @default("open")    // open | recovering | recovered | lost | cancelled
+  amountAtRisk   Decimal   @db.Decimal(12, 2)
+  currentStep    Int       @default(0)
+  lastChannel    String?   // whatsapp | email (canal do último envio)
+  reliefOffered  Boolean   @default(false)     // já ofertou alívio neste caso (não repetir)
+  nextActionAt   DateTime?
+  openedAt       DateTime  @default(now())
+  resolvedAt     DateTime?
+  outcome        String?   // paid | agreement | sem_resposta | cancelado_pelo_dono
+  lastUpdate     DateTime  @updatedAt
+
+  invoiceId      String    @unique // 1 caso por fatura (idempotência de abertura — RN-3301)
+  invoice        Invoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  clientId       String
+  client         Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  subscriptionId String?   // preenchido quando a fatura veio de assinatura (metadado)
+
+  tenantId       String
+  account        Account   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  attempts       RecoveryAttempt[]
+
+  @@index([tenantId, status, nextActionAt]) // varredura do sweep (casos devidos por tenant)
+  @@index([tenantId, status])
+}
+
+// Cada ação tomada num caso de recuperação (auditoria da sequência).
+model RecoveryAttempt {
+  id         String   @id @default(uuid())
+  step       Int
+  channel    String?  // whatsapp | email
+  action     String   // remind | switch_channel | offer_relief
+  result     String?  // sent | failed | opened | paid
+  occurredAt DateTime @default(now())
+
+  caseId     String
+  case       RecoveryCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  tenantId   String
+  account    Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, caseId])
 }

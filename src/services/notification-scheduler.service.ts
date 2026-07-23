@@ -1,5 +1,6 @@
 import { AccountRepository } from '../repositories/account.repository.js';
 import { InvoiceRepository } from '../repositories/invoice.repository.js';
+import { RecoveryCaseRepository } from '../repositories/recovery-case.repository.js';
 import { NotificationService } from './notication.service.js';
 import { ReguaSettingService } from './regua-setting.service.js';
 import { runWithTenant } from '../context/tenant-context.js';
@@ -26,17 +27,20 @@ export class NotificationSchedulerService {
   private invoices: InvoiceRepository;
   private notifications: NotificationService;
   private regua: ReguaSettingService;
+  private recovery: RecoveryCaseRepository;
 
   constructor(deps?: {
     accounts?: AccountRepository;
     invoices?: InvoiceRepository;
     notifications?: NotificationService;
     regua?: ReguaSettingService;
+    recovery?: RecoveryCaseRepository;
   }) {
     this.accounts = deps?.accounts ?? new AccountRepository();
     this.invoices = deps?.invoices ?? new InvoiceRepository();
     this.notifications = deps?.notifications ?? new NotificationService();
     this.regua = deps?.regua ?? new ReguaSettingService();
+    this.recovery = deps?.recovery ?? new RecoveryCaseRepository();
   }
 
   /**
@@ -75,10 +79,17 @@ export class NotificationSchedulerService {
     const candidates = await this.invoices.findReguaCandidates(500);
     if (candidates.length === 0) return 0;
 
+    // Corte (spec 0033): faturas com caso de recuperação ATIVO são do motor de
+    // recuperação (pós-vencimento) — a régua não envia para elas, evitando
+    // cobrança dobrada. Sem casos abertos (recuperação inativa), o Set é vazio e
+    // a régua se comporta exatamente como antes (sem regressão).
+    const inRecovery = new Set(await this.recovery.findActiveInvoiceIds());
+
     const offsets = steps.map((s) => s.offsetDays);
     let enqueued = 0;
 
     for (const inv of candidates) {
+      if (inRecovery.has(inv.id)) continue;
       const dias = daysFromDue(now, inv.dueDate);
       const step = selectDueStep(offsets, dias, inv.reminderStep);
       if (step === null) continue;

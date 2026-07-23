@@ -32,6 +32,7 @@ recebe/envia na própria conta).
 | Cache de leitura | Cache Redis (opcional) para faturas pendentes | ✅ Funcional com fallback |
 | Link próprio + eventos ("Elo") | Link do Adimplo (`/r/:token`) que registra abertura e redireciona; eventos de interação (`link_created`/`sent`/`open`/`paid`) como fonte única do comportamento — base de M2/M4/M5 (spec 0016) | ✅ Funcional (backend) — `delivered`/`read` dependem do webhook de status (D-02) |
 | Cockpit do dono (M4) | `GET /api/cockpit/overview`: KPIs de caixa (a receber/a vencer/em atraso/recebido), aging, contagem por status e fila de ações (vence essa semana + **hesitando**, do Elo) — spec 0017 | ✅ Funcional (backend) — previsão/DSO/score por cliente são evolução futura |
+| Recuperação de pagamento (F1) | Quando uma fatura vence, abre-se um `RecoveryCase` que **persegue a recuperação com escalonamento** (lembrar → trocar canal → ofertar alívio) até **recuperar** (pago/acordo) ou **encerrar como perdido**. Sweep cross-tenant (`POST /api/system/recovery/run`); ao abrir o caso também marca a fatura `PENDING → OVERDUE`. API do dono em `/api/recovery/cases`. Enquanto o caso está aberto, ele é o **dono da comunicação** (a régua 0026 não reenvia) — spec 0033 | ✅ Funcional (backend + frontend) — sequência configurável por tenant é evolução futura |
 
 ## Fluxo de negócio (visão macro)
 

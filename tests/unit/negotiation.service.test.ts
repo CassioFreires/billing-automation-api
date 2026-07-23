@@ -32,6 +32,8 @@ function makeDeps(overrides: any = {}) {
   const negotiationSettings = { getRules: vi.fn().mockResolvedValue(fullRules), get: vi.fn() };
   const paymentSettings = { getForCurrentTenant: vi.fn().mockResolvedValue({ provider: 'mock' }) };
   const gateway = { name: 'mock', createCharge: vi.fn().mockResolvedValue({ gatewayId: 'pay_x', pixCopyPaste: 'PIXNEW' }), verifyAndParseWebhook: vi.fn() };
+  // Recuperação (spec 0033): mock hermético — fecha o caso quando o acordo é aceito.
+  const recovery = { closeByInvoiceId: vi.fn().mockResolvedValue({ closed: false }) };
 
   const service = new NegotiationService({
     invoiceRepository: invoiceRepository as any,
@@ -40,8 +42,9 @@ function makeDeps(overrides: any = {}) {
     negotiationSettings: negotiationSettings as any,
     paymentSettings: paymentSettings as any,
     gateway: gateway as any,
+    recovery: recovery as any,
   });
-  return { service, invoiceRepository, agreements, gateway };
+  return { service, invoiceRepository, agreements, gateway, recovery };
 }
 
 const openInvoice = {

@@ -10,6 +10,7 @@ import { settingsRouter } from './routers/settings.router.js';
 import { healthRouter } from './routers/health.router.js';
 import { lgpdRouter } from './routers/lgpd.router.js';
 import { cockpitRouter } from './routers/cockpit.router.js';
+import { recoveryRouter } from './routers/recovery.router.js';
 import { publicAgreementRouter } from './routers/agreement.router.js';
 import { publicPortalRouter } from './routers/portal.router.js';
 import { billingRouter } from './routers/billing.router.js';
@@ -50,6 +51,8 @@ appRouter.use('/admin', adminRouter);
 appRouter.use('/system', systemRouter);
 appRouter.use('/lgpd', lgpdRouter);
 appRouter.use('/cockpit', cockpitRouter);
+// Recuperação de pagamento falho (spec 0033, F1): casos do dono (JWT).
+appRouter.use('/recovery', recoveryRouter);
 // Autonegociação PÚBLICA (spec 0018 — M2): sem JWT, tenant resolvido pela fatura.
 appRouter.use('/public/agreements', publicAgreementRouter);
 // Portal do pagador PÚBLICO (spec 0027): sem JWT, cliente resolvido pelo portalToken.
