@@ -236,6 +236,7 @@
   <nav class="toc" aria-label="Índice">
     <div class="toc-group">Começar</div>
     <a href="#antes">Antes de começar</a>
+    <a href="#roteiro">▶ Roteiro do zero</a>
     <a href="#novidades">O que há de novo</a>
     <a href="#mapa">Mapa do produto</a>
     <a href="#conceitos">Conceitos</a>
@@ -324,6 +325,162 @@
         <div>
           <p class="t">O Botão de Alívio, os multi-gateways, o plano do próprio Adimplo e o Console já estão no online.</p>
           <p>Tudo que este guia descreve foi deployado em <strong>produção</strong> (<code>useadimplo.com.br</code>). Pagamentos seguem <strong>simulados</strong> (mock) até você ligar contas reais dos provedores — o comportamento do produto é o final, só o dinheiro é fictício.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="roteiro">
+      <h2>▶ Roteiro do zero — o que fazer amanhã, na ordem</h2>
+      <p class="section-sub">Esta é a seção para <strong>começar do zero</strong> e entender o produto <strong>por completo</strong>. São duas trilhas independentes, cada uma na ordem exata de execução. Faça a <strong>Parte A</strong> (você no papel de cliente do SaaS) e depois a <strong>Parte B</strong> (você como dono do SaaS). Cada passo diz <em>onde clicar</em>, <em>o que fazer</em> e <em>o que esperar</em>, e aponta <span class="pill">→ detalhe</span> para a seção aprofundada.</p>
+
+      <div class="call info">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
+        <div>
+          <p class="t">Existem DOIS "admins" diferentes — não confunda (é o ponto que mais gera dúvida).</p>
+          <p><strong>1) Dono do sistema / negócio (tenant):</strong> quem assina o Adimplo para cobrar os <em>seus</em> clientes. Loga no app normal (<code>useadimplo.com.br</code>). Dentro da empresa dele ainda há papéis — <strong>Dono (OWNER)</strong>, <strong>Administrador (ADMIN)</strong> e <strong>Membro</strong> — geridos na aba <strong>Equipe</strong>. <em>Isto é a Parte A.</em></p>
+          <p><strong>2) Admin da plataforma (você / dono do SaaS):</strong> administra <em>todos os assinantes</em>. Loga num lugar <strong>separado</strong> (<code>/console</code>), com identidade e senha próprias. O dono do negócio <strong>nunca</strong> vê o console; você <strong>nunca</strong> é um tenant. <em>Isto é a Parte B.</em></p>
+          <p>Regra de ouro: token de tenant não abre <code>/console</code>, e token do console não abre o app do tenant. São mundos isolados.</p>
+        </div>
+      </div>
+
+      <figure class="fig">
+        <pre class="mermaid">
+%%{init: {'theme':'base','themeVariables':{'fontFamily':'system-ui, sans-serif','fontSize':'13px','lineColor':'#8aa0a8'}}}%%
+flowchart TB
+  subgraph A["PARTE A · Dono do negócio (app do tenant)"]
+    direction LR
+    a1["Criar conta"]:::owner --> a2["Onboarding<br/>Comece por aqui"]:::owner --> a3["Configurar:<br/>gateway·zap·canal·régua·alívio"]:::owner --> a4["Clientes<br/>(+e-mail)"]:::owner --> a5["Faturas /<br/>cobranças"]:::owner --> a6["Portal +<br/>acompanhar"]:::owner --> a7["Equipe·LGPD·<br/>Plano"]:::owner
+  end
+  subgraph B["PARTE B · Admin da plataforma (/console)"]
+    direction LR
+    b1["Entrar no<br/>/console"]:::plat --> b2["Métricas<br/>& MRR"]:::plat --> b3["Gerir<br/>assinantes"]:::plat --> b4["Impersonar<br/>+ auditoria"]:::plat
+  end
+  classDef owner fill:#0c7a6f,stroke:#0a5f57,color:#ffffff;
+  classDef plat fill:#5b3fb0,stroke:#472f8c,color:#ffffff;
+        </pre>
+        <figcaption>As duas trilhas do roteiro. Cada uma é independente e roda na ordem mostrada.</figcaption>
+      </figure>
+
+      <h3><span class="persona owner">● Parte A — Dono do sistema (empresa / tenant)</span></h3>
+      <p class="section-sub">Faça <strong>com uma conta NOVA</strong> (não a demo), para ver o produto nascer do zero — inclusive o onboarding guiado. Dica: crie em <code>localhost:5173</code> (local) ou no celular no 4G se a rede da empresa bloquear o online.</p>
+      <ol class="steps">
+        <li>
+          <h4>1 · Criar a conta do zero</h4>
+          <p>Abra o site → <strong>Criar conta</strong>. Preencha nome da empresa, seu e-mail e senha e <strong>marque o aceite dos Termos/Privacidade</strong> (obrigatório). Pode abrir <code>/termos</code> e <code>/privacidade</code> antes.</p>
+          <p class="expect"><span><b>Esperado:</b> conta criada, você entra logado e o aceite fica registrado (data + versão). <span class="pill">→ detalhe</span> <a href="#dono-login">Trilha do Dono · Entrar</a></span></p>
+        </li>
+        <li>
+          <h4>2 · Seguir o onboarding "Comece por aqui"</h4>
+          <p>No Dashboard aparece o card com 4 passos e barra de progresso: <strong>(1) recebimento</strong>, <strong>(2) WhatsApp</strong> (dá pra pular), <strong>(3) 1º cliente</strong>, <strong>(4) 1ª cobrança</strong>. Cada botão leva direto à ação. Não precisa terminar agora — os próximos passos detalham cada um.</p>
+          <p class="expect"><span><b>Esperado:</b> cada passo se marca sozinho quando o dado real existe; o card some ao concluir os 4 (ou no ×). <span class="pill">→ detalhe</span> <a href="#dono-login">Onboarding guiado</a></span></p>
+        </li>
+        <li>
+          <h4>3 · Configurar o gateway de pagamento</h4>
+          <p>Menu → <strong>Configurações → Gateway de pagamento</strong>. Para testar, deixe <strong>Simulado</strong> (não cobra de verdade). Para real, escolha o provedor (Asaas, PagBank, Efí, Stripe, Pagar.me) e cole as credenciais — ficam criptografadas.</p>
+          <p class="expect"><span><b>Esperado:</b> "Gateway salvo". As próximas cobranças nascem nesse provedor. <span class="pill">→ detalhe</span> <a href="#dono-config">Configuração · Gateway</a></span></p>
+        </li>
+        <li>
+          <h4>4 · Configurar o WhatsApp</h4>
+          <p>Ainda em <strong>Configurações → WhatsApp</strong>. Deixe <strong>Simulado (log)</strong> para testar (registra, não envia) ou <strong>Meta Cloud API</strong> com suas credenciais para enviar de verdade.</p>
+          <p class="expect"><span><b>Esperado:</b> "Configuração de WhatsApp salva". <span class="pill">→ detalhe</span> <a href="#dono-config">Configuração · WhatsApp</a></span></p>
+        </li>
+        <li>
+          <h4>5 · Escolher o canal de envio <span class="pill new">novo</span></h4>
+          <p><strong>Configurações → Canal de envio</strong>: <strong>Somente WhatsApp</strong> (padrão), <strong>Somente e-mail</strong> ou <strong>WhatsApp + e-mail</strong>. Se escolher e-mail, lembre de cadastrar o e-mail dos clientes (passo 7). Sem e-mail no cliente, o envio <strong>cai automaticamente no WhatsApp</strong>.</p>
+          <p class="expect"><span><b>Esperado:</b> "Canal salvo". O e-mail está em modo simulado (só registra no log), igual ao WhatsApp.</span></p>
+        </li>
+        <li>
+          <h4>6 · Montar a régua de cobrança <span class="pill new">novo</span></h4>
+          <p><strong>Configurações → Régua de cobrança</strong>. Ative e defina os passos (ex.: <strong>-3, 0, +3, +7</strong> dias do vencimento) com mensagens usando <code>{nome}</code> e <code>{valor}</code>. Use "Usar sugestão" para começar rápido.</p>
+          <p class="expect"><span><b>Esperado:</b> "Régua salva". O agendador passa a enviar o passo devido de cada fatura, uma vez cada. Desligada, vale o lembrete simples. <span class="pill">→ detalhe</span> <a href="#dono-config">Configuração · Régua</a></span></p>
+        </li>
+        <li>
+          <h4>7 · (Opcional) Ligar o Botão de Alívio de Caixa</h4>
+          <p><strong>Configurações → Botão de Alívio</strong>. Ative e defina os limites: nº de aberturas para disparar, desconto à vista, nº de parcelas e prazo/taxa de adiamento. É recurso do plano Pro.</p>
+          <p class="expect"><span><b>Esperado:</b> "Regras de alívio salvas". O pagador que hesitar (abre e não paga) verá a oferta sozinho. <span class="pill">→ detalhe</span> <a href="#cons-alivio">Botão de Alívio</a></span></p>
+        </li>
+        <li>
+          <h4>8 · Cadastrar clientes (com e-mail) ou importar CSV</h4>
+          <p><strong>Clientes → Novo cliente</strong>: nome, telefone, documento e agora <strong>e-mail (opcional)</strong> <span class="pill new">novo</span>. Ou <strong>Importar CSV</strong> para subir vários (mapeia colunas, inclusive e-mail; atualiza pelos telefones existentes).</p>
+          <p class="expect"><span><b>Esperado:</b> clientes na lista; telefone é único por conta. <span class="pill">→ detalhe</span> <a href="#dono-clientes">Clientes</a></span></p>
+        </li>
+        <li>
+          <h4>9 · Emitir cobranças (avulsas ou em lote)</h4>
+          <p><strong>Faturas → Nova cobrança</strong>: escolha o cliente, valor e vencimento. Para volume, <strong>Faturas → Importar CSV</strong> resolve o cliente pelo telefone.</p>
+          <p class="expect"><span><b>Esperado:</b> a fatura nasce <span class="pill pend">Pendente</span> com PIX e um <strong>link próprio do Adimplo</strong>. <span class="pill">→ detalhe</span> <a href="#dono-fatura">Faturas</a></span></p>
+        </li>
+        <li>
+          <h4>10 · Compartilhar o Portal do pagador <span class="pill new">novo</span></h4>
+          <p>Em <strong>Clientes</strong>, clique no <strong>ícone de link 🔗</strong> na linha do cliente: copia <code>/portal/&lt;token&gt;</code> — uma página pública com <strong>todas</strong> as cobranças dele (em aberto com botão Pagar + histórico). Envie esse link ao cliente.</p>
+          <p class="expect"><span><b>Esperado:</b> link copiado; ao abrir, mostra abertas + histórico e o total em aberto. <span class="pill">→ detalhe</span> <a href="#cons-link">Trilha do Pagador</a></span></p>
+        </li>
+        <li>
+          <h4>11 · Acompanhar no Painel Geral e ver o Valor recuperado</h4>
+          <p>Volte ao <strong>Dashboard</strong>: A receber, Em atraso, Recebido (7/30/90d), Inadimplência, aging e as filas "Vence essa semana" / "Hesitando". O card <strong>Valor recuperado</strong> <span class="pill new">novo</span> mostra o atrasado que virou caixa.</p>
+          <p class="expect"><span><b>Esperado:</b> os números refletem o que você criou. <span class="pill">→ detalhe</span> <a href="#dono-cockpit">Painel Geral</a></span></p>
+        </li>
+        <li>
+          <h4>12 · Dar baixa (simular pagamento)</h4>
+          <p>Em <strong>Faturas</strong>, use <strong>Dar baixa</strong> numa fatura para marcá-la <span class="pill paid">Paga</span> (no real, o webhook do gateway faz isso sozinho). Dê baixa numa <em>vencida</em> para ver o "Valor recuperado" subir.</p>
+          <p class="expect"><span><b>Esperado:</b> fatura vira Paga; Painel recalcula. <span class="pill">→ detalhe</span> <a href="#dono-baixa">Dar baixa</a></span></p>
+        </li>
+        <li>
+          <h4>13 · (Opcional) Criar uma assinatura recorrente</h4>
+          <p><strong>Assinaturas</strong> gera faturas repetidas (mensalidade) automaticamente para um cliente.</p>
+          <p class="expect"><span><b>Esperado:</b> novas faturas nascem no ciclo definido. <span class="pill">→ detalhe</span> <a href="#dono-assinatura">Assinaturas</a></span></p>
+        </li>
+        <li>
+          <h4>14 · Gerir a Equipe e papéis <span class="pill new">novo</span></h4>
+          <p><strong>Equipe</strong> (aparece só para Dono/Admin) → <strong>Convidar</strong>: nome, e-mail, senha e papel (<strong>Administrador</strong> ou <strong>Membro</strong>). Teste entrar com um Membro e confirme que ele <em>não</em> vê a aba Equipe.</p>
+          <p class="expect"><span><b>Esperado:</b> o convidado acessa conforme o papel; regras impedem remover o último Dono e um Admin gerir o Dono.</span></p>
+        </li>
+        <li>
+          <h4>15 · Testar os direitos de LGPD <span class="pill new">novo</span></h4>
+          <p><strong>Configurações → Privacidade e dados</strong>: <strong>exportar</strong> ou <strong>anonimizar</strong> um cliente, e <strong>exportar</strong> ou <strong>encerrar</strong> a própria conta (encerrar pede o nome exato como confirmação). Um cliente anonimizado deixa de ter portal (404).</p>
+          <p class="expect"><span><b>Esperado:</b> download do JSON no exportar; anonimizar mantém as faturas mas apaga os dados pessoais.</span></p>
+        </li>
+        <li>
+          <h4>16 · Entender o seu plano Adimplo (trial / paywall)</h4>
+          <p>Em <strong>Plano</strong>: a conta nova entra com <strong>14 dias de trial</strong> (recursos Pro). Ao expirar, ações de <em>escrita</em> bloqueiam até assinar (Free/Essencial/Pro). É a cobrança do próprio SaaS.</p>
+          <p class="expect"><span><b>Esperado:</b> ao expirar o trial, criar cobrança/cliente pede upgrade. <span class="pill">→ detalhe</span> <a href="#dono-plano">Seu plano Adimplo</a></span></p>
+        </li>
+      </ol>
+
+      <h3><span class="persona plat">● Parte B — Admin da plataforma (você, no /console)</span></h3>
+      <p class="section-sub">O painel <strong>separado</strong> do dono do SaaS. Nada aqui aparece para o cliente. Use a conta do console (veja o cabeçalho desta página); a senha é entregue à parte.</p>
+      <ol class="steps">
+        <li>
+          <h4>1 · Entrar no console</h4>
+          <p>Abra <a href="https://useadimplo.com.br/console/login">useadimplo.com.br/console/login</a> (layout e login próprios, diferentes do app). Entre com a identidade da plataforma.</p>
+          <p class="expect"><span><b>Esperado:</b> cai no painel do console. Um token de tenant <em>não</em> abre aqui (403). <span class="pill">→ detalhe</span> <a href="#console-entrar">Entrar no console</a></span></p>
+        </li>
+        <li>
+          <h4>2 · Ler as métricas e o MRR</h4>
+          <p>Veja os indicadores da operação inteira: total de assinantes, ativos/suspensos, distribuição por plano e o <strong>MRR</strong> (receita recorrente mensal).</p>
+          <p class="expect"><span><b>Esperado:</b> números agregados de todos os tenants. <span class="pill">→ detalhe</span> <a href="#console-metricas">Métricas &amp; MRR</a></span></p>
+        </li>
+        <li>
+          <h4>3 · Gerir os assinantes</h4>
+          <p>Na tabela de tenants: <strong>suspender/reativar</strong> uma conta e <strong>mudar o plano</strong> dela. Suspender ativa o paywall no app daquele cliente.</p>
+          <p class="expect"><span><b>Esperado:</b> a ação reflete no acesso do tenant; tudo fica registrado na auditoria. <span class="pill">→ detalhe</span> <a href="#console-tenants">Gerir assinantes</a></span></p>
+        </li>
+        <li>
+          <h4>4 · Impersonar (entrar como) para dar suporte</h4>
+          <p>Use <strong>"Entrar como"</strong> num tenant: abre o app dele com um <strong>banner de impersonação</strong>. É auditado (fica quem entrou, quando). Ao clicar <strong>Sair</strong>, você volta ao console.</p>
+          <p class="expect"><span><b>Esperado:</b> você vê o app do cliente em modo suporte; o banner deixa claro que é impersonação. <span class="pill">→ detalhe</span> <a href="#console-tenants">Impersonar</a></span></p>
+        </li>
+        <li>
+          <h4>5 · Confirmar o isolamento (segurança)</h4>
+          <p>Prove que os mundos não se misturam: logado no app do tenant, tente abrir <code>/console</code> → barrado. E o token do console não acessa rotas do tenant.</p>
+          <p class="expect"><span><b>Esperado:</b> acesso cruzado sempre negado (403). É o desenho de segurança da spec 0031. <span class="pill">→ detalhe</span> <a href="#console">Console da Plataforma</a></span></p>
+        </li>
+      </ol>
+
+      <div class="call info">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg>
+        <div>
+          <p class="t">Fez as duas partes? Então você viu o produto inteiro.</p>
+          <p>O resto deste guia aprofunda cada tela (trilhas do Dono, do Pagador e do Console), mostra os <a href="#bastidores">bastidores</a> (fila, worker, webhook, conciliação), traz <a href="#sim">simulações</a> de cenários reais e a <a href="#checklist">checklist</a> final para marcar tudo que testou.</p>
         </div>
       </div>
     </section>
@@ -984,7 +1141,7 @@ flowchart LR
     </section>
 
     <div class="foot">
-      <p><strong>Atualizado em 21/07/2026.</strong> Inclui os canais de envio (WhatsApp/e-mail, com fallback), multi-usuário e papéis (Equipe), o portal do pagador, a régua de cobrança multi-passo, o valor recuperado (ROI) e o import de faturas por CSV, o onboarding guiado ("Comece por aqui"), a camada de LGPD visível (Política/Termos, aceite no cadastro, exportar/anonimizar/encerrar), o multi-gateway de pagamento (Asaas, PagBank, Efí, Stripe, Pagar.me), a cobrança do próprio Adimplo (planos Free/Essencial/Pro com trial e paywall) e o Console da Plataforma separado (<code>/console</code>). Guia de testes do Adimplo · ambiente de demonstração. No online, acesse pelo celular (4G/5G) se a rede da empresa bloquear o domínio. Pagamentos seguem <strong>simulados</strong> até ligar contas reais dos provedores. Para reiniciar os dados demo, fale com o time técnico.</p>
+      <p><strong>Atualizado em 21/07/2026.</strong> Agora abre com o <strong>Roteiro do zero</strong> — o passo a passo completo do Dono do sistema e do Admin da plataforma, na ordem, para testar tudo do zero. Inclui os canais de envio (WhatsApp/e-mail, com fallback), multi-usuário e papéis (Equipe), o portal do pagador, a régua de cobrança multi-passo, o valor recuperado (ROI) e o import de faturas por CSV, o onboarding guiado ("Comece por aqui"), a camada de LGPD visível (Política/Termos, aceite no cadastro, exportar/anonimizar/encerrar), o multi-gateway de pagamento (Asaas, PagBank, Efí, Stripe, Pagar.me), a cobrança do próprio Adimplo (planos Free/Essencial/Pro com trial e paywall) e o Console da Plataforma separado (<code>/console</code>). Guia de testes do Adimplo · ambiente de demonstração. No online, acesse pelo celular (4G/5G) se a rede da empresa bloquear o domínio. Pagamentos seguem <strong>simulados</strong> até ligar contas reais dos provedores. Para reiniciar os dados demo, fale com o time técnico.</p>
     </div>
   </main>
 </div>
