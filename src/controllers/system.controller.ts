@@ -2,16 +2,19 @@ import { Request, Response } from 'express';
 import { BillingSchedulerService } from '../services/billing-scheduler.service.js';
 import { NotificationSchedulerService } from '../services/notification-scheduler.service.js';
 import { PlatformSubscriptionService } from '../services/platform-subscription.service.js';
+import { RecoveryService } from '../services/recovery.service.js';
 
 export class SystemController {
   private scheduler: BillingSchedulerService;
   private notificationScheduler: NotificationSchedulerService;
   private platform: PlatformSubscriptionService;
+  private recovery: RecoveryService;
 
   constructor() {
     this.scheduler = new BillingSchedulerService();
     this.notificationScheduler = new NotificationSchedulerService();
     this.platform = new PlatformSubscriptionService();
+    this.recovery = new RecoveryService();
   }
 
   /**
@@ -55,6 +58,20 @@ export class SystemController {
     try {
       const result = await this.platform.runRenewals();
       return res.status(200).json({ message: 'Varredura de assinaturas concluída.', ...result });
+    } catch (error: any) {
+      return res.status(500).json({ error: error.message });
+    }
+  }
+
+  /**
+   * Sweep de recuperação de pagamento falho (spec 0033, F1): abre casos para
+   * vencidos e avança os devidos, enfileirando o envio no invoice worker.
+   * Chamado pelo cron. Responde 202 (o envio é assíncrono).
+   */
+  async runRecovery(_req: Request, res: Response) {
+    try {
+      const result = await this.recovery.runAllTenants();
+      return res.status(202).json({ message: 'Recuperação de pagamentos processada.', ...result });
     } catch (error: any) {
       return res.status(500).json({ error: error.message });
     }

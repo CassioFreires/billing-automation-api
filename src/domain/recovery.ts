@@ -21,6 +21,10 @@ export const RECOVERY_ACTIONS = [
 ] as const;
 export type RecoveryAction = (typeof RECOVERY_ACTIONS)[number];
 
+/** Config-padrão da sequência (v1; sequência por-tenant é follow-up). */
+export const DEFAULT_MAX_STEPS = 4;
+export const DEFAULT_STEP_INTERVAL_DAYS = 3;
+
 export interface RecoveryDecisionInput {
   /** Passos já executados neste caso. */
   currentStep: number;

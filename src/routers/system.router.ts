@@ -18,4 +18,7 @@ systemRouter.post('/notifications/run', controller.runNotifications.bind(control
 // Varredura da cobrança do SaaS (spec 0020): expira trials/períodos vencidos.
 systemRouter.post('/platform-billing/run', controller.runPlatformBilling.bind(controller));
 
+// Sweep de recuperação de pagamento falho (spec 0033, F1): abre/avança casos.
+systemRouter.post('/recovery/run', controller.runRecovery.bind(controller));
+
 export { systemRouter };
