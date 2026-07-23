@@ -23,6 +23,7 @@
 | `helmet` | ^8 | Headers de segurança HTTP (HSTS, no-sniff, etc.) |
 | `express-rate-limit` | ^7 | Rate limiting por IP (geral + `/auth` estrito). Requer `trust proxy` |
 | `dotenv` | ^17.4.2 | Variáveis de ambiente |
+| `nodemailer` | ^7 | Envio de e-mail por SMTP (`SmtpEmailProvider`, spec 0032) — genérico (Resend/Brevo/Gmail/SES/Mailtrap) |
 
 ## Dependências de desenvolvimento
 
@@ -83,6 +84,9 @@ Carregadas via `dotenv` — `src/server.ts` e `src/worker.ts` fazem `import 'dot
 | `MP_BASE_URL` | ➖ | `payment/mercadopago.gateway.ts` | Base da API do MP (default `https://api.mercadopago.com`) |
 | `CRON_SECRET` | ✅ (p/ scheduler) | `auth.config.ts`, `cron.middleware.ts` | Segredo `x-cron-secret` dos endpoints de sistema cross-tenant (`/api/system/*`, specs 0010/0013) |
 | `ENCRYPTION_KEY` | ✅ (p/ salvar token WhatsApp) | `infrastructure/crypto.ts` | Chave AES-256-GCM (64 hex = `openssl rand -hex 32`) que cifra segredos por tenant em repouso (D-17). Tokens legados em texto seguem legíveis sem ela |
+| `EMAIL_PROVIDER` | ➖ | `apis/email.api.ts` | `log` (default, só loga) ou `smtp` (envia via nodemailer). Spec 0032 |
+| `SMTP_HOST` / `SMTP_USER` / `SMTP_PASS` / `EMAIL_FROM` | condicional | `apis/email.api.ts` | Obrigatórias se `EMAIL_PROVIDER=smtp`. Genéricas: atendem Resend/Brevo/Gmail/SES/Mailtrap trocando só o host/credenciais |
+| `SMTP_PORT` / `SMTP_SECURE` | ➖ | `apis/email.api.ts` | Porta (default `587`) e TLS. `SMTP_SECURE` default: `true` na porta 465 (TLS direto), `false` nas demais (STARTTLS) |
 
 > **Config por tenant (specs 0012/0014):** pagamento e WhatsApp são resolvidos
 > **por tenant** a partir de `PaymentSetting`/`WhatsappSetting` no banco
