@@ -47,5 +47,13 @@ run_step() {
 # 1) Gera as faturas recorrentes (assinaturas vencidas).
 run_step "/api/system/billing/run" "Cobrança recorrente"
 
-# 2) Enfileira as notificações dos vencidos (envio roda no worker).
+# 2) Recuperação de pagamento falho (spec 0033, F1): abre/avança os casos dos
+#    vencidos ANTES da régua rodar — assim a régua pula faturas com caso ativo
+#    (findActiveInvoiceIds) e não há duplo envio no primeiro dia de atraso.
+#    NÃO-FATAL: uma falha aqui não pode bloquear as notificações (money path).
+run_step "/api/system/recovery/run" "Recuperação de pagamento" || \
+  echo "$(date '+%Y-%m-%d %H:%M:%S') AVISO: recuperação falhou; seguindo para as notificações." >&2
+
+# 3) Enfileira as notificações dos vencidos (envio roda no worker).
+#    A régua pula faturas que já estão sob um caso de recuperação ativo.
 run_step "/api/system/notifications/run" "Notificações de vencidos"
