@@ -1,5 +1,6 @@
 import { AccountRepository } from '../repositories/account.repository.js';
 import { RecoveryCaseRepository } from '../repositories/recovery-case.repository.js';
+import { InvoiceRepository } from '../repositories/invoice.repository.js';
 import { InteractionEventRepository } from '../repositories/interaction-event.repository.js';
 import { NotificationService } from './notication.service.js';
 import { ChannelSettingService } from './channel-setting.service.js';
@@ -35,6 +36,7 @@ export interface RecoveryRunResult {
 export class RecoveryService {
   private accounts: AccountRepository;
   private recovery: RecoveryCaseRepository;
+  private invoices: InvoiceRepository;
   private events: InteractionEventRepository;
   private notifications: NotificationService;
   private channels: ChannelSettingService;
@@ -43,6 +45,7 @@ export class RecoveryService {
   constructor(deps?: {
     accounts?: AccountRepository;
     recovery?: RecoveryCaseRepository;
+    invoices?: InvoiceRepository;
     events?: InteractionEventRepository;
     notifications?: NotificationService;
     channels?: ChannelSettingService;
@@ -50,6 +53,7 @@ export class RecoveryService {
   }) {
     this.accounts = deps?.accounts ?? new AccountRepository();
     this.recovery = deps?.recovery ?? new RecoveryCaseRepository();
+    this.invoices = deps?.invoices ?? new InvoiceRepository();
     this.events = deps?.events ?? new InteractionEventRepository();
     this.notifications = deps?.notifications ?? new NotificationService();
     this.channels = deps?.channels ?? new ChannelSettingService();
@@ -93,6 +97,9 @@ export class RecoveryService {
         tenantId,
       });
     }
+    // Alinha o status da fatura ao vencimento (PENDING → OVERDUE), para o estado
+    // bater em Faturas/Recuperações/Cockpit (RN-3310).
+    await this.invoices.markOverdueByIds(overdue.map((inv) => inv.id));
     return overdue.length;
   }
 

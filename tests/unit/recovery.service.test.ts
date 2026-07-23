@@ -17,6 +17,7 @@ function makeMocks() {
       findByIdForTenant: vi.fn().mockResolvedValue(null),
       cancelById: vi.fn().mockResolvedValue({ cancelled: true }),
     },
+    invoices: { markOverdueByIds: vi.fn().mockResolvedValue(0) },
     events: { countsByInvoice: vi.fn().mockResolvedValue({}) },
     notifications: { queueOverdueInvoices: vi.fn().mockResolvedValue({ enqueued: 1 }) },
     channels: { get: vi.fn().mockResolvedValue({ channel: 'whatsapp' }) },
@@ -67,6 +68,8 @@ describe('RecoveryService (spec 0033 — F1)', () => {
     expect(m.recovery.openCase).toHaveBeenCalledWith(
       expect.objectContaining({ invoiceId: 'inv1', tenantId: 't1', amountAtRisk: 100, nextActionAt: NOW })
     );
+    // RN-3310: marca a fatura vencida como OVERDUE ao abrir o caso.
+    expect(m.invoices.markOverdueByIds).toHaveBeenCalledWith(['inv1']);
   });
 
   it('avança um caso sem hesitação → remind (enfileira e registra)', async () => {

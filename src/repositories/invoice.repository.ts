@@ -608,6 +608,22 @@ export class InvoiceRepository {
     return result;
   }
 
+  /**
+   * Marca faturas vencidas como OVERDUE (só `PENDING → OVERDUE`, respeitando a
+   * máquina de estados). Usado pelo motor de recuperação (spec 0033) ao abrir o
+   * caso, para o status da fatura refletir o vencimento em todas as telas.
+   * `updateMany` escopado por tenant; retorna quantas foram atualizadas.
+   */
+  async markOverdueByIds(ids: string[]): Promise<number> {
+    if (ids.length === 0) return 0;
+    const res = await prisma.invoice.updateMany({
+      where: { id: { in: ids }, tenantId: requireTenantId(), status: 'PENDING' },
+      data: { status: 'OVERDUE' },
+    });
+    await this.clearPendingInvoicesCache();
+    return res.count;
+  }
+
   async clearPendingInvoicesCache() {
 
     try {

@@ -32,6 +32,9 @@ para o passo de alívio). Bloqueio de acesso (F12) é consumidor futuro do desfe
 
 - **RN-3301** — Ao uma fatura entrar em `OVERDUE`, abre-se **um** `RecoveryCase`
   (idempotente: um caso aberto por fatura). `amountAtRisk = Invoice.value`.
+- **RN-3310** — Como não há job que marque vencidos por data, o próprio sweep, ao
+  abrir o caso, marca a fatura `PENDING → OVERDUE` (`markOverdueByIds`), para o
+  status refletir o vencimento em todas as telas (Faturas/Recuperações/Cockpit).
 - **RN-3302** — A recuperação é o **dono** da comunicação da fatura enquanto o caso
   está aberto (evita conflito/duplo envio com a régua 0026, que cuida do
   pré-vencimento/lembrete gentil). Ver §9.
