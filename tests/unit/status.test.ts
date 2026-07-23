@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   canTransitionInvoice,
   shouldRecordGatewayPayment,
+  effectiveInvoiceStatus,
   InvoiceStatus,
 } from '../../src/domain/status.js';
 
@@ -65,5 +66,42 @@ describe('shouldRecordGatewayPayment (RN-REC3, anti-duplicação)', () => {
   it('NÃO registra quando o novo status não é PAID', () => {
     expect(shouldRecordGatewayPayment('PENDING', 'PENDING')).toBe(false);
     expect(shouldRecordGatewayPayment('PENDING', 'FAILED')).toBe(false);
+  });
+});
+
+describe('effectiveInvoiceStatus (spec 0034 — "vencida" derivada da data)', () => {
+  const now = new Date('2026-07-23T12:00:00.000Z');
+  const ontem = new Date('2026-07-22T12:00:00.000Z');
+  const amanha = new Date('2026-07-24T12:00:00.000Z');
+
+  it('PENDING com vencimento no passado → OVERDUE (o coração da regra)', () => {
+    expect(effectiveInvoiceStatus('PENDING', ontem, now)).toBe('OVERDUE');
+  });
+
+  it('PENDING com vencimento no futuro → continua PENDING', () => {
+    expect(effectiveInvoiceStatus('PENDING', amanha, now)).toBe('PENDING');
+  });
+
+  it('vencimento exatamente agora não conta como vencida (só depois de passar)', () => {
+    expect(effectiveInvoiceStatus('PENDING', now, now)).toBe('PENDING');
+  });
+
+  it('aceita dueDate como string ISO (payload da API)', () => {
+    expect(effectiveInvoiceStatus('PENDING', '2026-07-22T12:00:00.000Z', now)).toBe('OVERDUE');
+  });
+
+  it('nunca mexe em status terminais/explícitos (PAID/FAILED/RENEGOTIATED)', () => {
+    expect(effectiveInvoiceStatus('PAID', ontem, now)).toBe('PAID');
+    expect(effectiveInvoiceStatus('FAILED', ontem, now)).toBe('FAILED');
+    expect(effectiveInvoiceStatus('RENEGOTIATED', ontem, now)).toBe('RENEGOTIATED');
+  });
+
+  it('OVERDUE já persistido é preservado', () => {
+    expect(effectiveInvoiceStatus('OVERDUE', ontem, now)).toBe('OVERDUE');
+  });
+
+  it('sem dueDate ou data inválida → devolve o status cru (fail-safe)', () => {
+    expect(effectiveInvoiceStatus('PENDING', null, now)).toBe('PENDING');
+    expect(effectiveInvoiceStatus('PENDING', 'nao-e-data', now)).toBe('PENDING');
   });
 });

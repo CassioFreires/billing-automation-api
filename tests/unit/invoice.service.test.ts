@@ -273,12 +273,25 @@ describe('InvoiceService.listInvoices', () => {
 });
 
 describe('InvoiceService.getInvoiceById', () => {
-  it('retorna a fatura quando existe', async () => {
+  it('retorna a fatura quando existe, com statusEfetivo derivado (spec 0034)', async () => {
     const { service, invoiceRepository } = makeService();
     invoiceRepository.findById.mockResolvedValue({ id: 'inv1', status: 'PAID' });
     const result = await service.getInvoiceById('inv1');
     expect(invoiceRepository.findById).toHaveBeenCalledWith('inv1');
-    expect(result).toEqual({ id: 'inv1', status: 'PAID' });
+    // PAID não é derivado — statusEfetivo espelha o status.
+    expect(result).toEqual({ id: 'inv1', status: 'PAID', statusEfetivo: 'PAID' });
+  });
+
+  it('PENDING vencida vira OVERDUE no statusEfetivo (spec 0034)', async () => {
+    const { service, invoiceRepository } = makeService();
+    invoiceRepository.findById.mockResolvedValue({
+      id: 'inv2',
+      status: 'PENDING',
+      dueDate: new Date('2000-01-01T00:00:00.000Z'), // bem no passado
+    });
+    const result = await service.getInvoiceById('inv2');
+    expect(result?.statusEfetivo).toBe('OVERDUE');
+    expect(result?.status).toBe('PENDING'); // campo cru preservado
   });
 
   it('retorna null quando não existe', async () => {
