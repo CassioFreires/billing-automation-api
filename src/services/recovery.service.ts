@@ -172,6 +172,21 @@ export class RecoveryService {
   async closeCase(invoiceId: string, outcome: 'paid' | 'agreement'): Promise<{ closed: boolean }> {
     return this.recovery.closeByInvoiceId(invoiceId, outcome);
   }
+
+  /** Casos do tenant atual (painel/aba "Recuperações"). */
+  async listCases() {
+    return this.recovery.listForTenant();
+  }
+
+  /** Detalhe de um caso do tenant atual (com timeline). */
+  async getCase(id: string) {
+    return this.recovery.findByIdForTenant(id);
+  }
+
+  /** Encerramento manual pelo dono (RN-3308). */
+  async cancelCase(id: string) {
+    return this.recovery.cancelById(id);
+  }
 }
 
 /** Mensagem do passo: o worker anexa o link (Elo → /pagar, onde o alívio aparece). */

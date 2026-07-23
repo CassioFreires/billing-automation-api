@@ -215,4 +215,104 @@ export class RecoveryCaseRepository {
     });
     return { closed: true };
   }
+
+  /** Lista os casos do tenant atual (para o painel/aba "Recuperações"). */
+  async listForTenant(limit = 200) {
+    const tenantId = requireTenantId();
+    const rows = await prisma.recoveryCase.findMany({
+      where: { tenantId },
+      orderBy: [{ status: 'asc' }, { nextActionAt: 'asc' }],
+      take: limit,
+      select: {
+        id: true,
+        status: true,
+        reason: true,
+        amountAtRisk: true,
+        currentStep: true,
+        reliefOffered: true,
+        nextActionAt: true,
+        openedAt: true,
+        resolvedAt: true,
+        outcome: true,
+        invoiceId: true,
+        invoice: { select: { value: true, dueDate: true, client: { select: { name: true } } } },
+      },
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      status: r.status,
+      reason: r.reason,
+      amountAtRisk: Number(r.amountAtRisk),
+      currentStep: r.currentStep,
+      reliefOffered: r.reliefOffered,
+      nextActionAt: r.nextActionAt,
+      openedAt: r.openedAt,
+      resolvedAt: r.resolvedAt,
+      outcome: r.outcome,
+      invoiceId: r.invoiceId,
+      clientName: r.invoice.client.name,
+      invoiceValue: Number(r.invoice.value),
+      dueDate: r.invoice.dueDate,
+    }));
+  }
+
+  /** Detalhe de um caso do tenant atual, com a timeline de tentativas. */
+  async findByIdForTenant(id: string) {
+    const tenantId = requireTenantId();
+    const c = await prisma.recoveryCase.findFirst({
+      where: { id, tenantId },
+      select: {
+        id: true,
+        status: true,
+        reason: true,
+        amountAtRisk: true,
+        currentStep: true,
+        lastChannel: true,
+        reliefOffered: true,
+        nextActionAt: true,
+        openedAt: true,
+        resolvedAt: true,
+        outcome: true,
+        invoiceId: true,
+        invoice: { select: { value: true, dueDate: true, client: { select: { name: true, phone: true } } } },
+        attempts: {
+          orderBy: { occurredAt: 'desc' },
+          select: { step: true, channel: true, action: true, result: true, occurredAt: true },
+        },
+      },
+    });
+    if (!c) return null;
+    return {
+      id: c.id,
+      status: c.status,
+      reason: c.reason,
+      amountAtRisk: Number(c.amountAtRisk),
+      currentStep: c.currentStep,
+      lastChannel: c.lastChannel,
+      reliefOffered: c.reliefOffered,
+      nextActionAt: c.nextActionAt,
+      openedAt: c.openedAt,
+      resolvedAt: c.resolvedAt,
+      outcome: c.outcome,
+      invoiceId: c.invoiceId,
+      clientName: c.invoice.client.name,
+      clientPhone: c.invoice.client.phone,
+      invoiceValue: Number(c.invoice.value),
+      dueDate: c.invoice.dueDate,
+      attempts: c.attempts,
+    };
+  }
+
+  /**
+   * Encerramento manual pelo dono (RN-3308). Escopado por tenant (updateMany com
+   * tenantId) e idempotente: só encerra casos ainda open/recovering.
+   */
+  async cancelById(id: string): Promise<{ cancelled: boolean }> {
+    const tenantId = requireTenantId();
+    const res = await prisma.recoveryCase.updateMany({
+      where: { id, tenantId, status: { in: ['open', 'recovering'] } },
+      data: { status: 'cancelled', outcome: 'cancelado_pelo_dono', resolvedAt: new Date(), nextActionAt: null },
+    });
+    return { cancelled: res.count > 0 };
+  }
 }

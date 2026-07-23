@@ -13,6 +13,9 @@ function makeMocks() {
       recordAttemptAndAdvance: vi.fn().mockResolvedValue(undefined),
       markLost: vi.fn().mockResolvedValue({}),
       closeByInvoiceId: vi.fn().mockResolvedValue({ closed: true }),
+      listForTenant: vi.fn().mockResolvedValue([]),
+      findByIdForTenant: vi.fn().mockResolvedValue(null),
+      cancelById: vi.fn().mockResolvedValue({ cancelled: true }),
     },
     events: { countsByInvoice: vi.fn().mockResolvedValue({}) },
     notifications: { queueOverdueInvoices: vi.fn().mockResolvedValue({ enqueued: 1 }) },
@@ -111,5 +114,17 @@ describe('RecoveryService (spec 0033 — F1)', () => {
     const out = await svc.closeCase('inv1', 'paid');
     expect(out).toEqual({ closed: true });
     expect(m.recovery.closeByInvoiceId).toHaveBeenCalledWith('inv1', 'paid');
+  });
+
+  it('listCases/getCase/cancelCase delegam ao repositório (API do dono)', async () => {
+    const svc = makeService(m);
+    m.recovery.listForTenant.mockResolvedValue([{ id: 'case1' }]);
+    m.recovery.findByIdForTenant.mockResolvedValue({ id: 'case1' });
+
+    expect(await svc.listCases()).toEqual([{ id: 'case1' }]);
+    expect(await svc.getCase('case1')).toEqual({ id: 'case1' });
+    expect(await svc.cancelCase('case1')).toEqual({ cancelled: true });
+    expect(m.recovery.findByIdForTenant).toHaveBeenCalledWith('case1');
+    expect(m.recovery.cancelById).toHaveBeenCalledWith('case1');
   });
 });
