@@ -19,8 +19,14 @@ Deixar o tenant escolher **por onde a régua dispara**: WhatsApp, e-mail ou ambo
 - **Em escopo:** preferência de canal por tenant; `Client.email` opcional (form + import CSV);
   seam de e-mail com provider `log` (mock); worker ramifica por canal; **fallback** para WhatsApp
   quando o cliente não tem e-mail; evento `sent` por canal.
-- **Fora de escopo:** envio de e-mail **real** (SMTP/SendGrid/SES) — só o contrato/seam; templates
-  de e-mail ricos (HTML); SMS; canal por **cliente** (é por tenant nesta versão).
+- **Fora de escopo (v1):** ~~envio de e-mail **real**~~; templates de e-mail ricos (HTML); SMS; canal
+  por **cliente** (é por tenant nesta versão).
+
+> **Atualização (2026-07-23):** o **provider SMTP real** (`SmtpEmailProvider`, nodemailer) foi
+> implementado — `EMAIL_PROVIDER=smtp` + `SMTP_HOST/PORT/USER/PASS` + `EMAIL_FROM`. Genérico:
+> serve Resend, Brevo, Gmail, Amazon SES e Mailtrap trocando só as envs. Falta apenas a
+> **conta/remetente verificado** (SPF/DKIM no domínio) para produção — o código está pronto e
+> testado (mock do transporte). Ainda fora de escopo: template HTML rico, SMS e canal por cliente.
 
 ## 3. Regras de negócio
 
@@ -79,9 +85,11 @@ POST /api/clients/import     { clients: [{ ..., email? }] }
 
 ## 9. Riscos / considerações
 
-- **E-mail real** exige provider (SMTP/SendGrid/SES), remetente verificado (SPF/DKIM) e template —
-  fora de escopo por decisão de produto (sem clientes ainda). O seam já isola isso via `EMAIL_PROVIDER`.
-- **Deliverability/opt-out** (LGPD/anti-spam) entra junto do provider real.
+- **E-mail real** já tem provider (`SmtpEmailProvider` via nodemailer, `EMAIL_PROVIDER=smtp`). Para
+  produção falta só a **conta + remetente verificado** (SPF/DKIM no domínio `useadimplo.com.br`).
+- **Deliverability/opt-out** (LGPD/anti-spam) entra junto da ativação do provider real em produção.
+- Diferente do WhatsApp por tenant, o e-mail hoje é **global** (env `EMAIL_PROVIDER`), não por tenant —
+  follow-up quando cada tenant precisar do próprio remetente.
 
 ## 10. Notas de implementação
 
