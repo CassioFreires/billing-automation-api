@@ -1,0 +1,497 @@
+<style>
+  :root {
+    /* neutrals — biased green, not pure grey */
+    --ground: #FBFCFB;
+    --surface: #FFFFFF;
+    --surface-2: #F1F5F2;
+    --ink: #0F1D17;
+    --muted: #4C5B53;
+    --faint: #7A8880;
+    --hair: rgba(15, 29, 23, 0.10);
+    --hair-strong: rgba(15, 29, 23, 0.16);
+    /* accents */
+    --emerald: #0B6E4F;
+    --emerald-bright: #129268;
+    --mint: #1FB984;
+    --amber: #C9781B;
+    --amber-soft: #F4E3CC;
+    --emerald-wash: #E7F2EC;
+    --shadow: 0 1px 2px rgba(15,29,23,.04), 0 8px 30px rgba(15,29,23,.06);
+    --maxw: 1080px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #0B1310;
+      --surface: #101B16;
+      --surface-2: #16241D;
+      --ink: #E9F1EC;
+      --muted: #A8B8AF;
+      --faint: #6E7E75;
+      --hair: rgba(233, 241, 236, 0.11);
+      --hair-strong: rgba(233, 241, 236, 0.18);
+      --emerald: #2CCB94;
+      --emerald-bright: #34E0A1;
+      --mint: #34E0A1;
+      --amber: #E5A24E;
+      --amber-soft: #3a2e1c;
+      --emerald-wash: #123026;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 40px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="light"] {
+    --ground: #FBFCFB; --surface: #FFFFFF; --surface-2: #F1F5F2; --ink: #0F1D17;
+    --muted: #4C5B53; --faint: #7A8880; --hair: rgba(15,29,23,.10); --hair-strong: rgba(15,29,23,.16);
+    --emerald: #0B6E4F; --emerald-bright: #129268; --mint: #1FB984; --amber: #C9781B;
+    --amber-soft: #F4E3CC; --emerald-wash: #E7F2EC; --shadow: 0 1px 2px rgba(15,29,23,.04), 0 8px 30px rgba(15,29,23,.06);
+  }
+  :root[data-theme="dark"] {
+    --ground: #0B1310; --surface: #101B16; --surface-2: #16241D; --ink: #E9F1EC;
+    --muted: #A8B8AF; --faint: #6E7E75; --hair: rgba(233,241,236,.11); --hair-strong: rgba(233,241,236,.18);
+    --emerald: #2CCB94; --emerald-bright: #34E0A1; --mint: #34E0A1; --amber: #E5A24E;
+    --amber-soft: #3a2e1c; --emerald-wash: #123026; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 40px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: "ss01", "cv01";
+  }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 28px; }
+  section { padding: 88px 0; border-top: 1px solid var(--hair); }
+  section:first-of-type { border-top: none; }
+
+  h1, h2, h3 { line-height: 1.08; letter-spacing: -0.025em; text-wrap: balance; margin: 0; font-weight: 680; }
+  h1 { font-size: clamp(2.5rem, 6vw, 4.4rem); }
+  h2 { font-size: clamp(1.8rem, 3.6vw, 2.7rem); }
+  h3 { font-size: 1.18rem; letter-spacing: -0.01em; }
+  p { margin: 0; }
+  .num { font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }
+
+  .eyebrow {
+    font-size: 0.78rem; font-weight: 620; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--emerald); margin-bottom: 20px; display: flex; align-items: center; gap: 10px;
+  }
+  .eyebrow::before { content: ""; width: 26px; height: 2px; background: var(--emerald); display: inline-block; }
+  .lead { font-size: clamp(1.05rem, 1.7vw, 1.28rem); color: var(--muted); max-width: 62ch; }
+
+  /* ---- top bar ---- */
+  .topbar {
+    position: sticky; top: 0; z-index: 50; backdrop-filter: blur(12px);
+    background: color-mix(in srgb, var(--ground) 82%, transparent);
+    border-bottom: 1px solid var(--hair);
+  }
+  .topbar .wrap { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+  .brand { display: flex; align-items: center; gap: 11px; font-weight: 680; letter-spacing: -0.02em; font-size: 1.16rem; }
+  .brand .dot { width: 13px; height: 13px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 0 4px var(--emerald-wash); }
+  .topbar nav { display: flex; gap: 26px; font-size: 0.92rem; color: var(--muted); }
+  .topbar nav a { color: inherit; text-decoration: none; }
+  .topbar nav a:hover { color: var(--ink); }
+  .tag { font-size: 0.8rem; color: var(--faint); font-variant-numeric: tabular-nums; }
+  @media (max-width: 720px) { .topbar nav { display: none; } }
+
+  /* ---- hero ---- */
+  .hero { padding: 96px 0 84px; }
+  .hero .positioning {
+    display: inline-flex; align-items: center; gap: 9px; font-size: 0.85rem; color: var(--muted);
+    background: var(--surface); border: 1px solid var(--hair); padding: 7px 15px; border-radius: 100px; margin-bottom: 30px;
+  }
+  .hero .positioning b { color: var(--emerald); font-weight: 640; }
+  .hero h1 em { font-style: normal; color: var(--emerald); }
+  .hero .lead { margin-top: 26px; font-size: clamp(1.12rem, 1.9vw, 1.42rem); }
+  .cta-row { display: flex; gap: 14px; margin-top: 38px; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 9px; padding: 13px 24px; border-radius: 11px;
+    font-size: 0.98rem; font-weight: 600; text-decoration: none; border: 1px solid transparent; cursor: pointer;
+    transition: transform .15s ease, box-shadow .2s ease;
+  }
+  .btn-primary { background: var(--emerald); color: #fff; box-shadow: var(--shadow); }
+  :root[data-theme="dark"] .btn-primary, @media (prefers-color-scheme: dark) { }
+  .btn-primary:hover { transform: translateY(-2px); }
+  .btn-ghost { background: transparent; color: var(--ink); border-color: var(--hair-strong); }
+  .btn-ghost:hover { border-color: var(--emerald); color: var(--emerald); }
+
+  .hero-figures {
+    margin-top: 66px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
+    background: var(--hair); border: 1px solid var(--hair); border-radius: 16px; overflow: hidden;
+  }
+  .figure { background: var(--surface); padding: 30px 28px; }
+  .figure .big { font-size: clamp(2rem, 4.5vw, 3rem); font-weight: 700; color: var(--ink); }
+  .figure .big span { color: var(--emerald); }
+  .figure .cap { font-size: 0.88rem; color: var(--muted); margin-top: 6px; }
+  @media (max-width: 720px) { .hero-figures { grid-template-columns: 1fr; } }
+
+  /* ---- generic grids ---- */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  @media (max-width: 860px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--hair); border-radius: 15px; padding: 26px;
+    box-shadow: var(--shadow);
+  }
+  .card h3 { margin-bottom: 9px; }
+  .card p { color: var(--muted); font-size: 0.96rem; }
+  .card .k { font-size: 0.76rem; font-weight: 640; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); }
+
+  /* problem list */
+  .pain { display: flex; gap: 15px; align-items: flex-start; padding: 18px 0; border-bottom: 1px solid var(--hair); }
+  .pain:last-child { border-bottom: none; }
+  .pain .x { flex: none; width: 26px; height: 26px; border-radius: 7px; background: var(--amber-soft); color: var(--amber);
+    display: grid; place-items: center; font-weight: 700; font-size: 0.9rem; margin-top: 2px; }
+  .pain b { color: var(--ink); }
+  .pain span { color: var(--muted); }
+
+  /* flow steps */
+  .flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin-top: 20px; }
+  .step { position: relative; padding: 24px 22px 24px 0; }
+  .step .n { font-size: 0.8rem; font-weight: 700; color: var(--emerald); font-variant-numeric: tabular-nums; letter-spacing: 0.05em; }
+  .step h3 { margin: 10px 0 7px; font-size: 1.05rem; }
+  .step p { color: var(--muted); font-size: 0.92rem; }
+  .step::after { content: "→"; position: absolute; right: 16px; top: 40px; color: var(--faint); font-size: 1.1rem; }
+  .step:last-child::after { display: none; }
+  @media (max-width: 860px) { .flow { grid-template-columns: 1fr; } .step::after { display: none; } .step { border-bottom: 1px solid var(--hair); } }
+
+  /* ---- alívio demo ---- */
+  .relief { background: var(--surface-2); border-radius: 22px; padding: 8px; border: 1px solid var(--hair); }
+  .relief-inner { display: grid; grid-template-columns: 1.05fr 1fr; gap: 8px; }
+  @media (max-width: 860px) { .relief-inner { grid-template-columns: 1fr; } }
+  .relief-copy { padding: 36px 32px; }
+  .relief-copy .eyebrow { color: var(--amber); }
+  .relief-copy .eyebrow::before { background: var(--amber); }
+  .relief-copy h2 { font-size: clamp(1.6rem, 3vw, 2.2rem); }
+  .relief-copy p { color: var(--muted); margin-top: 16px; }
+  .phone {
+    background: var(--surface); border-radius: 18px; border: 1px solid var(--hair); padding: 22px;
+    display: flex; flex-direction: column; gap: 12px; min-height: 380px; box-shadow: var(--shadow);
+  }
+  .phone .hdr { display: flex; align-items: center; gap: 10px; padding-bottom: 12px; border-bottom: 1px solid var(--hair); }
+  .phone .hdr .av { width: 34px; height: 34px; border-radius: 50%; background: var(--emerald-wash); color: var(--emerald);
+    display: grid; place-items: center; font-weight: 700; }
+  .phone .hdr .who { font-size: 0.9rem; font-weight: 620; }
+  .phone .hdr .st { font-size: 0.74rem; color: var(--faint); }
+  .opens { display: flex; flex-direction: column; gap: 9px; }
+  .open-line { display: flex; align-items: center; gap: 10px; font-size: 0.86rem; color: var(--muted); opacity: 0; transform: translateY(6px); }
+  .open-line.show { opacity: 1; transform: none; transition: all .5s ease; }
+  .open-line .pip { width: 8px; height: 8px; border-radius: 50%; background: var(--emerald); flex: none; }
+  .open-line .t { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--faint); font-size: 0.78rem; }
+  .trigger {
+    margin-top: auto; background: var(--emerald-wash); border: 1px solid color-mix(in srgb, var(--emerald) 30%, transparent);
+    border-radius: 13px; padding: 18px; opacity: 0; transform: scale(.96); pointer-events: none;
+  }
+  .trigger.show { opacity: 1; transform: none; transition: all .55s cubic-bezier(.2,.8,.2,1); }
+  .trigger .lbl { font-size: 0.72rem; font-weight: 660; letter-spacing: 0.09em; text-transform: uppercase; color: var(--emerald); }
+  .trigger .msg { font-size: 0.92rem; color: var(--ink); margin: 8px 0 14px; }
+  .relief-opts { display: flex; gap: 8px; }
+  .relief-opts .opt { flex: 1; text-align: center; font-size: 0.8rem; font-weight: 600; padding: 9px 6px; border-radius: 9px;
+    background: var(--surface); border: 1px solid var(--hair); color: var(--ink); }
+  .relief-opts .opt.hi { background: var(--emerald); color: #fff; border-color: var(--emerald); }
+  .replay { margin-top: 14px; font-size: 0.8rem; color: var(--faint); background: none; border: none; cursor: pointer; text-decoration: underline; }
+
+  /* module tags */
+  .mods { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+  .mod { font-size: 0.86rem; padding: 8px 14px; border-radius: 9px; border: 1px solid var(--hair); background: var(--surface); color: var(--muted); }
+  .mod b { color: var(--ink); font-weight: 620; }
+  .mod .done { color: var(--emerald); font-weight: 700; }
+
+  /* pricing */
+  .price { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  @media (max-width: 860px) { .price { grid-template-columns: 1fr; } }
+  .plan { background: var(--surface); border: 1px solid var(--hair); border-radius: 16px; padding: 28px; display: flex; flex-direction: column; }
+  .plan.feat { border-color: var(--emerald); box-shadow: 0 0 0 1px var(--emerald), var(--shadow); position: relative; }
+  .plan.feat .badge { position: absolute; top: -11px; left: 28px; background: var(--emerald); color: #fff; font-size: 0.7rem;
+    font-weight: 640; letter-spacing: 0.08em; text-transform: uppercase; padding: 4px 11px; border-radius: 100px; }
+  .plan .pname { font-size: 0.8rem; font-weight: 660; letter-spacing: 0.09em; text-transform: uppercase; color: var(--faint); }
+  .plan .pp { font-size: 2rem; font-weight: 700; margin: 12px 0 2px; letter-spacing: -0.03em; }
+  .plan .pp small { font-size: 0.95rem; font-weight: 500; color: var(--faint); letter-spacing: 0; }
+  .plan ul { list-style: none; padding: 0; margin: 18px 0 0; display: flex; flex-direction: column; gap: 10px; }
+  .plan li { font-size: 0.9rem; color: var(--muted); display: flex; gap: 9px; align-items: flex-start; }
+  .plan li::before { content: "✓"; color: var(--emerald); font-weight: 700; flex: none; }
+
+  /* status note */
+  .note { background: var(--surface-2); border: 1px solid var(--hair); border-left: 3px solid var(--emerald); border-radius: 10px;
+    padding: 18px 22px; font-size: 0.92rem; color: var(--muted); }
+  .note b { color: var(--ink); }
+
+  /* closing */
+  .close { text-align: center; }
+  .close h2 { max-width: 20ch; margin: 0 auto; }
+  .close .lead { margin: 22px auto 0; text-align: center; }
+  .close .cta-row { justify-content: center; }
+
+  footer { padding: 40px 0 60px; color: var(--faint); font-size: 0.85rem; text-align: center; }
+  footer .brand { justify-content: center; margin-bottom: 12px; color: var(--ink); }
+
+  .reveal { opacity: 0; transform: translateY(16px); }
+  .reveal.in { opacity: 1; transform: none; transition: opacity .6s ease, transform .6s ease; }
+  @media (prefers-reduced-motion: reduce) {
+    .reveal, .open-line, .trigger { opacity: 1 !important; transform: none !important; transition: none !important; }
+  }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--emerald); outline-offset: 3px; border-radius: 6px; }
+</style>
+
+<header class="topbar">
+  <div class="wrap">
+    <div class="brand"><span class="dot"></span> Adimplo</div>
+    <nav>
+      <a href="#tese">A tese</a>
+      <a href="#alivio">Botão de Alívio</a>
+      <a href="#como">Como funciona</a>
+      <a href="#planos">Planos</a>
+    </nav>
+    <span class="tag">useadimplo.com.br</span>
+  </div>
+</header>
+
+<main>
+  <!-- HERO -->
+  <section class="hero">
+    <div class="wrap">
+      <span class="positioning">Gestão de crédito &amp; cobrança humanizada · <b>para PMEs de serviço recorrente</b></span>
+      <h1>O piloto automático do seu <em>Contas a Receber</em>.</h1>
+      <p class="lead">O Adimplo não dispara lembrete e vai embora. Ele <b>cobra, concilia, recupera e mostra o caixa</b> — sozinho. Você recebe mais, atrasa menos e para de caçar quem pagou. Sem queimar a relação com o cliente.</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="#alivio">Ver o diferencial ↓</a>
+        <a class="btn btn-ghost" href="#planos">Conhecer os planos</a>
+      </div>
+
+      <div class="hero-figures reveal">
+        <div class="figure">
+          <div class="big num">14<span>d</span></div>
+          <div class="cap">de trial no plano Pro — do zero à 1ª cobrança guiada</div>
+        </div>
+        <div class="figure">
+          <div class="big num">8</div>
+          <div class="cap">gateways de pagamento à escolha do dono (recebe na conta dele)</div>
+        </div>
+        <div class="figure">
+          <div class="big">R$ <span class="num">0</span></div>
+          <div class="cap">para cobrar por e-mail — WhatsApp é pago só quando envia</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROBLEM -->
+  <section id="problema">
+    <div class="wrap grid-2">
+      <div>
+        <div class="eyebrow">A dor</div>
+        <h2>Todo dono de PME perde dinheiro no escuro.</h2>
+        <p class="lead" style="margin-top:20px">Não é falta de cliente. É o caixa que fura porque a cobrança é manual, dispersa e constrangedora.</p>
+      </div>
+      <div>
+        <div class="pain"><span class="x">!</span><span><b>Cobra um por um no WhatsApp</b> — e o que dá vergonha de cobrar, não cobra.</span></div>
+        <div class="pain"><span class="x">!</span><span><b>Não sabe quem pagou</b> — dinheiro entra por PIX, dinheiro, maquininha… e a planilha mente.</span></div>
+        <div class="pain"><span class="x">!</span><span><b>Inadimplência vira desgaste</b> — negociar parcelamento no zap azeda a relação.</span></div>
+        <div class="pain"><span class="x">!</span><span><b>Não enxerga o caixa</b> — quanto entra, quando, quanto está atrasado? No sentimento.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- THESIS -->
+  <section id="tese">
+    <div class="wrap">
+      <div class="eyebrow">A virada de chave</div>
+      <h2 style="max-width:20ch">O valor não está na mensagem. Está em volta do dinheiro.</h2>
+      <p class="lead" style="margin-top:22px">Disparar lembrete é commodity — o próprio WhatsApp faz. O Adimplo é a camada que <b>recebe por qualquer meio, concilia sozinho, recupera o inadimplente sem atrito e transforma tudo em visão de caixa</b>. O lembrete é só uma engrenagem.</p>
+      <div class="grid-4 reveal" style="margin-top:44px">
+        <div class="card"><div class="k">Recebe</div><h3>Qualquer meio</h3><p>Gateway, PIX, dinheiro, maquininha — baixa automática por webhook ou manual em 1 clique.</p></div>
+        <div class="card"><div class="k">Concilia</div><h3>Quem pagou o quê</h3><p>A fatura vira <b>Paga</b> sozinha e some da fila. Idempotente — nunca conta o mesmo pagamento duas vezes.</p></div>
+        <div class="card"><div class="k">Recupera</div><h3>Sem constranger</h3><p>Régua multipasso + autonegociação que o próprio devedor resolve. O dono define as regras uma vez.</p></div>
+        <div class="card"><div class="k">Enxerga</div><h3>Cockpit do caixa</h3><p>A receber, em atraso, aging e <b>quanto de atraso já virou dinheiro</b>. A prova de ROI.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ALÍVIO (the wow) -->
+  <section id="alivio">
+    <div class="wrap">
+      <div class="relief">
+        <div class="relief-inner">
+          <div class="relief-copy">
+            <div class="eyebrow">O "uau" do produto</div>
+            <h2>O Botão de Alívio dispara sozinho.</h2>
+            <p>O link de cobrança é <b>do Adimplo</b>, não do gateway — uma página viva que registra cada interação. Quando o devedor <b>abre a cobrança várias vezes e não paga</b>, o sistema entende a hesitação e oferece, sem ninguém mandar, uma saída digna: pagar com desconto, parcelar ou adiar.</p>
+            <p>Zero constrangimento humano. O dono definiu as regras — o Adimplo executa. <b>É a recuperação de inadimplência que nenhum "disparador" faz.</b></p>
+            <button class="replay" id="replay" type="button">↻ ver o gatilho de novo</button>
+          </div>
+          <div class="phone" id="phone">
+            <div class="hdr">
+              <div class="av">M</div>
+              <div>
+                <div class="who">Maria · fatura de julho</div>
+                <div class="st">R$ 280,00 · venceu há 4 dias</div>
+              </div>
+            </div>
+            <div class="opens" id="opens">
+              <div class="open-line" data-i="0"><span class="pip"></span> Abriu o link de pagamento <span class="t">09:12</span></div>
+              <div class="open-line" data-i="1"><span class="pip"></span> Abriu de novo — não pagou <span class="t">13:40</span></div>
+              <div class="open-line" data-i="2"><span class="pip"></span> Abriu 3ª vez — hesitando <span class="t">21:05</span></div>
+            </div>
+            <div class="trigger" id="trigger">
+              <div class="lbl">Botão de Alívio ativado</div>
+              <div class="msg">"Essa semana apertou? Você pode quebrar em <b>3x de R$ 96,30</b> ou adiar 7 dias por R$ 8,00."</div>
+              <div class="relief-opts">
+                <span class="opt">À vista -5%</span>
+                <span class="opt hi">Parcelar 3x</span>
+                <span class="opt">Adiar 7d</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MOAT -->
+  <section id="moat">
+    <div class="wrap grid-2">
+      <div>
+        <div class="eyebrow">O fosso (moat)</div>
+        <h2>O Elo: um ativo que melhora sozinho.</h2>
+        <p class="lead" style="margin-top:20px">Autonegociação, régua que aprende, score de reputação — não são features soltas. São aplicações de <b>um único ativo</b>: o grafo de comportamento e pagamento de cada pagador, com o Adimplo dono da camada de interação.</p>
+        <p style="margin-top:18px;color:var(--muted)">WhatsApp e Instagram nunca constroem esse grafo — o dinheiro e o pós-venda não moram lá. E ele fica <b>mais forte quanto mais clientes o Adimplo tem</b>: efeito de rede.</p>
+      </div>
+      <div class="card" style="align-self:center">
+        <div class="k">Como o Elo captura valor</div>
+        <div style="display:flex;flex-direction:column;gap:14px;margin-top:16px">
+          <div><b>Link próprio</b> → <span style="color:var(--muted)">cada abertura, clique e tentativa de pagar é registrada.</span></div>
+          <div><b>Identidade do pagador</b> → <span style="color:var(--muted)">o mesmo CPF/telefone amarra o histórico entre faturas.</span></div>
+          <div><b>Score Adimplo</b> → <span style="color:var(--muted)">reputação de crédito construída do comportamento real de pagamento.</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW -->
+  <section id="como">
+    <div class="wrap">
+      <div class="eyebrow">Como funciona</div>
+      <h2>Quatro passos, e o resto é automático.</h2>
+      <div class="flow reveal">
+        <div class="step"><div class="n">01</div><h3>Configura uma vez</h3><p>Escolhe como recebe (seu gateway), o canal (WhatsApp / e-mail) e a régua de lembretes.</p></div>
+        <div class="step"><div class="n">02</div><h3>Cadastra a carteira</h3><p>Cliente a cliente ou por planilha (CSV). Cobranças avulsas ou assinaturas mensais.</p></div>
+        <div class="step"><div class="n">03</div><h3>O sistema cobra</h3><p>Todo dia o agendador gera recorrentes e envia o lembrete certo. A fila garante entrega resiliente.</p></div>
+        <div class="step"><div class="n">04</div><h3>O dinheiro entra</h3><p>Pagou → baixa automática. Hesitou → Botão de Alívio. O Cockpit mostra o caixa em tempo real.</p></div>
+      </div>
+      <div class="note reveal" style="margin-top:34px">
+        <b>Arquitetura pronta para escalar:</b> multi-tenant com isolamento real, fila RabbitMQ com dead-letter, worker desacoplado, credenciais cifradas em repouso (AES-256-GCM), HTTPS automático e deploy com rollback. Não é protótipo — está no ar.
+      </div>
+    </div>
+  </section>
+
+  <!-- NICHE + MODULES -->
+  <section id="nicho">
+    <div class="wrap grid-2">
+      <div>
+        <div class="eyebrow">Foco de mercado</div>
+        <h2>Bandeira fincada em serviço recorrente.</h2>
+        <p class="lead" style="margin-top:20px">Clínica, academia, escola, prestador. Onde a cobrança é mensal e a NFS-e é obrigatória, o combo <b>NFS-e automática + PIX Automático</b> resolve a dor inteira — não uma feature.</p>
+        <p style="margin-top:16px;color:var(--muted)">Nicho primeiro, genérico depois: prova o coração num público, depois abre.</p>
+      </div>
+      <div>
+        <div class="eyebrow">Já construído</div>
+        <div class="mods">
+          <span class="mod"><span class="done">✓</span> Cobrança avulsa + recorrente</span>
+          <span class="mod"><span class="done">✓</span> 8 gateways por tenant</span>
+          <span class="mod"><span class="done">✓</span> WhatsApp + e-mail</span>
+          <span class="mod"><span class="done">✓</span> Autonegociação (Alívio)</span>
+          <span class="mod"><span class="done">✓</span> Régua multipasso</span>
+          <span class="mod"><span class="done">✓</span> Cockpit + valor recuperado</span>
+          <span class="mod"><span class="done">✓</span> Portal do pagador</span>
+          <span class="mod"><span class="done">✓</span> Import CSV</span>
+          <span class="mod"><span class="done">✓</span> Multiusuário + papéis</span>
+          <span class="mod"><span class="done">✓</span> LGPD (código + UI)</span>
+          <span class="mod"><span class="done">✓</span> Console da plataforma</span>
+          <span class="mod">◷ NFS-e automática</span>
+          <span class="mod">◷ PIX Automático</span>
+          <span class="mod">◷ Score cross-tenant</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRICING -->
+  <section id="planos">
+    <div class="wrap">
+      <div class="eyebrow">Planos</div>
+      <h2>Começa de graça. Paga quando recupera.</h2>
+      <div class="price reveal" style="margin-top:40px">
+        <div class="plan">
+          <span class="pname">Free</span>
+          <div class="pp num">R$ 0<small>/mês</small></div>
+          <p style="color:var(--muted);font-size:.9rem">Para experimentar o fluxo completo.</p>
+          <ul><li>Cadastro de clientes e cobranças</li><li>Cobrança por e-mail</li><li>Cockpit essencial</li></ul>
+        </div>
+        <div class="plan feat">
+          <span class="badge">14 dias grátis</span>
+          <span class="pname">Pro</span>
+          <div class="pp num">R$ —<small>/mês</small></div>
+          <p style="color:var(--muted);font-size:.9rem">O piloto automático completo.</p>
+          <ul><li>Tudo do Essencial</li><li>Botão de Alívio (autonegociação)</li><li>Régua multipasso + WhatsApp</li><li>Cockpit com valor recuperado</li><li>Multiusuário e papéis</li></ul>
+        </div>
+        <div class="plan">
+          <span class="pname">Essencial</span>
+          <div class="pp num">R$ —<small>/mês</small></div>
+          <p style="color:var(--muted);font-size:.9rem">Para quem já tem carteira formada.</p>
+          <ul><li>Cobrança recorrente</li><li>WhatsApp + e-mail</li><li>Import por planilha</li><li>Portal do pagador</li></ul>
+        </div>
+      </div>
+      <p style="color:var(--faint);font-size:.85rem;margin-top:20px">Valores em definição para o lançamento. O custo de WhatsApp é pay-per-use (repassado no plano); e-mail e PIX não têm custo por envio.</p>
+    </div>
+  </section>
+
+  <!-- CLOSE -->
+  <section class="close">
+    <div class="wrap">
+      <div class="eyebrow" style="justify-content:center">Acesso antecipado</div>
+      <h2>Blindamos seu fluxo de caixa sem queimar a relação com seu cliente.</h2>
+      <p class="lead">Estamos abrindo um piloto assistido para os primeiros negócios de serviço recorrente. Onboarding pessoal, do zero à primeira cobrança.</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="https://useadimplo.com.br" target="_blank" rel="noopener">Começar em useadimplo.com.br</a>
+        <a class="btn btn-ghost" href="#tese">Rever a tese</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="brand" style="display:inline-flex"><span class="dot"></span> Adimplo</div>
+  <div>Gestão reputacional de crédito e cobrança humanizada · useadimplo.com.br</div>
+</footer>
+
+<script>
+  // scroll reveal
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } });
+  }, { threshold: 0.15 });
+  document.querySelectorAll(".reveal").forEach(function (el) { io.observe(el); });
+
+  // alívio sequence
+  var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var lines = Array.prototype.slice.call(document.querySelectorAll(".open-line"));
+  var trigger = document.getElementById("trigger");
+  var phone = document.getElementById("phone");
+  var timers = [];
+  function clearTimers() { timers.forEach(clearTimeout); timers = []; }
+  function reset() { lines.forEach(function (l) { l.classList.remove("show"); }); trigger.classList.remove("show"); }
+  function play() {
+    clearTimers(); reset();
+    if (reduce) { lines.forEach(function (l) { l.classList.add("show"); }); trigger.classList.add("show"); return; }
+    lines.forEach(function (l, i) { timers.push(setTimeout(function () { l.classList.add("show"); }, 500 + i * 850)); });
+    timers.push(setTimeout(function () { trigger.classList.add("show"); }, 500 + lines.length * 850 + 400));
+  }
+  var played = false;
+  var io2 = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) { if (e.isIntersecting && !played) { played = true; play(); } });
+  }, { threshold: 0.4 });
+  if (phone) io2.observe(phone);
+  var replay = document.getElementById("replay");
+  if (replay) replay.addEventListener("click", play);
+</script>
