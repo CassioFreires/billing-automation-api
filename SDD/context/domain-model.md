@@ -321,8 +321,20 @@ Estado de acesso do cliente **derivado** do pagamento (calculado na leitura, sem
   só com `enabled` (RN-4203); só bloqueia quem **assinou o contrato** se
   `requireSignedContract` (RN-4204); atraso `<= graceDays` = `grace`, senão `blocked`.
 - API: `GET/PUT /api/access/settings`, `GET /api/access/clients`,
-  `POST /api/access/clients/:id/override`. Consumidor futuro: **F13** (webhooks p/ catraca/IoT),
-  que lerá `granted` e emitirá evento na transição.
+  `POST /api/access/clients/:id/override`.
+
+### Conexão IoT/Catracas (spec 0043 — F13) — a "tomada"
+- **AccessIntegration** (1 por tenant): `enabled`, `apiKeyHash`/`apiKeyPrefix` (chave
+  guardada só como hash sha256, crua exibida 1x), `webhookUrl`/`webhookSecret` (HMAC).
+- **AccessEvent** (append-only): `fromState`→`toState`, `granted`, `reason`,
+  `webhookStatus` (skipped|sent|failed), `webhookCode`. Log das transições.
+- **Client.accessState**: último estado propagado (base do diff no sweep).
+- **PULL** — `GET /api/access/check?client=<id>` (auth `x-api-key`, tenant pelo hash)
+  devolve o veredito do F12 (`decideAccess`). **PUSH** — webhook assinado
+  (`webhook-signature.ts`: HMAC de `timestamp.corpo`) disparado no **sweep diário**
+  (`/api/system/access/run`, por último no cron) ao detectar transição.
+- API dono: `GET/PUT /api/access/integration`, `POST .../api-key/rotate|revoke`,
+  `PUT/DELETE .../webhook`, `POST .../webhook/test`, `GET /api/access/events`.
 
 ## Máquinas de estado
 

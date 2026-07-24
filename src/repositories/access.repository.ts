@@ -17,6 +17,7 @@ export interface ClientAccessInput {
   hasOverdue: boolean;
   maxDaysOverdue: number;
   contractAccepted: boolean;
+  previousState: string | null; // Conexão IoT (spec 0043): último estado propagado
 }
 
 /**
@@ -52,14 +53,19 @@ export class AccessRepository {
     return { clientId, override };
   }
 
-  /** Sinais por cliente para decidir acesso (vencidos + contrato aceito). */
-  async findAccessInputs(now: Date): Promise<ClientAccessInput[]> {
+  /**
+   * Sinais por cliente para decidir acesso (vencidos + contrato aceito). Passe
+   * `clientId` para escopar num único cliente (usado pelo endpoint da catraca).
+   */
+  async findAccessInputs(now: Date, clientId?: string): Promise<ClientAccessInput[]> {
     const tenantId = requireTenantId();
+    const clientWhere = { tenantId, ...(clientId ? { id: clientId } : {}) };
+    const invoiceWhere = { tenantId, status: { in: OPEN_STATUSES }, dueDate: { lt: now }, ...(clientId ? { clientId } : {}) };
 
     const [clients, invoices, contract, acceptances] = await Promise.all([
-      prisma.client.findMany({ where: { tenantId }, select: { id: true, name: true, accessOverride: true } }),
+      prisma.client.findMany({ where: clientWhere, select: { id: true, name: true, accessOverride: true, accessState: true } }),
       prisma.invoice.findMany({
-        where: { tenantId, status: { in: OPEN_STATUSES }, dueDate: { lt: now } },
+        where: invoiceWhere,
         select: { clientId: true, dueDate: true },
       }),
       prisma.contractSetting.findUnique({ where: { tenantId }, select: { version: true, enabled: true } }),
@@ -88,7 +94,13 @@ export class AccessRepository {
         hasOverdue: overdueByClient.has(c.id),
         maxDaysOverdue,
         contractAccepted,
+        previousState: c.accessState ?? null,
       };
     });
+  }
+
+  /** Persiste o estado de acesso propagado (base para a próxima detecção de transição). */
+  async updateClientState(clientId: string, state: string): Promise<void> {
+    await prisma.client.updateMany({ where: { id: clientId, tenantId: requireTenantId() }, data: { accessState: state } });
   }
 }

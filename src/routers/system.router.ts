@@ -24,4 +24,7 @@ systemRouter.post('/recovery/run', controller.runRecovery.bind(controller));
 // Radar de Risco (spec 0035, F2): recalcula a saúde de todos os clientes.
 systemRouter.post('/health/run', controller.runHealth.bind(controller));
 
+// Conexão IoT/Catracas (spec 0043, F13): sweep de transição + webhooks de saída.
+systemRouter.post('/access/run', controller.runAccess.bind(controller));
+
 export { systemRouter };
