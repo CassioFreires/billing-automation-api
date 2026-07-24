@@ -31,6 +31,7 @@ model Account {
   onboardingState OnboardingState?
   reguaSetting ReguaSetting?
   channelSetting ChannelSetting?
+  retentionSetting RetentionSetting?
   recoveryCases RecoveryCase[]
   recoveryAttempts RecoveryAttempt[]
   clientHealth ClientHealth[]
@@ -310,6 +311,11 @@ model Subscription {
   createdAt   DateTime @default(now())
   lastUpdate  DateTime @updatedAt
 
+  // Desconto de retenção ativo (spec 0038, F11.1). Aplicado na geração recorrente
+  // enquanto a competência estiver dentro de discountUntil.
+  discountPercent Int?      // 0..100
+  discountUntil   DateTime? // válido até esta data (competência)
+
   clientId    String
   client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
@@ -493,6 +499,8 @@ model CancellationRequest {
   status         String    @default("open") // open | saved | cancelled
   recommended    String?   // oferta recomendada pelo domínio (save-offer)
   saveOffer      String?   // oferta efetivamente aplicada (quando saved)
+  appliedPercent Int?      // desconto aplicado (quando saveOffer=discount) — spec 0038
+  appliedUntil   DateTime? // validade do desconto aplicado
   createdAt      DateTime  @default(now())
   resolvedAt     DateTime?
 
@@ -503,4 +511,18 @@ model CancellationRequest {
   account        Account   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, status])
+}
+
+// Config de retenção por tenant (spec 0038, F11.1). 1 por tenant.
+model RetentionSetting {
+  id                     String   @id @default(uuid())
+  discountPercent        Int      @default(30) // 0..100
+  discountDurationMonths Int      @default(2)  // 1..12
+  discountEnabled        Boolean  @default(true)
+  pauseEnabled           Boolean  @default(true)
+  createdAt              DateTime @default(now())
+  lastUpdate             DateTime @updatedAt
+
+  tenantId               String   @unique
+  account                Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }

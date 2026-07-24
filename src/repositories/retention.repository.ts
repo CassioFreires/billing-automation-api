@@ -55,25 +55,81 @@ export class RetentionRepository {
     });
   }
 
-  /** Resolve o pedido: pausa/cancela a assinatura e grava o desfecho (idempotente). */
+  /**
+   * Resolve o pedido (idempotente): aplica o efeito concreto na assinatura e grava
+   * o desfecho. `cancelled` → CANCELED; `saved`+`pause` → PAUSED; `saved`+`discount`
+   * → grava desconto ativo (percent/until) na assinatura; demais ofertas só registram.
+   */
   async resolve(
     id: string,
-    outcome: 'saved' | 'cancelled',
-    appliedOffer: string | null,
-    subscriptionId: string
+    params: {
+      outcome: 'saved' | 'cancelled';
+      offer: string | null;
+      subscriptionId: string;
+      discountPercent?: number | null;
+      discountUntil?: Date | null;
+    }
   ) {
     const now = new Date();
-    const subStatus = outcome === 'cancelled' ? 'CANCELED' : appliedOffer === 'pause' ? 'PAUSED' : null;
+    const { outcome, offer, subscriptionId } = params;
 
     return prisma.$transaction(async (tx) => {
-      if (subStatus) {
-        await tx.subscription.update({ where: { id: subscriptionId }, data: { status: subStatus } });
+      if (outcome === 'cancelled') {
+        await tx.subscription.update({ where: { id: subscriptionId }, data: { status: 'CANCELED' } });
+      } else if (offer === 'pause') {
+        await tx.subscription.update({ where: { id: subscriptionId }, data: { status: 'PAUSED' } });
+      } else if (offer === 'discount' && params.discountPercent && params.discountUntil) {
+        await tx.subscription.update({
+          where: { id: subscriptionId },
+          data: { discountPercent: params.discountPercent, discountUntil: params.discountUntil },
+        });
       }
+
       return tx.cancellationRequest.update({
         where: { id },
-        data: { status: outcome, saveOffer: outcome === 'saved' ? appliedOffer : null, resolvedAt: now },
+        data: {
+          status: outcome,
+          saveOffer: outcome === 'saved' ? offer : null,
+          appliedPercent: outcome === 'saved' && offer === 'discount' ? params.discountPercent ?? null : null,
+          appliedUntil: outcome === 'saved' && offer === 'discount' ? params.discountUntil ?? null : null,
+          resolvedAt: now,
+        },
       });
     });
+  }
+
+  // ── Config de retenção por tenant (spec 0038) ──────────────────────────────
+
+  /** Config do tenant; defaults quando ainda não existe (não cria). */
+  async getSettings() {
+    const tenantId = requireTenantId();
+    const s = await prisma.retentionSetting.findUnique({ where: { tenantId } });
+    return {
+      discountPercent: s?.discountPercent ?? 30,
+      discountDurationMonths: s?.discountDurationMonths ?? 2,
+      discountEnabled: s?.discountEnabled ?? true,
+      pauseEnabled: s?.pauseEnabled ?? true,
+    };
+  }
+
+  async upsertSettings(data: {
+    discountPercent?: number;
+    discountDurationMonths?: number;
+    discountEnabled?: boolean;
+    pauseEnabled?: boolean;
+  }) {
+    const tenantId = requireTenantId();
+    const saved = await prisma.retentionSetting.upsert({
+      where: { tenantId },
+      create: { tenantId, ...data },
+      update: { ...data },
+    });
+    return {
+      discountPercent: saved.discountPercent,
+      discountDurationMonths: saved.discountDurationMonths,
+      discountEnabled: saved.discountEnabled,
+      pauseEnabled: saved.pauseEnabled,
+    };
   }
 
   /** Lista os pedidos do tenant (painel de retenção). */

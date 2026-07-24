@@ -1,7 +1,11 @@
 import { Request, Response } from 'express';
 import { ZodError } from 'zod';
 import { RetentionService, NotFoundError, ConflictError } from '../services/retention.service.js';
-import { validateOpenCancellation, validateResolveCancellation } from '../dtos/retention.dto.js';
+import {
+  validateOpenCancellation,
+  validateResolveCancellation,
+  validateRetentionSettings,
+} from '../dtos/retention.dto.js';
 
 export class RetentionController {
   private service: RetentionService;
@@ -27,7 +31,11 @@ export class RetentionController {
   resolve = async (req: Request, res: Response) => {
     try {
       const dto = validateResolveCancellation(req.body);
-      const result = await this.service.resolveRequest(String(req.params.id), dto.outcome, dto.offer);
+      const result = await this.service.resolveRequest(String(req.params.id), dto.outcome, {
+        offer: dto.offer,
+        discountPercent: dto.discountPercent,
+        discountMonths: dto.discountMonths,
+      });
       return res.status(200).json(result);
     } catch (error: any) {
       if (error instanceof ZodError) return res.status(400).json({ error: error.issues });
@@ -43,6 +51,25 @@ export class RetentionController {
       const result = await this.service.listRequests();
       return res.status(200).json(result);
     } catch (error: any) {
+      return res.status(500).json({ error: error.message });
+    }
+  };
+
+  /** Config de retenção do tenant (spec 0038). */
+  getSettings = async (_req: Request, res: Response) => {
+    try {
+      return res.status(200).json(await this.service.getSettings());
+    } catch (error: any) {
+      return res.status(500).json({ error: error.message });
+    }
+  };
+
+  updateSettings = async (req: Request, res: Response) => {
+    try {
+      const dto = validateRetentionSettings(req.body);
+      return res.status(200).json(await this.service.updateSettings(dto));
+    } catch (error: any) {
+      if (error instanceof ZodError) return res.status(400).json({ error: error.issues });
       return res.status(500).json({ error: error.message });
     }
   };
