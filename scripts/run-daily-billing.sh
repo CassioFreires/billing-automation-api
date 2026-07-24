@@ -70,3 +70,16 @@ if [ -n "${CRON_SECRET:-}" ]; then
     echo "$(date '+%Y-%m-%d %H:%M:%S') AVISO Radar (HTTP ${hc}): $(cat /tmp/system-run.out 2>/dev/null)" >&2
   fi
 fi
+
+# 5) Conexão IoT/Catracas (spec 0043, F13): sweep de transição de acesso + webhooks
+#    de saída. Roda por ÚLTIMO — depois do Radar, para o desfecho do dia (vencidos/
+#    lost) já refletir no estado de acesso propagado. Responde 200. NÃO-FATAL.
+if [ -n "${CRON_SECRET:-}" ]; then
+  echo "$(date '+%Y-%m-%d %H:%M:%S') Sweep de acesso: POST ${BASE_URL}/api/system/access/run ..."
+  ac=$(curl -sS -o /tmp/system-run.out -w '%{http_code}' -X POST "${BASE_URL}/api/system/access/run" -H "x-cron-secret: ${CRON_SECRET}")
+  if [ "$ac" = "200" ] || [ "$ac" = "202" ]; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') OK (${ac}): $(cat /tmp/system-run.out 2>/dev/null)"
+  else
+    echo "$(date '+%Y-%m-%d %H:%M:%S') AVISO Acesso (HTTP ${ac}): $(cat /tmp/system-run.out 2>/dev/null)" >&2
+  fi
+fi

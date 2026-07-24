@@ -418,7 +418,8 @@ model AccessState {
 
 ---
 
-## F13 · API Pública + Webhooks de Saída (a "tomada" — catracas / IoT / streaming) ⭐
+## F13 · API Pública + Webhooks de Saída (a "tomada" — catracas / IoT / streaming) ⭐ — ✅ v1 ENTREGUE (spec 0043)
+_PULL: `GET /api/access/check` (auth por API key `x-api-key`, tenant resolvido pelo hash) devolve o veredito do F12 (`decideAccess`). PUSH: webhook de saída **assinado por HMAC** (`x-adimplo-signature: sha256=…` de `timestamp.corpo` + `x-adimplo-timestamp`, anti-replay) disparado no **sweep diário** ao detectar transição (`Client.accessState` vs recomputado). `AccessIntegration` (apiKeyHash/prefix + webhookUrl/secret, por tenant) + `AccessEvent` (log append-only com status de entrega). Chave guardada só como hash, exibida 1x. Cron: passo 5 `/api/system/access/run` (não-fatal). Painel: Configurações → Integrações. Follow-up **F13.1**: fila de retry + conectores de marca._
 
 ### Descrição
 A porta padronizada onde **sistemas e aparelhos externos se conectam**. Duas partes:

@@ -4,6 +4,7 @@ import { NotificationSchedulerService } from '../services/notification-scheduler
 import { PlatformSubscriptionService } from '../services/platform-subscription.service.js';
 import { RecoveryService } from '../services/recovery.service.js';
 import { HealthService } from '../services/health.service.js';
+import { AccessIntegrationService } from '../services/access-integration.service.js';
 
 export class SystemController {
   private scheduler: BillingSchedulerService;
@@ -11,6 +12,7 @@ export class SystemController {
   private platform: PlatformSubscriptionService;
   private recovery: RecoveryService;
   private health: HealthService;
+  private accessIntegration: AccessIntegrationService;
 
   constructor() {
     this.scheduler = new BillingSchedulerService();
@@ -18,6 +20,7 @@ export class SystemController {
     this.platform = new PlatformSubscriptionService();
     this.recovery = new RecoveryService();
     this.health = new HealthService();
+    this.accessIntegration = new AccessIntegrationService();
   }
 
   /**
@@ -89,6 +92,21 @@ export class SystemController {
     try {
       const result = await this.health.runAllTenants();
       return res.status(200).json({ message: 'Radar de risco recalculado.', ...result });
+    } catch (error: any) {
+      return res.status(500).json({ error: error.message });
+    }
+  }
+
+  /**
+   * Conexão IoT/Catracas (spec 0043, F13): sweep de transição de acesso. Compara
+   * o estado atual de cada cliente com o último propagado; nas mudanças, loga e
+   * dispara o webhook de saída. Roda por ÚLTIMO no cron (depois do Radar, para o
+   * `lost`/vencidos do dia já refletirem no acesso). Responde 200 (inline).
+   */
+  async runAccess(_req: Request, res: Response) {
+    try {
+      const result = await this.accessIntegration.runAllTenants();
+      return res.status(200).json({ message: 'Sweep de acesso concluído.', ...result });
     } catch (error: any) {
       return res.status(500).json({ error: error.message });
     }

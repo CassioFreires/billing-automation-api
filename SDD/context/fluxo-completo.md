@@ -183,6 +183,23 @@ quando um **acordo é aceito** (`outcome = agreement`) — tudo idempotente, via
 manualmente** um caso (`cancelled`). Casos esgotados viram `lost` e aparecem no
 painel **Recuperações** e no card do Cockpit.
 
+### Sweep de acesso — Conexão IoT/Catracas (spec 0043, F13)
+
+```
+[cron — último passo do dia, depois do Radar (0035)]
+   │ POST /api/system/access/run   (auth: x-cron-secret, cross-tenant, NÃO-FATAL)
+   ▼
+[AccessIntegrationService.runAllTenants] → por tenant (runWithTenant):
+   ├─ recomputa o estado de acesso de cada cliente (decideAccess, F12)
+   ├─ compara com Client.accessState (baseline = 'allowed' na 1ª vez)
+   └─ nas TRANSIÇÕES: grava AccessEvent + dispara webhook assinado (HMAC) se
+        AccessIntegration.enabled && webhookUrl configurado; atualiza accessState
+```
+
+Roda por **último** para o desfecho do dia (vencidos/`lost`) já refletir no acesso.
+Idempotente entre sweeps (sem mudança = nenhum evento). A catraca também consulta
+**sob demanda** via `GET /api/access/check` (auth por `x-api-key`), sem depender do cron.
+
 ---
 
 ## ⚠️ Divergência entre o README e o código (importante)

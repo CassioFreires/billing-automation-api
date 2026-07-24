@@ -39,6 +39,8 @@ model Account {
   contractSetting ContractSetting?
   contractAcceptances ContractAcceptance[]
   accessSetting AccessSetting?
+  accessIntegration AccessIntegration? // Conexão IoT (spec 0043)
+  accessEvents AccessEvent[] // Conexão IoT (spec 0043)
 }
 
 // Assinatura do PRÓPRIO SaaS (spec 0020): a Adimplo cobra o tenant. 1:1 com
@@ -246,6 +248,8 @@ model Client {
   cancellationRequests CancellationRequest[] // Retenção (spec 0037)
   contractAcceptances ContractAcceptance[] // Contrato (spec 0040)
   accessOverride String? // Liga/Desliga Acesso (spec 0042): null | allow | block
+  accessState    String? // Conexão IoT (spec 0043): último estado propagado (allowed|grace|blocked) — base p/ detectar transição
+  accessEvents   AccessEvent[] // Conexão IoT (spec 0043): log de transições de acesso
 
   tenantId  String
   account   Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -563,6 +567,48 @@ model AccessSetting {
 
   tenantId              String   @unique
   account               Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+// Conexão IoT/Catracas (spec 0043, F13). A "tomada": credenciais por tenant para
+// o equipamento consultar (API key) e para o Adimplo avisar (webhook de saída).
+model AccessIntegration {
+  id           String   @id @default(uuid())
+  enabled      Boolean  @default(false)
+  // API key para o equipamento consultar GET /access/check. Guardamos só o HASH
+  // (sha256); a chave crua é mostrada UMA vez na geração. Prefixo p/ exibir no painel.
+  apiKeyHash   String?
+  apiKeyPrefix String?
+  // Webhook de saída: URL do sistema do cliente + segredo p/ assinar (HMAC).
+  webhookUrl    String?
+  webhookSecret String?
+  createdAt    DateTime @default(now())
+  lastUpdate   DateTime @updatedAt
+
+  tenantId     String   @unique
+  account      Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([apiKeyHash])
+}
+
+// Log de transição de acesso (append-only, auditoria). Uma linha por mudança de
+// estado detectada no sweep diário; registra se o webhook entregou.
+model AccessEvent {
+  id           String   @id @default(uuid())
+  fromState    String?  // estado anterior (null = primeira vez)
+  toState      String   // allowed | grace | blocked
+  granted      Boolean
+  reason       String   @default("")
+  webhookStatus String  @default("skipped") // skipped | sent | failed
+  webhookCode  Int?     // HTTP status do webhook, se disparado
+  createdAt    DateTime @default(now())
+
+  clientId     String
+  client       Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  tenantId     String
+  account      Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, clientId])
 }
 
 // Prova de aceite do contrato pelo cliente (append-only).
