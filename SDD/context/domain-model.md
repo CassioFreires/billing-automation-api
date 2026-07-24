@@ -336,6 +336,16 @@ Estado de acesso do cliente **derivado** do pagamento (calculado na leitura, sem
 - API dono: `GET/PUT /api/access/integration`, `POST .../api-key/rotate|revoke`,
   `PUT/DELETE .../webhook`, `POST .../webhook/test`, `GET /api/access/events`.
 
+### Loja no Pagamento (spec 0044 — F15) — order bump
+- **OfferProduct** (por tenant): `name`, `priceCents` (inteiro), `type`
+  (addon|upgrade|produto), `active`. Vitrine no checkout do Elo.
+- **OfferPurchase** (1:1 com a fatura do add-on): snapshot `priceCents`, liga
+  `offerId`↔`invoiceId`↔`clientId`. Base da métrica de receita extra (compras `PAID`).
+- Aceitar (`POST /api/public/offers/:token/accept`, tenant pela fatura) gera uma
+  **cobrança separada** one-time (reserva→gateway→anexa, como o acordo 0018); rollback
+  se o gateway falha. Oferta já comprada não é apagada (desativar).
+- API dono: `GET /api/offers`, `GET /api/offers/summary`, `POST/PUT/DELETE /api/offers`.
+
 ## Máquinas de estado
 
 ### Status do Cliente

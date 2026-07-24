@@ -14,6 +14,7 @@ import { recoveryRouter } from './routers/recovery.router.js';
 import { retentionRouter } from './routers/retention.router.js';
 import { contractRouter } from './routers/contract.router.js';
 import { accessRouter } from './routers/access.router.js';
+import { offerRouter, publicOfferRouter } from './routers/offer.router.js';
 import { publicAgreementRouter } from './routers/agreement.router.js';
 import { publicPortalRouter } from './routers/portal.router.js';
 import { billingRouter } from './routers/billing.router.js';
@@ -62,8 +63,12 @@ appRouter.use('/retention', retentionRouter);
 appRouter.use('/contract', contractRouter);
 
 appRouter.use('/access', accessRouter);
+// Loja no Pagamento (spec 0044, F15): CRUD do dono (JWT).
+appRouter.use('/offers', offerRouter);
 // Autonegociação PÚBLICA (spec 0018 — M2): sem JWT, tenant resolvido pela fatura.
 appRouter.use('/public/agreements', publicAgreementRouter);
+// Vitrine PÚBLICA da Loja no Pagamento (spec 0044): sem JWT, tenant pela fatura.
+appRouter.use('/public/offers', publicOfferRouter);
 // Portal do pagador PÚBLICO (spec 0027): sem JWT, cliente resolvido pelo portalToken.
 appRouter.use('/public/portal', publicPortalRouter);
 appRouter.use('/health', healthRouter);
