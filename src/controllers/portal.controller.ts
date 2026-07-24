@@ -1,5 +1,16 @@
 import { Request, Response } from 'express';
+import { createHash } from 'node:crypto';
+import { ZodError } from 'zod';
 import { PortalService } from '../services/portal.service.js';
+import { NotFoundError, BadRequestError } from '../services/contract.service.js';
+import { validateAcceptContract } from '../dtos/contract.dto.js';
+
+/** Hash salgado do IP para prova de aceite (LGPD-mínimo, igual ao Elo — RN-ELO6). */
+function hashIp(ip: string | undefined): string | undefined {
+  if (!ip) return undefined;
+  const salt = process.env.EVENT_IP_SALT ?? '';
+  return createHash('sha256').update(salt + ip).digest('hex').slice(0, 16);
+}
 
 /** Base pública da API (para os links do Elo /r/:token). */
 function apiBaseUrl(): string {
@@ -43,6 +54,38 @@ export class PortalController {
       res.status(200).json({ url });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
+    }
+  };
+
+  /** Rota PÚBLICA: aceite do contrato no Portal (spec 0040), com prova. */
+  acceptContract = async (req: Request<{ token: string }>, res: Response): Promise<void> => {
+    try {
+      const dto = validateAcceptContract(req.body);
+      const result = await this.service.acceptContract(
+        String(req.params.token),
+        { name: dto.name, document: dto.document ?? null },
+        { ipHash: hashIp(req.ip), userAgent: req.get('user-agent') ?? null }
+      );
+      if (!result) {
+        res.status(404).json({ error: 'Portal não encontrado.' });
+        return;
+      }
+      res.status(201).json(result);
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        res.status(400).json({ error: error.issues });
+        return;
+      }
+      if (error instanceof NotFoundError) {
+        res.status(404).json({ error: error.message });
+        return;
+      }
+      if (error instanceof BadRequestError) {
+        res.status(400).json({ error: error.message });
+        return;
+      }
+      console.error('❌ Erro no aceite de contrato:', error);
+      res.status(500).json({ error: 'Erro ao registrar o aceite.' });
     }
   };
 }

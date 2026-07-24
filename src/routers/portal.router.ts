@@ -10,3 +10,6 @@ export const publicPortalRouter = Router();
 const controller = new PortalController();
 
 publicPortalRouter.get('/:token', linkLimiter, controller.getByToken);
+
+// Aceite do contrato no celular (spec 0040) — público, rate-limited.
+publicPortalRouter.post('/:token/contract/accept', linkLimiter, controller.acceptContract);

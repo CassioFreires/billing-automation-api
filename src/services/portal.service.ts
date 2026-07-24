@@ -1,5 +1,6 @@
 import { ClientRepository } from '../repositories/cliente.repositorie.js';
 import { InvoiceRepository } from '../repositories/invoice.repository.js';
+import { ContractService, type ContractView } from './contract.service.js';
 
 const OPEN_STATUSES = new Set(['PENDING', 'OVERDUE']);
 
@@ -17,6 +18,7 @@ export interface PortalView {
   open: PortalInvoice[];
   history: PortalInvoice[];
   totals: { openCount: number; openValue: number };
+  contract: ContractView | null; // Contrato no Celular (spec 0040)
 }
 
 /**
@@ -27,10 +29,12 @@ export interface PortalView {
 export class PortalService {
   private clients: ClientRepository;
   private invoices: InvoiceRepository;
+  private contract: ContractService;
 
-  constructor(deps?: { clients?: ClientRepository; invoices?: InvoiceRepository }) {
+  constructor(deps?: { clients?: ClientRepository; invoices?: InvoiceRepository; contract?: ContractService }) {
     this.clients = deps?.clients ?? new ClientRepository();
     this.invoices = deps?.invoices ?? new InvoiceRepository();
+    this.contract = deps?.contract ?? new ContractService();
   }
 
   async getByToken(token: string, appBaseUrl: string): Promise<PortalView | null> {
@@ -38,6 +42,7 @@ export class PortalService {
     if (!client || client.anonymizedAt) return null; // titular anonimizado não expõe portal
 
     const rows = await this.invoices.findForPortal(client.id);
+    const contract = await this.contract.getForClient(client.id, client.tenantId);
     const base = appBaseUrl.replace(/\/$/, '');
 
     const map = (r: (typeof rows)[number]): PortalInvoice => ({
@@ -60,7 +65,30 @@ export class PortalService {
         openCount: open.length,
         openValue: Math.round(open.reduce((s, i) => s + i.value, 0) * 100) / 100,
       },
+      contract,
     };
+  }
+
+  /**
+   * Aceite do contrato no Portal (spec 0040). Resolve o cliente pelo token (entrada
+   * global) e delega ao ContractService, que grava a prova. `ipHash`/`userAgent`
+   * vêm do controller (LGPD-mínimo). 404 se o token não existe.
+   */
+  async acceptContract(
+    token: string,
+    input: { name: string; document?: string | null },
+    proof: { ipHash?: string | null; userAgent?: string | null }
+  ) {
+    const client = await this.clients.findByPortalToken(token);
+    if (!client || client.anonymizedAt) return null;
+    return this.contract.accept({
+      clientId: client.id,
+      tenantId: client.tenantId,
+      name: input.name,
+      document: input.document ?? null,
+      ipHash: proof.ipHash ?? null,
+      userAgent: proof.userAgent ?? null,
+    });
   }
 
   /** Gera/recupera o link do portal de um cliente (ação do dono, tenant-scoped). */

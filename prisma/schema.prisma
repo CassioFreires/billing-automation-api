@@ -36,6 +36,8 @@ model Account {
   recoveryAttempts RecoveryAttempt[]
   clientHealth ClientHealth[]
   cancellationRequests CancellationRequest[]
+  contractSetting ContractSetting?
+  contractAcceptances ContractAcceptance[]
 }
 
 // Assinatura do PRÓPRIO SaaS (spec 0020): a Adimplo cobra o tenant. 1:1 com
@@ -241,6 +243,7 @@ model Client {
   recoveryCases RecoveryCase[]
   health        ClientHealth? // Radar de Risco (spec 0035) — 1:1
   cancellationRequests CancellationRequest[] // Retenção (spec 0037)
+  contractAcceptances ContractAcceptance[] // Contrato (spec 0040)
 
   tenantId  String
   account   Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -525,4 +528,36 @@ model RetentionSetting {
 
   tenantId               String   @unique
   account                Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+// Contrato no Celular (spec 0040 — F14). Modelo do contrato por tenant (1 por tenant).
+model ContractSetting {
+  id         String   @id @default(uuid())
+  enabled    Boolean  @default(false)
+  title      String   @default("Contrato de prestação de serviço")
+  body       String   @default("") // texto do contrato
+  version    Int      @default(1)
+  createdAt  DateTime @default(now())
+  lastUpdate DateTime @updatedAt
+
+  tenantId   String   @unique
+  account    Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+// Prova de aceite do contrato pelo cliente (append-only).
+model ContractAcceptance {
+  id               String   @id @default(uuid())
+  version          Int
+  acceptedName     String
+  acceptedDocument String?
+  ipHash           String?
+  userAgent        String?
+  acceptedAt       DateTime @default(now())
+
+  clientId         String
+  client           Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  tenantId         String
+  account          Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, clientId])
 }

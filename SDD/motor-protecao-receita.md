@@ -446,7 +446,8 @@ genérico**; conectores de marca (software de academia X) só sob demanda.
 
 ---
 
-## F14 · Contrato & Assinatura Digital (fundação legal) ⭐
+## F14 · Contrato & Assinatura Digital (fundação legal) ⭐ — ✅ v1 ENTREGUE (spec 0040)
+_`ContractSetting` (contrato por tenant, com versão) + `ContractAcceptance` (prova: nome/versão/ipHash/userAgent, append-only). Dono configura em `/api/contract/settings`; cliente assina no Portal (`POST /public/portal/:token/contract/accept`). "Em dia com o contrato" = aceitou a versão atual. Base para o F12. Follow-up: PDF/e-sign avançada._
 
 ### Descrição
 O pagador **assina digitalmente** o contrato de adesão **antes de começar**; o aceite
