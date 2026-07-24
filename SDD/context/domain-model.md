@@ -278,8 +278,16 @@ abre-se um pedido `open`; o domínio (`decideSaveOffer`) recomenda uma oferta po
 
 Índice: `@@index([tenantId, status])`. Regra pura em `src/domain/save-offer.ts`
 (`decideSaveOffer` — pausar é a saída preferida; `at_risk` puxa para pausar). API em
-`/api/retention/*`. v1 é operado pelo dono; execução concreta de desconto/downgrade e
-autoatendimento no Portal são follow-ups.
+`/api/retention/*`. Operado pelo dono; autoatendimento no Portal é follow-up.
+
+**Descontos configuráveis (spec 0038, F11.1):** o desconto agora é **concreto**.
+`CancellationRequest` guarda `appliedPercent`/`appliedUntil` (o que foi dado).
+`Subscription` ganhou `discountPercent`/`discountUntil` (desconto ATIVO): a **geração
+recorrente** (0009) aplica `valor × (1−%/100)` enquanto `discountUntil >= dueDate` e
+volta ao cheio depois — `applyDiscount`/`isDiscountActive` (puras, `save-offer.ts`).
+`RetentionSetting` (1 por tenant): `discountPercent` (def 30), `discountDurationMonths`
+(def 2), `discountEnabled`, `pauseEnabled` — config em `GET/PUT /api/retention/settings`;
+o % e os meses são editáveis na hora de aplicar.
 
 ## Máquinas de estado
 

@@ -13,6 +13,13 @@ function makeMocks() {
       findByIdForTenant: vi.fn(),
       resolve: vi.fn(),
       listForTenant: vi.fn().mockResolvedValue([]),
+      getSettings: vi.fn().mockResolvedValue({
+        discountPercent: 30,
+        discountDurationMonths: 2,
+        discountEnabled: true,
+        pauseEnabled: true,
+      }),
+      upsertSettings: vi.fn(),
     },
   };
 }
@@ -52,26 +59,48 @@ describe('RetentionService (spec 0037 — F11)', () => {
 
   it('resolve saved+pause aplica a oferta e grava desfecho', async () => {
     m.repo.findByIdForTenant.mockResolvedValue({ id: 'req1', status: 'open', recommended: 'pause', subscriptionId: 'sub1' });
-    m.repo.resolve.mockResolvedValue({ id: 'req1', status: 'saved', saveOffer: 'pause' });
+    m.repo.resolve.mockResolvedValue({ id: 'req1', status: 'saved', saveOffer: 'pause', appliedPercent: null, appliedUntil: null });
 
-    const out = await svc(m).resolveRequest('req1', 'saved', 'pause');
+    const out = await svc(m).resolveRequest('req1', 'saved', { offer: 'pause' });
 
-    expect(out).toEqual({ id: 'req1', status: 'saved', saveOffer: 'pause' });
-    expect(m.repo.resolve).toHaveBeenCalledWith('req1', 'saved', 'pause', 'sub1');
+    expect(out.status).toBe('saved');
+    expect(m.repo.resolve).toHaveBeenCalledWith(
+      'req1',
+      expect.objectContaining({ outcome: 'saved', offer: 'pause', subscriptionId: 'sub1', discountPercent: null })
+    );
   });
 
   it('resolve sem oferta usa a recomendada', async () => {
     m.repo.findByIdForTenant.mockResolvedValue({ id: 'req1', status: 'open', recommended: 'pause', subscriptionId: 'sub1' });
     m.repo.resolve.mockResolvedValue({ id: 'req1', status: 'saved', saveOffer: 'pause' });
     await svc(m).resolveRequest('req1', 'saved');
-    expect(m.repo.resolve).toHaveBeenCalledWith('req1', 'saved', 'pause', 'sub1');
+    expect(m.repo.resolve).toHaveBeenCalledWith('req1', expect.objectContaining({ offer: 'pause' }));
+  });
+
+  it('saved+discount grava desconto (percent + until) na assinatura', async () => {
+    m.repo.findByIdForTenant.mockResolvedValue({ id: 'req1', status: 'open', recommended: 'discount', subscriptionId: 'sub1' });
+    m.repo.resolve.mockResolvedValue({ id: 'req1', status: 'saved', saveOffer: 'discount', appliedPercent: 40, appliedUntil: new Date() });
+    const now = new Date('2026-07-24T00:00:00Z');
+
+    await svc(m).resolveRequest('req1', 'saved', { offer: 'discount', discountPercent: 40, discountMonths: 3 }, now);
+
+    const arg = m.repo.resolve.mock.calls[0][1];
+    expect(arg.offer).toBe('discount');
+    expect(arg.discountPercent).toBe(40);
+    expect(arg.discountUntil.getUTCMonth()).toBe(9); // julho + 3 = outubro (0-based)
+  });
+
+  it('discount desabilitado → 409', async () => {
+    m.repo.findByIdForTenant.mockResolvedValue({ id: 'req1', status: 'open', recommended: 'discount', subscriptionId: 'sub1' });
+    m.repo.getSettings.mockResolvedValue({ discountPercent: 30, discountDurationMonths: 2, discountEnabled: false, pauseEnabled: true });
+    await expect(svc(m).resolveRequest('req1', 'saved', { offer: 'discount' })).rejects.toBeInstanceOf(ConflictError);
   });
 
   it('cancelled não aplica oferta (offer null)', async () => {
     m.repo.findByIdForTenant.mockResolvedValue({ id: 'req1', status: 'open', recommended: 'pause', subscriptionId: 'sub1' });
     m.repo.resolve.mockResolvedValue({ id: 'req1', status: 'cancelled', saveOffer: null });
     await svc(m).resolveRequest('req1', 'cancelled');
-    expect(m.repo.resolve).toHaveBeenCalledWith('req1', 'cancelled', null, 'sub1');
+    expect(m.repo.resolve).toHaveBeenCalledWith('req1', expect.objectContaining({ outcome: 'cancelled', offer: null }));
   });
 
   it('pedido já resolvido → 409 (idempotente, RN-3703)', async () => {

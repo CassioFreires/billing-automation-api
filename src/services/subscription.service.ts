@@ -5,6 +5,7 @@ import {
   UpdateSubscriptionDTO,
 } from '../dtos/subscription.dto.js';
 import { firstRunDate, nextMonth, periodOf } from '../utils/recurrence.js';
+import { applyDiscount, isDiscountActive } from '../domain/save-offer.js';
 
 export interface RunResult {
   processadas: number; // assinaturas vencidas avaliadas
@@ -75,11 +76,21 @@ export class SubscriptionService {
       const period = periodOf(sub.nextRunDate);
       const dueDate = sub.nextRunDate;
 
+      // Desconto de retenção (spec 0038): se ativo para esta competência, aplica no
+      // valor gerado e volta ao cheio quando a janela passa (automático).
+      const gross = Number(sub.amount);
+      const s = sub as { discountPercent?: number | null; discountUntil?: Date | null };
+      const discounted = isDiscountActive(s.discountUntil, dueDate)
+        ? applyDiscount(gross, s.discountPercent)
+        : gross;
+      const description =
+        discounted < gross ? `${sub.description} (desconto retenção -${s.discountPercent}%)` : sub.description;
+
       const { created } = await this.invoiceService.createForSubscription({
         subscriptionId: sub.id,
         clientId: sub.clientId,
-        description: sub.description,
-        amount: Number(sub.amount), // Decimal → number (o gateway trabalha com number)
+        description,
+        amount: discounted, // Decimal → number (o gateway trabalha com number)
         dueDate,
         period,
       });

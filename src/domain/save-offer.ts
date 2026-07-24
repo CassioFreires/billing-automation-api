@@ -55,3 +55,30 @@ export function decideSaveOffer(
 
   return { offer, message: MESSAGES[offer] };
 }
+
+// ── Desconto de retenção (spec 0038, F11.1) — funções puras ──────────────────
+
+/** true se há um desconto válido para a data `on` (competência). */
+export function isDiscountActive(
+  discountUntil: Date | null | undefined,
+  on: Date = new Date()
+): boolean {
+  return !!discountUntil && on.getTime() <= discountUntil.getTime();
+}
+
+/** Aplica o percentual (0..100) ao valor, com 2 casas. Percentual inválido = sem desconto. */
+export function applyDiscount(amount: number, percent: number | null | undefined): number {
+  if (!percent || percent <= 0 || percent > 100) return round2(amount);
+  return round2(amount * (1 - percent / 100));
+}
+
+/** Soma meses a uma data (base para `discountUntil`). Não muta a original. */
+export function addMonths(base: Date, months: number): Date {
+  const d = new Date(base);
+  d.setMonth(d.getMonth() + months);
+  return d;
+}
+
+function round2(n: number): number {
+  return Math.round((n + Number.EPSILON) * 100) / 100;
+}
