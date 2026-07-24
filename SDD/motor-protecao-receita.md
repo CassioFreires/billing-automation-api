@@ -376,7 +376,8 @@ model CancellationRequest {
 
 ---
 
-## F12 · Camada de Acesso — pagou libera / não pagou bloqueia ⭐
+## F12 · Camada de Acesso — pagou libera / não pagou bloqueia ⭐ — ✅ v1 ENTREGUE (spec 0042)
+_Estado derivado (`decideAccess`, puro): allowed/grace/blocked. Travas: nunca bloqueia quem está em dia; só com `enabled`; só bloqueia quem assinou contrato (se exigido); carência configurável; override manual do dono. `AccessSetting` + `Client.accessOverride`. API `/api/access/*`. Falta o F13 (webhook/transição p/ catracas)._
 
 ### Descrição
 O **status de pagamento controla o acesso** ao serviço (liberado / bloqueado /
