@@ -34,6 +34,7 @@ model Account {
   recoveryCases RecoveryCase[]
   recoveryAttempts RecoveryAttempt[]
   clientHealth ClientHealth[]
+  cancellationRequests CancellationRequest[]
 }
 
 // Assinatura do PRÓPRIO SaaS (spec 0020): a Adimplo cobra o tenant. 1:1 com
@@ -238,6 +239,7 @@ model Client {
   interactionEvents InteractionEvent[]
   recoveryCases RecoveryCase[]
   health        ClientHealth? // Radar de Risco (spec 0035) — 1:1
+  cancellationRequests CancellationRequest[] // Retenção (spec 0037)
 
   tenantId  String
   account   Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -482,4 +484,23 @@ model ClientHealth {
   account    Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, band])
+}
+
+// Segura Quem Quer Sair (spec 0037 — F11). Pedido de cancelamento + desfecho de retenção.
+model CancellationRequest {
+  id             String    @id @default(uuid())
+  reason         String?   // preco | nao_uso | mudanca | insatisfacao | outro
+  status         String    @default("open") // open | saved | cancelled
+  recommended    String?   // oferta recomendada pelo domínio (save-offer)
+  saveOffer      String?   // oferta efetivamente aplicada (quando saved)
+  createdAt      DateTime  @default(now())
+  resolvedAt     DateTime?
+
+  clientId       String
+  client         Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  subscriptionId String    // FK p/ Subscription garantida na migration (guarda)
+  tenantId       String
+  account        Account   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
 }

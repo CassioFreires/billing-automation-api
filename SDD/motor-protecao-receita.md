@@ -363,14 +363,14 @@ model CancellationRequest {
 - **RN-F11-02** — Registrar quem foi **salvo** e por qual oferta (aprendizado + métrica).
 - **RN-F11-03** — Respeitar o contrato (F14): fidelidade/multa só se assinadas.
 
-### Checklist de implementação
-- [ ] **Spec** `SDD/specs/00xx-retencao-cancelamento.md`.
-- [ ] **Schema/migration** — `CancellationRequest`.
-- [ ] **Domínio** — `domain/save-offer.ts`: `decideSaveOffer(reason, health, contract)` pura/testável.
-- [ ] **Service** — abrir fluxo, aplicar oferta (pausar/descontar), resolver.
-- [ ] **Rota/Portal** — "solicitar cancelamento" na área do cliente.
-- [ ] **Frontend** — fluxo de cancelamento com a oferta + painel de "salvos".
-- [ ] **Testes** — cada motivo → oferta certa; salvo vs. cancelado.
+### Checklist de implementação — ✅ ENTREGUE (spec **0037**)
+- [x] **Spec** `0037-retencao-cancelamento.md`.
+- [x] **Schema/migration** — `CancellationRequest` (`20260807000000_retencao_cancelamento`, idempotente).
+- [x] **Domínio** — `domain/save-offer.ts`: `decideSaveOffer(reason, band)` pura/testável.
+- [x] **Service** — `retention.service.ts`: `openRequest`/`resolveRequest`/`listRequests` (pausa/cancela).
+- [x] **Rota** — `/api/retention/*` (abrir/resolver/listar). *(Autoatendimento no Portal = follow-up.)*
+- [ ] **Frontend** — fluxo de cancelamento com a oferta + painel de "salvos" (em andamento).
+- [x] **Testes** — `decideSaveOffer` (cada motivo → oferta; at_risk→pause) + service (abrir/resolver idempotente).
 
 ---
 

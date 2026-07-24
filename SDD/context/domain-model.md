@@ -257,6 +257,30 @@ avisa quem tende a atrasar/dar calote (avulso) ou cancelar (recorrente).
 (`computeHealth`). Recalcula em pagamento (webhook/baixa) e no sweep diário (cron
 das 11:00, **depois** da recuperação). `GET /api/clients` inclui `health` e aceita `?band=`.
 
+### CancellationRequest (Retenção no cancelamento) — spec 0037 (F11)
+
+Pedido de cancelamento de assinatura + desfecho de retenção. Ao pedir cancelamento,
+abre-se um pedido `open`; o domínio (`decideSaveOffer`) recomenda uma oferta por
+**motivo + saúde do cliente (F2)**; o dono resolve como **salvo** (aplica a oferta;
+`pause` pausa a assinatura) ou **cancelado**.
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `id` | String (uuid) | PK |
+| `reason` | String? | `preco`/`nao_uso`/`mudanca`/`insatisfacao`/`outro` |
+| `status` | String | `open` → `saved` \| `cancelled` (terminal) |
+| `recommended` | String? | oferta recomendada pelo domínio |
+| `saveOffer` | String? | oferta aplicada (quando `saved`): `pause`/`discount`/`downgrade`/`winback_later` |
+| `createdAt` / `resolvedAt` | DateTime | abertura / desfecho |
+| `clientId` | String | FK → Client (`onDelete: Cascade`) |
+| `subscriptionId` | String | FK → Subscription (`onDelete: Cascade`) |
+| `tenantId` | String | FK → Account. Escopo |
+
+Índice: `@@index([tenantId, status])`. Regra pura em `src/domain/save-offer.ts`
+(`decideSaveOffer` — pausar é a saída preferida; `at_risk` puxa para pausar). API em
+`/api/retention/*`. v1 é operado pelo dono; execução concreta de desconto/downgrade e
+autoatendimento no Portal são follow-ups.
+
 ## Máquinas de estado
 
 ### Status do Cliente
