@@ -1,6 +1,7 @@
 import { InvoiceRepository } from '../repositories/invoice.repository.js';
 import { PaymentRepository } from '../repositories/payment.repository.js';
 import { RecoveryCaseRepository } from '../repositories/recovery-case.repository.js';
+import { HealthService } from './health.service.js';
 import { RegisterManualPaymentDTO } from '../dtos/payment.dto.js';
 import { canTransitionInvoice, InvoiceStatus } from '../domain/status.js';
 
@@ -12,15 +13,18 @@ export class PaymentService {
   private invoices: InvoiceRepository;
   private payments: PaymentRepository;
   private recovery: RecoveryCaseRepository;
+  private health: HealthService;
 
   constructor(deps?: {
     invoices?: InvoiceRepository;
     payments?: PaymentRepository;
     recovery?: RecoveryCaseRepository;
+    health?: HealthService;
   }) {
     this.invoices = deps?.invoices ?? new InvoiceRepository();
     this.payments = deps?.payments ?? new PaymentRepository();
     this.recovery = deps?.recovery ?? new RecoveryCaseRepository();
+    this.health = deps?.health ?? new HealthService();
   }
 
   /**
@@ -57,6 +61,12 @@ export class PaymentService {
     // Fatura quitada por baixa manual → fecha o caso de recuperação, se houver
     // (spec 0033, RN-3306). Best-effort e idempotente.
     await this.recovery.closeByInvoiceId(invoiceId, 'paid').catch(() => {});
+
+    // Radar de Risco (spec 0035, RN-3505a): a baixa recalcula a saúde do cliente.
+    const inv = invoice as { clientId?: string; tenantId?: string };
+    if (inv.clientId && inv.tenantId) {
+      await this.health.recomputeForClient(inv.clientId, inv.tenantId).catch(() => {});
+    }
 
     return settled;
   }

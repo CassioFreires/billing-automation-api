@@ -3,18 +3,21 @@ import { BillingSchedulerService } from '../services/billing-scheduler.service.j
 import { NotificationSchedulerService } from '../services/notification-scheduler.service.js';
 import { PlatformSubscriptionService } from '../services/platform-subscription.service.js';
 import { RecoveryService } from '../services/recovery.service.js';
+import { HealthService } from '../services/health.service.js';
 
 export class SystemController {
   private scheduler: BillingSchedulerService;
   private notificationScheduler: NotificationSchedulerService;
   private platform: PlatformSubscriptionService;
   private recovery: RecoveryService;
+  private health: HealthService;
 
   constructor() {
     this.scheduler = new BillingSchedulerService();
     this.notificationScheduler = new NotificationSchedulerService();
     this.platform = new PlatformSubscriptionService();
     this.recovery = new RecoveryService();
+    this.health = new HealthService();
   }
 
   /**
@@ -72,6 +75,20 @@ export class SystemController {
     try {
       const result = await this.recovery.runAllTenants();
       return res.status(202).json({ message: 'Recuperação de pagamentos processada.', ...result });
+    } catch (error: any) {
+      return res.status(500).json({ error: error.message });
+    }
+  }
+
+  /**
+   * Radar de Risco (spec 0035, F2): recalcula o score de saúde de todos os
+   * clientes de todos os tenants. Chamado pelo cron DEPOIS da recuperação, para
+   * o desfecho `lost` do dia já entrar no score. Responde 200 (processa inline).
+   */
+  async runHealth(_req: Request, res: Response) {
+    try {
+      const result = await this.health.runAllTenants();
+      return res.status(200).json({ message: 'Radar de risco recalculado.', ...result });
     } catch (error: any) {
       return res.status(500).json({ error: error.message });
     }

@@ -5,6 +5,7 @@ import { Prisma } from '@prisma/client';
 import { InvoiceRepository } from '../repositories/invoice.repository.js';
 import { InteractionEventRepository } from '../repositories/interaction-event.repository.js';
 import { RecoveryCaseRepository } from '../repositories/recovery-case.repository.js';
+import { HealthService } from './health.service.js';
 import { ClientRepository } from '../repositories/cliente.repositorie.js';
 import { ImportInvoiceRowDTO } from '../dtos/importInvoices.dto.js';
 import { planInvoiceImport } from '../utils/import-invoice-plan.js';
@@ -35,6 +36,7 @@ export class InvoiceService {
   private events: InteractionEventRepository;
   private clients: ClientRepository;
   private recovery: RecoveryCaseRepository;
+  private health: HealthService;
 
   constructor(deps?: {
     invoiceRepository?: InvoiceRepository;
@@ -43,6 +45,7 @@ export class InvoiceService {
     events?: InteractionEventRepository;
     clients?: ClientRepository;
     recovery?: RecoveryCaseRepository;
+    health?: HealthService;
   }) {
     this.invoiceRepository = deps?.invoiceRepository ?? new InvoiceRepository();
     this.injectedGateway = deps?.gateway;
@@ -50,6 +53,7 @@ export class InvoiceService {
     this.events = deps?.events ?? new InteractionEventRepository();
     this.clients = deps?.clients ?? new ClientRepository();
     this.recovery = deps?.recovery ?? new RecoveryCaseRepository();
+    this.health = deps?.health ?? new HealthService();
   }
 
   /**
@@ -283,6 +287,11 @@ export class InvoiceService {
     // RN-3306). Best-effort: nunca derruba o webhook. Idempotente no repositório.
     if (!result.duplicate && event.status === 'PAID') {
       await this.recovery.closeByInvoiceId(invoice.id, 'paid').catch(() => {});
+      // Radar de Risco (spec 0035, RN-3505a): pagamento muda a saúde do cliente.
+      const inv = invoice as { clientId?: string; tenantId?: string };
+      if (inv.clientId && inv.tenantId) {
+        await this.health.recomputeForClient(inv.clientId, inv.tenantId).catch(() => {});
+      }
     }
 
     return result;

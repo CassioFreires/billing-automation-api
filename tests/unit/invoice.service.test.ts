@@ -20,15 +20,18 @@ function makeService() {
   const events = { record: vi.fn(), listByInvoice: vi.fn(), countsByInvoice: vi.fn() };
   // Recuperação (spec 0033): mock hermético — fecha o caso no webhook PAID.
   const recovery = { closeByInvoiceId: vi.fn().mockResolvedValue({ closed: false }) };
+  // Radar de Risco (spec 0035): mock hermético — recompute da saúde no PAID.
+  const health = { recomputeForClient: vi.fn().mockResolvedValue(undefined) };
 
   const service = new InvoiceService({
     invoiceRepository: invoiceRepository as any,
     gateway: gateway as any,
     events: events as any,
     recovery: recovery as any,
+    health: health as any,
   });
 
-  return { service, invoiceRepository, gateway, events, recovery };
+  return { service, invoiceRepository, gateway, events, recovery, health };
 }
 
 describe('InvoiceService.createPayment', () => {

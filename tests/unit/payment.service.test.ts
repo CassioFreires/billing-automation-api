@@ -10,8 +10,10 @@ function makeService() {
   const payments = { findByInvoice: vi.fn() };
   // Recuperação (spec 0033): mock hermético — baixa manual fecha o caso, se houver.
   const recovery = { closeByInvoiceId: vi.fn().mockResolvedValue({ closed: false }) };
-  const service = new PaymentService({ invoices: invoices as any, payments: payments as any, recovery: recovery as any });
-  return { service, invoices, payments, recovery };
+  // Radar de Risco (spec 0035): mock hermético — baixa recalcula a saúde do cliente.
+  const health = { recomputeForClient: vi.fn().mockResolvedValue(undefined) };
+  const service = new PaymentService({ invoices: invoices as any, payments: payments as any, recovery: recovery as any, health: health as any });
+  return { service, invoices, payments, recovery, health };
 }
 
 describe('PaymentService.registerManual (baixa manual)', () => {
