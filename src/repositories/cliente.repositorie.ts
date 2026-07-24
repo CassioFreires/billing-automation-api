@@ -29,6 +29,12 @@ export class ClientRepository {
       },
       include: {
         health: { select: { score: true, band: true, signals: true, computedAt: true } },
+        // Último aceite de contrato (spec 0040) — status "Contrato ✓ vX".
+        contractAcceptances: {
+          orderBy: { acceptedAt: 'desc' },
+          take: 1,
+          select: { version: true, acceptedAt: true },
+        },
       },
     });
   }

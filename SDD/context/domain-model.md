@@ -289,6 +289,22 @@ volta ao cheio depois — `applyDiscount`/`isDiscountActive` (puras, `save-offer
 (def 2), `discountEnabled`, `pauseEnabled` — config em `GET/PUT /api/retention/settings`;
 o % e os meses são editáveis na hora de aplicar.
 
+### ContractSetting / ContractAcceptance (Contrato no Celular) — spec 0040 (F14)
+
+Base legal do moat: o dono publica um **contrato** e o cliente **aceita** com **prova**.
+
+- **ContractSetting** (1 por tenant): `enabled`, `title`, `body` (texto), `version`. Ao
+  salvar, se `title`/`body` mudam, a **versão incrementa** (aceites antigos valem para a
+  versão que assinaram). Config em `GET/PUT /api/contract/settings`.
+- **ContractAcceptance** (append-only, prova): `version`, `acceptedName` (assinatura
+  digitada), `acceptedDocument?`, `ipHash` (salgado, RN-ELO6), `userAgent`, `acceptedAt`,
+  `clientId`, `tenantId`. Índice `@@index([tenantId, clientId])`.
+- **Aceite** no **Portal público** (`POST /public/portal/:token/contract/accept`) — resolve
+  o cliente pelo `portalToken` (entrada global, sem contexto). Idempotente por (cliente,
+  versão). Cliente está "em dia com o contrato" se aceitou a **versão atual** (RN-4003).
+- `GET /api/clients` inclui o último aceite (`contractAcceptances[0]`). Regras puras no
+  service (`ContractService`). Consumidor futuro: F12 (bloqueio exige contrato aceito).
+
 ## Máquinas de estado
 
 ### Status do Cliente
