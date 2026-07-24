@@ -41,6 +41,8 @@ model Account {
   accessSetting AccessSetting?
   accessIntegration AccessIntegration? // Conexão IoT (spec 0043)
   accessEvents AccessEvent[] // Conexão IoT (spec 0043)
+  offerProducts OfferProduct[] // Loja no Pagamento (spec 0044)
+  offerPurchases OfferPurchase[] // Loja no Pagamento (spec 0044)
 }
 
 // Assinatura do PRÓPRIO SaaS (spec 0020): a Adimplo cobra o tenant. 1:1 com
@@ -250,6 +252,7 @@ model Client {
   accessOverride String? // Liga/Desliga Acesso (spec 0042): null | allow | block
   accessState    String? // Conexão IoT (spec 0043): último estado propagado (allowed|grace|blocked) — base p/ detectar transição
   accessEvents   AccessEvent[] // Conexão IoT (spec 0043): log de transições de acesso
+  offerPurchases OfferPurchase[] // Loja no Pagamento (spec 0044): add-ons comprados no checkout
 
   tenantId  String
   account   Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -286,6 +289,7 @@ model Invoice {
   payments      Payment[]     // recebimentos (manual + gateway) — spec 0015
   events        InteractionEvent[] // eventos de interação (Elo) — spec 0016
   recoveryCase  RecoveryCase? // caso de recuperação de pagamento falho (spec 0033, F1)
+  offerPurchase OfferPurchase? // Loja no Pagamento (spec 0044): esta fatura é a cobrança de um add-on
 
   // Autonegociação (spec 0018 — M2): acordos onde esta fatura é a ORIGINAL
   // (renegociada) ou a NOVA (gerada pelo acordo).
@@ -609,6 +613,43 @@ model AccessEvent {
 
   @@index([tenantId, createdAt])
   @@index([tenantId, clientId])
+}
+
+// Loja no Pagamento (spec 0044, F15). Produto/oferta que o dono exibe no checkout
+// do Elo como "order bump". Preço em centavos (evita float). Escopo por tenant.
+model OfferProduct {
+  id         String   @id @default(uuid())
+  name       String
+  priceCents Int
+  type       String   @default("addon") // addon | upgrade | produto
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  lastUpdate DateTime @updatedAt
+
+  tenantId   String
+  account    Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  purchases  OfferPurchase[]
+
+  @@index([tenantId, active])
+}
+
+// Compra de uma oferta no checkout (spec 0044). Liga a oferta à fatura one-time
+// gerada para cobrar o add-on — base da métrica "receita extra da loja".
+model OfferPurchase {
+  id         String   @id @default(uuid())
+  priceCents Int      // preço no momento da compra (snapshot)
+  createdAt  DateTime @default(now())
+
+  offerId    String
+  offer      OfferProduct @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  invoiceId  String   @unique // a fatura (add-on) gerada — 1:1
+  invoice    Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  clientId   String
+  client     Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  tenantId   String
+  account    Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
 }
 
 // Prova de aceite do contrato pelo cliente (append-only).

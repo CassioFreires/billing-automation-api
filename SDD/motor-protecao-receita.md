@@ -533,7 +533,8 @@ model ContractSignature {
 > acesso). Este grupo a faz **crescer**. Um produto que protege **E** faz crescer é
 > muito mais difícil de largar — e justifica cobrar mais caro.
 
-## F15 · Loja no Pagamento (vender junto / order bump) ⭐
+## F15 · Loja no Pagamento (vender junto / order bump) ⭐ — ✅ v1 ENTREGUE (spec 0044)
+_A página do Elo (`/pagar/:token`) virou vitrine: `OfferProduct` (oferta por tenant: nome/preço em centavos/tipo/ativo) exibida no checkout; aceitar (`POST /api/public/offers/:token/accept`) gera uma **cobrança SEPARADA** do add-on (reserva→gateway→anexa, mesmo padrão do acordo 0018) e grava `OfferPurchase` (1:1 com a fatura, snapshot do preço). Métrica de receita extra realizada (compras `PAID`). Oferta já comprada não é apagada (409 → desativar). CRUD do dono em `/api/offers` + Configurações → Loja. Follow-up **F15.1**: somar-na-fatura, cupom, estoque._
 
 ### Descrição
 A página de pagamento — que **já é sua** (o Elo, `/pagar/:token`) — vira **vitrine**:
