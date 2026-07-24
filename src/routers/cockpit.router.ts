@@ -11,3 +11,6 @@ cockpitRouter.get('/overview', jwtAuth, controller.overview);
 
 // Lista do Dia (spec 0036, F3): fila de ação priorizada por dinheiro em risco.
 cockpitRouter.get('/actions', jwtAuth, controller.actions);
+
+// Previsão de Caixa (spec 0039, F4): projeção de entrada por semana.
+cockpitRouter.get('/forecast', jwtAuth, controller.forecastView);
