@@ -13,3 +13,6 @@ publicPortalRouter.get('/:token', linkLimiter, controller.getByToken);
 
 // Aceite do contrato no celular (spec 0040) — público, rate-limited.
 publicPortalRouter.post('/:token/contract/accept', linkLimiter, controller.acceptContract);
+
+// PDF do contrato (spec 0041) — público, rate-limited.
+publicPortalRouter.get('/:token/contract/file', linkLimiter, controller.getContractFile);

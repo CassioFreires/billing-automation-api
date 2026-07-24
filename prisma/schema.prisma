@@ -535,8 +535,14 @@ model ContractSetting {
   id         String   @id @default(uuid())
   enabled    Boolean  @default(false)
   title      String   @default("Contrato de prestação de serviço")
-  body       String   @default("") // texto do contrato
+  body       String   @default("") // texto do contrato (modo "text")
   version    Int      @default(1)
+  // Contrato como ARQUIVO (spec 0041): modo "file" guarda um PDF no banco.
+  mode       String   @default("text") // text | file
+  fileName   String?
+  fileMime   String?
+  fileSize   Int?
+  fileData   Bytes?
   createdAt  DateTime @default(now())
   lastUpdate DateTime @updatedAt
 

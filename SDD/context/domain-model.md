@@ -304,6 +304,10 @@ Base legal do moat: o dono publica um **contrato** e o cliente **aceita** com **
   versão). Cliente está "em dia com o contrato" se aceitou a **versão atual** (RN-4003).
 - `GET /api/clients` inclui o último aceite (`contractAcceptances[0]`). Regras puras no
   service (`ContractService`). Consumidor futuro: F12 (bloqueio exige contrato aceito).
+- **Contrato como arquivo/PDF (spec 0041):** `ContractSetting.mode` ∈ {`text`,`file`}. No
+  modo `file`, o PDF fica em `fileData` (Bytes, no banco), servido por stream em
+  `GET /api/contract/file` (dono) e `GET /public/portal/:token/contract/file` (cliente).
+  Upload binário cru (`PUT /api/contract/file`, `application/pdf`, ≤5 MB, valida magic `%PDF-`).
 
 ## Máquinas de estado
 
