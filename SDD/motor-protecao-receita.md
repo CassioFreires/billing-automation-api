@@ -279,7 +279,9 @@ Sem tabela nova (v1): é uma **agregação/consulta** que combina `RecoveryCase`
 
 > Descrição + cenário + esboço técnico. Detalhar em spec quando priorizado.
 
-## F4 · Previsão de caixa por pagador
+## F4 · Previsão de caixa por pagador — ✅ ENTREGUE (spec 0039)
+_`domain/cashflow.ts` (`projectCashflow`/`payProbability`, puras) + `forecast.repository/service` + `GET /api/cockpit/forecast`. Baldes semanais: esperado (faturas em aberto + assinaturas que vão gerar, com desconto) e provável (× chance de pagar por faixa F2 + atraso). Frontend: bloco no Dashboard._
+
 - **Descrição:** projeta *quanto* entra e *quando*, com **confiança**, a partir do
   atraso médio histórico de **cada** pagador (não uma média cega).
 - **Cenário:** *"entram ~R$ 4.200 até sexta (85% de confiança); R$ 900 estão em
