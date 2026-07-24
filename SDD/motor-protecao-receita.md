@@ -260,12 +260,13 @@ próximos.
 Sem tabela nova (v1): é uma **agregação/consulta** que combina `RecoveryCase`,
 `ClientHealth`, `Invoice`. (Evoluir para materialização só se performance exigir.)
 
-### Checklist de implementação
-- [ ] **Spec** `0035-fila-de-acao.md` (ou estender o Cockpit, spec 0017).
-- [ ] **Service** — `action-queue.service.ts`: monta e prioriza os itens (função de ranking pura testável).
-- [ ] **Controller/Router** — estender `GET /api/cockpit/overview` ou `GET /api/cockpit/actions`.
-- [ ] **Frontend** — lista priorizada no Dashboard com **ações de 1 clique** (recuperar / cobrar / contatar).
-- [ ] **Testes** — ranking (dinheiro em risco ordena corretamente; empates; itens resolvidos somem).
+### Checklist de implementação — ✅ ENTREGUE (spec **0036**)
+- [x] **Spec** `0036-lista-do-dia.md`.
+- [x] **Domínio** — `domain/action-queue.ts`: `rankDailyActions(candidatos, now, limit)` pura + testada.
+- [x] **Service** — `action-queue.service.ts`: `getForTenant(now)` (repo `findActionCandidates`).
+- [x] **Controller/Router** — `GET /api/cockpit/actions`.
+- [ ] **Frontend** — lista priorizada no Dashboard com **Cobrar agora** (em andamento).
+- [x] **Testes** — ranking (dinheiro em risco; peso por faixa F2; severidade por atraso; corte no top-N; a_vencer < vencida).
 
 ### Critérios de aceite
 - [ ] Itens ordenados por dinheiro em risco.

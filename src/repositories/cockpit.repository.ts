@@ -3,6 +3,7 @@ import { requireTenantId } from '../context/tenant-context.js';
 import { InvoiceStatus } from '../domain/status.js';
 import { InteractionType } from '../domain/interaction.js';
 import { OpenInvoice } from '../domain/cockpit.js';
+import type { ActionCandidate } from '../domain/action-queue.js';
 
 /** Faturas "em aberto" = não pagas (PENDING + OVERDUE). */
 const OPEN_STATUSES = [InvoiceStatus.PENDING, InvoiceStatus.OVERDUE];
@@ -26,6 +27,34 @@ export class CockpitRepository {
       value: Number(r.value), // Decimal → number (métrica; RN-CKP6)
       dueDate: r.dueDate,
       clientName: r.client?.name ?? '—',
+    }));
+  }
+
+  /**
+   * Candidatos da Lista do Dia (spec 0036, F3): faturas em aberto com a faixa de
+   * saúde do cliente (Radar/F2) e se há caso de recuperação ATIVO (F1). O ranking
+   * é feito no domínio (`rankDailyActions`).
+   */
+  async findActionCandidates(): Promise<ActionCandidate[]> {
+    const tenantId = requireTenantId();
+    const rows = await prisma.invoice.findMany({
+      where: { tenantId, status: { in: OPEN_STATUSES } },
+      select: {
+        id: true,
+        value: true,
+        dueDate: true,
+        client: { select: { name: true, health: { select: { band: true } } } },
+        recoveryCase: { select: { status: true } },
+      },
+    });
+    return rows.map((r) => ({
+      invoiceId: r.id,
+      clientName: r.client?.name ?? '—',
+      value: Number(r.value),
+      dueDate: r.dueDate,
+      band: r.client?.health?.band ?? null,
+      // "tem caso" só quando ATIVO (open/recovering); lost/cancelado → vira "cobrar".
+      hasCase: !!r.recoveryCase && ['open', 'recovering'].includes(r.recoveryCase.status),
     }));
   }
 
