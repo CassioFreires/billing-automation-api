@@ -63,8 +63,10 @@ export class ClientController {
     res: Response
   ) {
     try {
-      const clients =
-        await this.service.findAll();
+      // Filtro opcional por faixa de saúde (Radar de Risco, spec 0035):
+      // ?band=at_risk | watch | healthy
+      const band = typeof req.query.band === 'string' ? req.query.band : undefined;
+      const clients = await this.service.findAll(band);
 
       return res.json(clients);
     } catch (error: any) {

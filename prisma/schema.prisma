@@ -33,6 +33,7 @@ model Account {
   channelSetting ChannelSetting?
   recoveryCases RecoveryCase[]
   recoveryAttempts RecoveryAttempt[]
+  clientHealth ClientHealth[]
 }
 
 // Assinatura do PRÓPRIO SaaS (spec 0020): a Adimplo cobra o tenant. 1:1 com
@@ -236,6 +237,7 @@ model Client {
   subscriptions Subscription[]
   interactionEvents InteractionEvent[]
   recoveryCases RecoveryCase[]
+  health        ClientHealth? // Radar de Risco (spec 0035) — 1:1
 
   tenantId  String
   account   Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -463,4 +465,21 @@ model RecoveryAttempt {
   account    Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, caseId])
+}
+
+// Radar de Risco (spec 0035 — F2). Saúde/score do cliente, 1:1 com Client.
+model ClientHealth {
+  id         String   @id @default(uuid())
+  score      Int      // 0..100 (100 = saudável)
+  band       String   // healthy | watch | at_risk
+  signals    Json     // explicabilidade: { avgDaysLate, trendUp, missedRecurring, openOverdue, maxDaysOverdue, opensNoPay, lostCases, hasHistory }
+  computedAt DateTime @default(now())
+
+  clientId   String   @unique
+  client     Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  tenantId   String
+  account    Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, band])
 }

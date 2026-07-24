@@ -17,9 +17,19 @@ export class ClientRepository {
     });
   }
 
-  async findAll() {
+  /**
+   * Lista os clientes do tenant. Inclui a saúde (Radar de Risco, spec 0035) e
+   * aceita filtro por faixa (`band`: healthy | watch | at_risk).
+   */
+  async findAll(band?: string) {
     return prisma.client.findMany({
-      where: { tenantId: requireTenantId() }
+      where: {
+        tenantId: requireTenantId(),
+        ...(band ? { health: { is: { band } } } : {}),
+      },
+      include: {
+        health: { select: { score: true, band: true, signals: true, computedAt: true } },
+      },
     });
   }
 

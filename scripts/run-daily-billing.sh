@@ -57,3 +57,16 @@ run_step "/api/system/recovery/run" "Recuperação de pagamento" || \
 # 3) Enfileira as notificações dos vencidos (envio roda no worker).
 #    A régua pula faturas que já estão sob um caso de recuperação ativo.
 run_step "/api/system/notifications/run" "Notificações de vencidos"
+
+# 4) Radar de Risco (spec 0035, F2): recalcula a saúde dos clientes. Roda por
+#    ÚLTIMO (depois da recuperação, cujo desfecho `lost` do dia entra no score).
+#    Responde 200 (não 202) — trata esse código como sucesso aqui. NÃO-FATAL.
+if [ -n "${CRON_SECRET:-}" ]; then
+  echo "$(date '+%Y-%m-%d %H:%M:%S') Radar de risco: POST ${BASE_URL}/api/system/health/run ..."
+  hc=$(curl -sS -o /tmp/system-run.out -w '%{http_code}' -X POST "${BASE_URL}/api/system/health/run" -H "x-cron-secret: ${CRON_SECRET}")
+  if [ "$hc" = "200" ] || [ "$hc" = "202" ]; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') OK (${hc}): $(cat /tmp/system-run.out 2>/dev/null)"
+  else
+    echo "$(date '+%Y-%m-%d %H:%M:%S') AVISO Radar (HTTP ${hc}): $(cat /tmp/system-run.out 2>/dev/null)" >&2
+  fi
+fi

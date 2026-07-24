@@ -223,16 +223,16 @@ model ClientHealth {
 - **RN-F2-04** — O score é **interno do tenant** (NÃO cruza empresas — isso é F9,
   travado por LGPD).
 
-### Checklist de implementação
-- [ ] **Spec** `0034-radar-saude-cliente.md`.
-- [ ] **Schema/migration** — `ClientHealth`.
-- [ ] **Domínio** — `domain/health-score.ts`: `computeHealth(paymentHistory, eloStats)` pura + testada (tabela de casos).
-- [ ] **Repository** — leitura de histórico de pagamento + eventos Elo agregados por cliente; upsert do `ClientHealth`.
-- [ ] **Service** — `health.service.ts`: recompute por evento + `recomputeAllForTenant()` (sweep).
-- [ ] **Worker/sistema** — juntar ao sweep de F1 (mesmo cron) ou `POST /api/system/health/run`.
-- [ ] **Frontend** — badge de saúde no cliente + filtro "em risco" + coluna na lista.
-- [ ] **Testes** — `computeHealth` (saudável, atenção crescente, em risco, recém-cadastrado sem histórico).
-- [ ] **Contexto** — atualizar `domain-model.md`.
+### Checklist de implementação — ✅ ENTREGUE (spec **0035**, não 0034 — número já usado)
+- [x] **Spec** `0035-radar-risco.md`.
+- [x] **Schema/migration** — `ClientHealth` (`20260806000000_radar_risco`, idempotente).
+- [x] **Domínio** — `domain/health-score.ts`: `computeHealth(input, now)` pura + testada (tabela de casos).
+- [x] **Repository** — `client-health.repository.ts`: agrega histórico/faturas/Elo/casos por cliente; upsert do `ClientHealth`.
+- [x] **Service** — `health.service.ts`: `recomputeForClient` (evento) + `recomputeAllForTenant` + `runAllTenants` (sweep).
+- [x] **Worker/sistema** — `POST /api/system/health/run`, pendurado no cron das 11:00 (depois do F1).
+- [ ] **Frontend** — badge de saúde no cliente + filtro "em risco" + coluna na lista (em andamento).
+- [x] **Testes** — `computeHealth` (saudável, atenção crescente, em risco, sem histórico) + service.
+- [x] **Contexto** — `domain-model.md` atualizado.
 
 ### Critérios de aceite
 - [ ] Cliente sem histórico = faixa neutra (não penaliza injustamente).

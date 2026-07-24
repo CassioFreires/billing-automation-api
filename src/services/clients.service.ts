@@ -33,8 +33,8 @@ export class ClientService {
     return this.repository.importUpsert(data.clients);
   }
 
-  async findAll() {
-    return this.repository.findAll();
+  async findAll(band?: string) {
+    return this.repository.findAll(band);
   }
 
   async findById(id: string) {

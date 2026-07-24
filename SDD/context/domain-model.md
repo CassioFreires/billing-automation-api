@@ -237,6 +237,26 @@ Append-only: cada passo executado pelo sweep vira uma linha (timeline do caso).
 
 Índice: `@@index([tenantId, caseId])`.
 
+### ClientHealth (Radar de Risco / score) — spec 0035 (F2)
+
+Saúde do cliente calculada por **regras** (v1, sem ML). **1:1 com Client**
+(upsert por `clientId`). É a camada de **SINAL** (antes da AÇÃO da recuperação):
+avisa quem tende a atrasar/dar calote (avulso) ou cancelar (recorrente).
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `id` | String (uuid) | PK |
+| `score` | Int | 0..100 (100 = saudável) |
+| `band` | String | `healthy` (≥70) / `watch` (40–69) / `at_risk` (<40) |
+| `signals` | Json | explicabilidade: `{ avgDaysLate, trendUp, missedRecurring, openOverdue, maxDaysOverdue, opensNoPay, lostCases, hasHistory }` |
+| `computedAt` | DateTime | último cálculo |
+| `clientId` | String | **Único** (1:1). FK → Client (`onDelete: Cascade`) |
+| `tenantId` | String | FK → Account. Escopo (score é **interno do tenant**, não cruza empresas) |
+
+Índice: `@@index([tenantId, band])`. Cálculo puro em `src/domain/health-score.ts`
+(`computeHealth`). Recalcula em pagamento (webhook/baixa) e no sweep diário (cron
+das 11:00, **depois** da recuperação). `GET /api/clients` inclui `health` e aceita `?band=`.
+
 ## Máquinas de estado
 
 ### Status do Cliente
