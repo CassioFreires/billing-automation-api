@@ -309,6 +309,21 @@ Base legal do moat: o dono publica um **contrato** e o cliente **aceita** com **
   `GET /api/contract/file` (dono) e `GET /public/portal/:token/contract/file` (cliente).
   Upload binário cru (`PUT /api/contract/file`, `application/pdf`, ≤5 MB, valida magic `%PDF-`).
 
+### AccessSetting / estado de acesso (Liga/Desliga o Acesso) — spec 0042 (F12)
+
+Estado de acesso do cliente **derivado** do pagamento (calculado na leitura, sem job).
+
+- **AccessSetting** (1 por tenant): `enabled`, `graceDays` (carência, def 3),
+  `requireSignedContract` (def true).
+- **Client.accessOverride**: `null | allow | block` — override manual do dono (vence a regra).
+- **Estado** (`decideAccess`, puro em `src/domain/access.ts`): `allowed | grace | blocked`;
+  `granted = state !== 'blocked'`. **Travas:** nunca bloqueia quem está em dia (RN-4202);
+  só com `enabled` (RN-4203); só bloqueia quem **assinou o contrato** se
+  `requireSignedContract` (RN-4204); atraso `<= graceDays` = `grace`, senão `blocked`.
+- API: `GET/PUT /api/access/settings`, `GET /api/access/clients`,
+  `POST /api/access/clients/:id/override`. Consumidor futuro: **F13** (webhooks p/ catraca/IoT),
+  que lerá `granted` e emitirá evento na transição.
+
 ## Máquinas de estado
 
 ### Status do Cliente

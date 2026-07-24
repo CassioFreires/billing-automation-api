@@ -38,6 +38,7 @@ model Account {
   cancellationRequests CancellationRequest[]
   contractSetting ContractSetting?
   contractAcceptances ContractAcceptance[]
+  accessSetting AccessSetting?
 }
 
 // Assinatura do PRÓPRIO SaaS (spec 0020): a Adimplo cobra o tenant. 1:1 com
@@ -244,6 +245,7 @@ model Client {
   health        ClientHealth? // Radar de Risco (spec 0035) — 1:1
   cancellationRequests CancellationRequest[] // Retenção (spec 0037)
   contractAcceptances ContractAcceptance[] // Contrato (spec 0040)
+  accessOverride String? // Liga/Desliga Acesso (spec 0042): null | allow | block
 
   tenantId  String
   account   Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -548,6 +550,19 @@ model ContractSetting {
 
   tenantId   String   @unique
   account    Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+// Liga/Desliga o Acesso (spec 0042 — F12). Config por tenant (1 por tenant).
+model AccessSetting {
+  id                    String   @id @default(uuid())
+  enabled               Boolean  @default(false)
+  graceDays             Int      @default(3)
+  requireSignedContract Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  lastUpdate            DateTime @updatedAt
+
+  tenantId              String   @unique
+  account               Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 // Prova de aceite do contrato pelo cliente (append-only).
