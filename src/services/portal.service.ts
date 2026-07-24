@@ -91,6 +91,13 @@ export class PortalService {
     });
   }
 
+  /** Bytes do PDF do contrato (modo file) para o Portal servir. Null se não houver. */
+  async getContractFile(token: string) {
+    const client = await this.clients.findByPortalToken(token);
+    if (!client || client.anonymizedAt) return null;
+    return this.contract.getFile(client.tenantId);
+  }
+
   /** Gera/recupera o link do portal de um cliente (ação do dono, tenant-scoped). */
   async getPortalLink(clientId: string, appBaseUrl: string): Promise<string | null> {
     const token = await this.clients.ensurePortalToken(clientId);

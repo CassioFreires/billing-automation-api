@@ -88,4 +88,21 @@ export class PortalController {
       res.status(500).json({ error: 'Erro ao registrar o aceite.' });
     }
   };
+
+  /** Rota PÚBLICA: serve o PDF do contrato do tenant (spec 0041). */
+  getContractFile = async (req: Request<{ token: string }>, res: Response): Promise<void> => {
+    try {
+      const f = await this.service.getContractFile(String(req.params.token));
+      if (!f) {
+        res.status(404).json({ error: 'Contrato não encontrado.' });
+        return;
+      }
+      res.setHeader('Content-Type', f.fileMime);
+      res.setHeader('Content-Disposition', `inline; filename="${f.fileName}"`);
+      res.send(f.data);
+    } catch (error: any) {
+      console.error('❌ Erro ao servir contrato:', error);
+      res.status(500).json({ error: 'Erro ao carregar o contrato.' });
+    }
+  };
 }

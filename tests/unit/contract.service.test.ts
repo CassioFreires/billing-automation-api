@@ -9,11 +9,13 @@ function makeMocks() {
       upsertSetting: vi.fn(),
       latestAcceptance: vi.fn(),
       recordAcceptance: vi.fn(),
+      setFile: vi.fn(),
+      getFileByTenant: vi.fn(),
     },
   };
 }
 const svc = (m: ReturnType<typeof makeMocks>) => new ContractService(m as any);
-const setting = (over: Record<string, any> = {}) => ({ enabled: true, title: 'T', body: 'Texto do contrato', version: 2, ...over });
+const setting = (over: Record<string, any> = {}) => ({ enabled: true, title: 'T', body: 'Texto do contrato', version: 2, mode: 'text', fileName: null, ...over });
 
 describe('ContractService (spec 0040 — F14)', () => {
   let m: ReturnType<typeof makeMocks>;
@@ -22,7 +24,7 @@ describe('ContractService (spec 0040 — F14)', () => {
   it('getSettings devolve defaults quando não configurado', async () => {
     m.repo.getSetting.mockResolvedValue(null);
     const s = await svc(m).getSettings();
-    expect(s).toEqual({ enabled: false, title: 'Contrato de prestação de serviço', body: '', version: 1 });
+    expect(s).toMatchObject({ enabled: false, title: 'Contrato de prestação de serviço', body: '', version: 1, mode: 'text' });
   });
 
   it('getForClient → null quando contrato desabilitado ou vazio', async () => {
@@ -80,5 +82,29 @@ describe('ContractService (spec 0040 — F14)', () => {
   it('accept → 400 quando o nome é curto', async () => {
     m.repo.getSettingByTenant.mockResolvedValue(setting());
     await expect(svc(m).accept({ clientId: 'c1', tenantId: 't1', name: 'Al' })).rejects.toBeInstanceOf(BadRequestError);
+  });
+
+  it('setFile aceita PDF válido (magic %PDF) e ativa modo file', async () => {
+    m.repo.setFile.mockResolvedValue({ mode: 'file', fileName: 'c.pdf', fileSize: 10, version: 2, enabled: true });
+    const pdf = Buffer.concat([Buffer.from('%PDF-1.7\n'), Buffer.from('conteudo')]);
+    const out = await svc(m).setFile('c.pdf', 'application/pdf', pdf);
+    expect(out.mode).toBe('file');
+    expect(m.repo.setFile).toHaveBeenCalled();
+  });
+
+  it('setFile rejeita não-PDF (400)', async () => {
+    const notPdf = Buffer.from('isto nao e pdf');
+    await expect(svc(m).setFile('x.pdf', 'application/pdf', notPdf)).rejects.toBeInstanceOf(BadRequestError);
+    await expect(svc(m).setFile('x.txt', 'text/plain', Buffer.from('%PDF-1.7'))).rejects.toBeInstanceOf(BadRequestError);
+  });
+
+  it('getForClient em modo file → body vazio, fileName presente', async () => {
+    m.repo.getSettingByTenant.mockResolvedValue(setting({ mode: 'file', body: '', fileName: 'contrato.pdf', version: 1 }));
+    m.repo.latestAcceptance.mockResolvedValue(null);
+    const v = await svc(m).getForClient('c1', 't1');
+    expect(v?.mode).toBe('file');
+    expect(v?.body).toBe('');
+    expect(v?.fileName).toBe('contrato.pdf');
+    expect(v?.accepted).toBe(false);
   });
 });

@@ -6,6 +6,7 @@ export const contractSettingsSchema = z.object({
   enabled: z.boolean().optional(),
   title: z.string().min(1, 'Título obrigatório').max(200).optional(),
   body: z.string().max(20000).optional(),
+  mode: z.enum(['text', 'file']).optional(),
 });
 
 export const acceptContractSchema = z.object({

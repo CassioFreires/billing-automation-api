@@ -1,27 +1,37 @@
 import prisma from '../database/prisma.js';
 import { requireTenantId } from '../context/tenant-context.js';
 
+// Campos "leves" do contrato (sem o binário do PDF) — usados nas leituras normais.
+const LIGHT_SELECT = {
+  enabled: true,
+  title: true,
+  body: true,
+  version: true,
+  mode: true,
+  fileName: true,
+  fileMime: true,
+  fileSize: true,
+} as const;
+
 /**
- * Contrato no Celular (spec 0040, F14). Config por tenant + prova de aceite.
- * Métodos do DONO usam o tenant do contexto; os do PORTAL recebem `tenantId`
- * explícito (rota pública sem contexto — entrada global, como o Elo).
+ * Contrato no Celular (spec 0040/0041, F14). Config por tenant + prova de aceite +
+ * arquivo (PDF) guardado no banco. Métodos do DONO usam o tenant do contexto; os do
+ * PORTAL recebem `tenantId` explícito (rota pública, entrada global).
  */
 export class ContractRepository {
-  /** Config do tenant atual (dono). Null se ainda não configurou. */
   async getSetting() {
-    return prisma.contractSetting.findUnique({ where: { tenantId: requireTenantId() } });
+    return prisma.contractSetting.findUnique({
+      where: { tenantId: requireTenantId() },
+      select: LIGHT_SELECT,
+    });
   }
 
-  /** Config por tenant explícito (portal). */
   async getSettingByTenant(tenantId: string) {
-    return prisma.contractSetting.findUnique({ where: { tenantId } });
+    return prisma.contractSetting.findUnique({ where: { tenantId }, select: LIGHT_SELECT });
   }
 
-  /**
-   * Upsert da config (dono). Sobe a VERSÃO quando `title`/`body` mudam (RN-4001) —
-   * aceites antigos continuam válidos para a versão que assinaram.
-   */
-  async upsertSetting(data: { enabled?: boolean; title?: string; body?: string }) {
+  /** Atualiza texto/flags. Sobe a versão quando `title`/`body` mudam (RN-4001). */
+  async upsertSetting(data: { enabled?: boolean; title?: string; body?: string; mode?: string }) {
     const tenantId = requireTenantId();
     const existing = await prisma.contractSetting.findUnique({ where: { tenantId } });
 
@@ -38,18 +48,60 @@ export class ContractRepository {
         enabled: data.enabled ?? false,
         ...(data.title !== undefined ? { title: data.title } : {}),
         ...(data.body !== undefined ? { body: data.body } : {}),
+        ...(data.mode !== undefined ? { mode: data.mode } : {}),
         version: 1,
       },
       update: {
         ...(data.enabled !== undefined ? { enabled: data.enabled } : {}),
         ...(data.title !== undefined ? { title: data.title } : {}),
         ...(data.body !== undefined ? { body: data.body } : {}),
+        ...(data.mode !== undefined ? { mode: data.mode } : {}),
         version,
       },
+      select: LIGHT_SELECT,
     });
   }
 
-  /** Aceite mais recente do cliente (para status/idempotência). `tenantId` explícito. */
+  /** Guarda o PDF (modo file) e sobe a versão (conteúdo mudou). */
+  async setFile(data: { fileName: string; fileMime: string; fileSize: number; fileData: Buffer }) {
+    const tenantId = requireTenantId();
+    const existing = await prisma.contractSetting.findUnique({ where: { tenantId } });
+    const version = existing ? existing.version + 1 : 1;
+    // Prisma Bytes espera Uint8Array<ArrayBuffer>; converte o Buffer (cópia).
+    const bytes = new Uint8Array(data.fileData);
+
+    return prisma.contractSetting.upsert({
+      where: { tenantId },
+      create: {
+        tenantId,
+        mode: 'file',
+        enabled: true,
+        fileName: data.fileName,
+        fileMime: data.fileMime,
+        fileSize: data.fileSize,
+        fileData: bytes,
+        version: 1,
+      },
+      update: {
+        mode: 'file',
+        fileName: data.fileName,
+        fileMime: data.fileMime,
+        fileSize: data.fileSize,
+        fileData: bytes,
+        version,
+      },
+      select: LIGHT_SELECT,
+    });
+  }
+
+  /** Bytes do PDF (para servir). `tenantId` explícito (serve dono e portal). */
+  async getFileByTenant(tenantId: string) {
+    return prisma.contractSetting.findUnique({
+      where: { tenantId },
+      select: { fileName: true, fileMime: true, fileData: true, mode: true },
+    });
+  }
+
   async latestAcceptance(clientId: string, tenantId: string) {
     return prisma.contractAcceptance.findFirst({
       where: { clientId, tenantId },
