@@ -292,7 +292,9 @@ _`domain/cashflow.ts` (`projectCashflow`/`payProbability`, puras) + `forecast.re
 - **Checklist resumido:** [ ] service de projeção (puro/testável) · [ ] endpoint ·
   [ ] card no Cockpit · [ ] testes de cálculo.
 
-## F5 · Winback / reativação automática
+## F5 · Winback / reativação automática — ✅ v1 ENTREGUE (spec 0045)
+_Sweep diário inscreve assinaturas `CANCELED` sem caso (`WinbackCase`, relógio começa ao ser notado) e, após `daysAfter` (config, default 15), dispara a oferta de volta: gera **cobrança separada** com desconto (`amount × (1-desconto)`, padrão 0018/0044) e enfileira a mensagem no invoice worker (link do Elo). "Reativado" = fatura de retorno PAGA. `WinbackSetting` (enabled/daysAfter/discountPercent/message) por tenant; `/api/system/winback/run` (passo 6 do cron, não-fatal); painel em `/api/winback/*` + Configurações → Winback. Follow-up **F5.1**: multi-passo, winback p/ recovery `lost`, reativar recorrência automática._
+
 - **Descrição:** cliente perdido (`RecoveryCase.lost` ou assinatura `CANCELED`) entra
   numa **sequência de retorno** (oferta de volta). Fecha o ciclo de retenção.
 - **Cenário:** 15 dias após o João sair, ele recebe *"sentimos sua falta — volte com

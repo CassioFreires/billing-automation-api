@@ -27,4 +27,7 @@ systemRouter.post('/health/run', controller.runHealth.bind(controller));
 // Conexão IoT/Catracas (spec 0043, F13): sweep de transição + webhooks de saída.
 systemRouter.post('/access/run', controller.runAccess.bind(controller));
 
+// Winback / reativação (spec 0045, F5): inscreve cancelados + dispara oferta de volta.
+systemRouter.post('/winback/run', controller.runWinback.bind(controller));
+
 export { systemRouter };

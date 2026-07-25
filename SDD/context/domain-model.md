@@ -346,6 +346,16 @@ Estado de acesso do cliente **derivado** do pagamento (calculado na leitura, sem
   se o gateway falha. Oferta já comprada não é apagada (desativar).
 - API dono: `GET /api/offers`, `GET /api/offers/summary`, `POST/PUT/DELETE /api/offers`.
 
+### Winback / reativação (spec 0045 — F5)
+- **WinbackSetting** (por tenant): `enabled`, `daysAfter` (default 15), `discountPercent`
+  (0..90, default 10), `message?` (template {nome}/{valor}/{desconto}).
+- **WinbackCase** (1 por assinatura): `status` (pending|sent|skipped), `eligibleAt`,
+  `sentAt?`, `invoiceId?` (cobrança de retorno). Reativado = essa fatura `PAID`.
+- Sweep diário (`/api/system/winback/run`, por último no cron): inscreve assinaturas
+  `CANCELED` sem caso; após `daysAfter`, gera cobrança com desconto (`winbackChargeValue`,
+  puro) + enfileira mensagem (Elo). Reusa o padrão do RecoveryService (0033).
+- API dono: `GET/PUT /api/winback/settings`, `GET /api/winback/summary`.
+
 ## Máquinas de estado
 
 ### Status do Cliente

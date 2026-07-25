@@ -5,6 +5,7 @@ import { PlatformSubscriptionService } from '../services/platform-subscription.s
 import { RecoveryService } from '../services/recovery.service.js';
 import { HealthService } from '../services/health.service.js';
 import { AccessIntegrationService } from '../services/access-integration.service.js';
+import { WinbackService } from '../services/winback.service.js';
 
 export class SystemController {
   private scheduler: BillingSchedulerService;
@@ -13,6 +14,7 @@ export class SystemController {
   private recovery: RecoveryService;
   private health: HealthService;
   private accessIntegration: AccessIntegrationService;
+  private winback: WinbackService;
 
   constructor() {
     this.scheduler = new BillingSchedulerService();
@@ -21,6 +23,7 @@ export class SystemController {
     this.recovery = new RecoveryService();
     this.health = new HealthService();
     this.accessIntegration = new AccessIntegrationService();
+    this.winback = new WinbackService();
   }
 
   /**
@@ -107,6 +110,19 @@ export class SystemController {
     try {
       const result = await this.accessIntegration.runAllTenants();
       return res.status(200).json({ message: 'Sweep de acesso concluído.', ...result });
+    } catch (error: any) {
+      return res.status(500).json({ error: error.message });
+    }
+  }
+
+  /**
+   * Winback / reativação (spec 0045, F5): inscreve assinaturas canceladas e dispara
+   * a oferta de retorno dos casos cuja janela venceu. Chamado pelo cron. 200 (inline).
+   */
+  async runWinback(_req: Request, res: Response) {
+    try {
+      const result = await this.winback.runAllTenants();
+      return res.status(200).json({ message: 'Winback processado.', ...result });
     } catch (error: any) {
       return res.status(500).json({ error: error.message });
     }

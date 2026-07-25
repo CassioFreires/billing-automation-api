@@ -200,6 +200,22 @@ Roda por **último** para o desfecho do dia (vencidos/`lost`) já refletir no ac
 Idempotente entre sweeps (sem mudança = nenhum evento). A catraca também consulta
 **sob demanda** via `GET /api/access/check` (auth por `x-api-key`), sem depender do cron.
 
+### Winback / reativação (spec 0045, F5)
+
+```
+[cron — passo 6, depois do sweep de acesso]
+   │ POST /api/system/winback/run   (auth: x-cron-secret, cross-tenant, NÃO-FATAL)
+   ▼
+[WinbackService.runAllTenants] → por tenant (se WinbackSetting.enabled):
+   ├─ inscreve assinaturas CANCELED sem WinbackCase (eligibleAt = agora)
+   └─ dispara casos com eligibleAt <= agora - daysAfter:
+        valor = amount × (1 - desconto) → cria cobrança (gateway) →
+        enfileira mensagem no invoice worker (link do Elo /pagar) → markSent
+```
+
+"Reativado" = a cobrança de retorno foi paga (webhook normal). Uma oferta por
+assinatura (idempotente). Sem telefone/valor zero → `skipped`.
+
 ---
 
 ## ⚠️ Divergência entre o README e o código (importante)
