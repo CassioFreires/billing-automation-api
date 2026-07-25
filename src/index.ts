@@ -15,6 +15,7 @@ import { retentionRouter } from './routers/retention.router.js';
 import { contractRouter } from './routers/contract.router.js';
 import { accessRouter } from './routers/access.router.js';
 import { offerRouter, publicOfferRouter } from './routers/offer.router.js';
+import { winbackRouter } from './routers/winback.router.js';
 import { publicAgreementRouter } from './routers/agreement.router.js';
 import { publicPortalRouter } from './routers/portal.router.js';
 import { billingRouter } from './routers/billing.router.js';
@@ -65,6 +66,8 @@ appRouter.use('/contract', contractRouter);
 appRouter.use('/access', accessRouter);
 // Loja no Pagamento (spec 0044, F15): CRUD do dono (JWT).
 appRouter.use('/offers', offerRouter);
+// Winback / reativação (spec 0045, F5): config + métrica do dono (JWT).
+appRouter.use('/winback', winbackRouter);
 // Autonegociação PÚBLICA (spec 0018 — M2): sem JWT, tenant resolvido pela fatura.
 appRouter.use('/public/agreements', publicAgreementRouter);
 // Vitrine PÚBLICA da Loja no Pagamento (spec 0044): sem JWT, tenant pela fatura.

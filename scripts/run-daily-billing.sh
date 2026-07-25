@@ -83,3 +83,16 @@ if [ -n "${CRON_SECRET:-}" ]; then
     echo "$(date '+%Y-%m-%d %H:%M:%S') AVISO Acesso (HTTP ${ac}): $(cat /tmp/system-run.out 2>/dev/null)" >&2
   fi
 fi
+
+# 6) Winback / reativação (spec 0045, F5): inscreve assinaturas canceladas e dispara
+#    a oferta de retorno (cobrança com desconto) dos casos cuja janela venceu.
+#    Responde 200. NÃO-FATAL.
+if [ -n "${CRON_SECRET:-}" ]; then
+  echo "$(date '+%Y-%m-%d %H:%M:%S') Winback: POST ${BASE_URL}/api/system/winback/run ..."
+  wb=$(curl -sS -o /tmp/system-run.out -w '%{http_code}' -X POST "${BASE_URL}/api/system/winback/run" -H "x-cron-secret: ${CRON_SECRET}")
+  if [ "$wb" = "200" ] || [ "$wb" = "202" ]; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') OK (${wb}): $(cat /tmp/system-run.out 2>/dev/null)"
+  else
+    echo "$(date '+%Y-%m-%d %H:%M:%S') AVISO Winback (HTTP ${wb}): $(cat /tmp/system-run.out 2>/dev/null)" >&2
+  fi
+fi

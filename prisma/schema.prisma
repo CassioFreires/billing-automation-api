@@ -43,6 +43,8 @@ model Account {
   accessEvents AccessEvent[] // Conexão IoT (spec 0043)
   offerProducts OfferProduct[] // Loja no Pagamento (spec 0044)
   offerPurchases OfferPurchase[] // Loja no Pagamento (spec 0044)
+  winbackSetting WinbackSetting? // Winback (spec 0045)
+  winbackCases WinbackCase[] // Winback (spec 0045)
 }
 
 // Assinatura do PRÓPRIO SaaS (spec 0020): a Adimplo cobra o tenant. 1:1 com
@@ -253,6 +255,7 @@ model Client {
   accessState    String? // Conexão IoT (spec 0043): último estado propagado (allowed|grace|blocked) — base p/ detectar transição
   accessEvents   AccessEvent[] // Conexão IoT (spec 0043): log de transições de acesso
   offerPurchases OfferPurchase[] // Loja no Pagamento (spec 0044): add-ons comprados no checkout
+  winbackCases  WinbackCase[] // Winback (spec 0045): casos de reativação
 
   tenantId  String
   account   Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -290,6 +293,7 @@ model Invoice {
   events        InteractionEvent[] // eventos de interação (Elo) — spec 0016
   recoveryCase  RecoveryCase? // caso de recuperação de pagamento falho (spec 0033, F1)
   offerPurchase OfferPurchase? // Loja no Pagamento (spec 0044): esta fatura é a cobrança de um add-on
+  winbackCase   WinbackCase? // Winback (spec 0045): esta fatura é a cobrança de retorno
 
   // Autonegociação (spec 0018 — M2): acordos onde esta fatura é a ORIGINAL
   // (renegociada) ou a NOVA (gerada pelo acordo).
@@ -336,6 +340,7 @@ model Subscription {
   account     Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   invoices    Invoice[]
+  winbackCase WinbackCase? // Winback (spec 0045): 1 caso de reativação por assinatura
 
   @@index([clientId])
   @@index([tenantId, status])
@@ -650,6 +655,41 @@ model OfferPurchase {
   account    Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, createdAt])
+}
+
+// Winback / reativação (spec 0045, F5). Config por tenant da campanha de retorno.
+model WinbackSetting {
+  id              String   @id @default(uuid())
+  enabled         Boolean  @default(false)
+  daysAfter       Int      @default(15) // dias após a saída para disparar
+  discountPercent Int      @default(10) // desconto na 1ª mensalidade de volta
+  message         String?  // template opcional ({nome}/{valor}/{desconto})
+  createdAt       DateTime @default(now())
+  lastUpdate      DateTime @updatedAt
+
+  tenantId        String   @unique
+  account         Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+// Caso de winback: 1 por assinatura cancelada. Estado da sequência de retorno.
+model WinbackCase {
+  id           String   @id @default(uuid())
+  status       String   @default("pending") // pending | sent | skipped
+  eligibleAt   DateTime // quando o cliente virou elegível (inscrito no winback)
+  sentAt       DateTime?
+  createdAt    DateTime @default(now())
+
+  subscriptionId String @unique
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  // Fatura da oferta de retorno (gerada no disparo). 1:1 opcional.
+  invoiceId    String?  @unique
+  invoice      Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  clientId     String
+  client       Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  tenantId     String
+  account      Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
 }
 
 // Prova de aceite do contrato pelo cliente (append-only).
