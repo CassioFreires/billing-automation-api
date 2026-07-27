@@ -18,6 +18,7 @@ import {
 } from '../apis/payment/index.js';
 import { PaymentSettingService } from './payment-setting.service.js';
 import { ReferralService } from './referral.service.js';
+import { FiscalService } from './fiscal.service.js';
 import { CreateInvoiceDTO, UpdateInvoiceStatusDTO } from '../dtos/createInvoice.dto.js';
 import { canTransitionInvoice, effectiveInvoiceStatus } from '../domain/status.js';
 import { netAfterCredit } from '../domain/referral.js';
@@ -40,6 +41,7 @@ export class InvoiceService {
   private recovery: RecoveryCaseRepository;
   private health: HealthService;
   private referrals: ReferralService;
+  private fiscal: FiscalService;
 
   constructor(deps?: {
     invoiceRepository?: InvoiceRepository;
@@ -50,6 +52,7 @@ export class InvoiceService {
     recovery?: RecoveryCaseRepository;
     health?: HealthService;
     referrals?: ReferralService;
+    fiscal?: FiscalService;
   }) {
     this.invoiceRepository = deps?.invoiceRepository ?? new InvoiceRepository();
     this.injectedGateway = deps?.gateway;
@@ -59,6 +62,7 @@ export class InvoiceService {
     this.recovery = deps?.recovery ?? new RecoveryCaseRepository();
     this.health = deps?.health ?? new HealthService();
     this.referrals = deps?.referrals ?? new ReferralService();
+    this.fiscal = deps?.fiscal ?? new FiscalService();
   }
 
   /**
@@ -335,6 +339,9 @@ export class InvoiceService {
         await this.health.recomputeForClient(inv.clientId, inv.tenantId).catch(() => {});
         // Indique e Ganhe (spec 0046): 1º pagamento do indicado converte a indicação.
         await this.referrals.onInvoicePaid(inv.clientId, inv.tenantId).catch(() => {});
+        // NFS-e (spec 0047): auto-emite a nota se o tenant ligou `autoEmitOnPaid`.
+        const paidInv = invoice as { id?: string };
+        if (paidInv.id) await this.fiscal.maybeAutoEmit(paidInv.id, inv.tenantId).catch(() => {});
       }
     }
 
