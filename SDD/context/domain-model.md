@@ -366,6 +366,17 @@ Estado de acesso do cliente **derivado** do pagamento (calculado na leitura, sem
   os dois; o crédito abate a **próxima fatura** (`netAfterCredit`, puro; anti-cobrança-zero).
 - API dono: `GET/PUT /api/referrals/settings`, `GET /api/referrals`, `/summary`, `/code/:clientId`.
 
+### NFS-e / Nota Fiscal (spec 0047 — F7)
+- **FiscalSetting** (por tenant, opt-in): `enabled`, `provider` (mock|nfeio), `apiKey`/
+  `webhookSecret` (cifrados), `companyId`, `cityServiceCode`, `autoEmitOnPaid`.
+- **FiscalDocument** (1:1 com Invoice): `status` (pending|processing|issued|error|
+  cancelled), `providerId`, `number`, `pdfUrl`, `xmlUrl`, `amountCents`.
+- Seam `apis/fiscal/` (mock + nfeio). Emissão manual (`POST /api/fiscal/invoices/:id/emit`)
+  e/ou automática ao receber (`autoEmitOnPaid`, no `applyWebhook` PAID). nfeio confirma
+  por webhook assinado (`POST /api/fiscal/webhook/:provider`). Estados/validação puros
+  em `src/domain/fiscal.ts`. Nem toda cobrança emite nota — seletivo por fatura.
+- API dono: `GET/PUT /api/fiscal/settings`, `GET /api/fiscal/documents`, `POST .../emit|cancel`.
+
 ## Máquinas de estado
 
 ### Status do Cliente

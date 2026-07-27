@@ -315,7 +315,9 @@ _Sweep diário inscreve assinaturas `CANCELED` sem caso (`WinbackCase`, relógio
 - **Checklist resumido:** [ ] confirmar suporte no gateway do tenant · [ ] modelo
   `PaymentMandate` · [ ] fluxo de autorização · [ ] cobrança via mandato no scheduler.
 
-## F7 · NFS-e automática (matador no nicho de serviço)
+## F7 · NFS-e automática (matador no nicho de serviço) — ✅ v1 ENTREGUE (spec 0047)
+_Emissão de NFS-e **opt-in e seletiva** via seam de provider (`mock` padrão + `nfeio` real, doc consultada via MCP). `FiscalSetting` por tenant (provider/credenciais cifradas/cityServiceCode/autoEmitOnPaid) + `FiscalDocument` 1:1 com a fatura. Ciclo: emitir (manual na fatura e/ou automático ao receber) → `processing` → `issued`/`error` → `cancelled`; confirmado síncrono (mock) ou por **webhook assinado** (nfeio, HMAC). Domínio puro (estados/validação). Painel: Configurações → Nota Fiscal + coluna "Nota" nas Faturas (emitir/cancelar/PDF). Nem toda cobrança emite nota — o dono escolhe. Follow-up **F7.1**: auto por serviço, Focus/PlugNotas, carta de correção._
+
 - **Descrição:** ao receber, **emite a nota fiscal de serviço sozinho**.
 - **Cenário:** a clínica recebe do paciente → a NFS-e é emitida na prefeitura e
   enviada, sem ninguém abrir o site da prefeitura.

@@ -17,6 +17,7 @@ import { accessRouter } from './routers/access.router.js';
 import { offerRouter, publicOfferRouter } from './routers/offer.router.js';
 import { winbackRouter } from './routers/winback.router.js';
 import { referralRouter, publicReferralRouter } from './routers/referral.router.js';
+import { fiscalRouter, publicFiscalRouter } from './routers/fiscal.router.js';
 import { publicAgreementRouter } from './routers/agreement.router.js';
 import { publicPortalRouter } from './routers/portal.router.js';
 import { billingRouter } from './routers/billing.router.js';
@@ -71,12 +72,16 @@ appRouter.use('/offers', offerRouter);
 appRouter.use('/winback', winbackRouter);
 // Indique e Ganhe (spec 0046, F16): config + código do dono (JWT).
 appRouter.use('/referrals', referralRouter);
+// NFS-e / Nota Fiscal (spec 0047, F7): config + emitir/cancelar do dono (JWT).
+appRouter.use('/fiscal', fiscalRouter);
 // Autonegociação PÚBLICA (spec 0018 — M2): sem JWT, tenant resolvido pela fatura.
 appRouter.use('/public/agreements', publicAgreementRouter);
 // Vitrine PÚBLICA da Loja no Pagamento (spec 0044): sem JWT, tenant pela fatura.
 appRouter.use('/public/offers', publicOfferRouter);
 // Link PÚBLICO de indicação (spec 0046): sem JWT, tenant resolvido pelo código.
 appRouter.use('/public/referrals', publicReferralRouter);
+// Webhook PÚBLICO do provider fiscal (spec 0047): sem JWT, assinatura verificada.
+appRouter.use('/fiscal', publicFiscalRouter);
 // Portal do pagador PÚBLICO (spec 0027): sem JWT, cliente resolvido pelo portalToken.
 appRouter.use('/public/portal', publicPortalRouter);
 appRouter.use('/health', healthRouter);

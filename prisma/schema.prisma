@@ -47,6 +47,8 @@ model Account {
   winbackCases WinbackCase[] // Winback (spec 0045)
   referralSetting ReferralSetting? // Indique e Ganhe (spec 0046)
   referrals Referral[] // Indique e Ganhe (spec 0046)
+  fiscalSetting FiscalSetting? // NFS-e (spec 0047)
+  fiscalDocuments FiscalDocument[] // NFS-e (spec 0047)
 }
 
 // Assinatura do PRÓPRIO SaaS (spec 0020): a Adimplo cobra o tenant. 1:1 com
@@ -264,6 +266,7 @@ model Client {
   referralCreditCents Int      @default(0) // crédito acumulado p/ abater na próxima fatura
   referralsMade       Referral[] @relation("Referrer")
   referralAsReferred  Referral?  @relation("Referred")
+  fiscalDocuments     FiscalDocument[] // NFS-e (spec 0047): notas do cliente
 
   tenantId  String
   account   Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -302,6 +305,7 @@ model Invoice {
   recoveryCase  RecoveryCase? // caso de recuperação de pagamento falho (spec 0033, F1)
   offerPurchase OfferPurchase? // Loja no Pagamento (spec 0044): esta fatura é a cobrança de um add-on
   winbackCase   WinbackCase? // Winback (spec 0045): esta fatura é a cobrança de retorno
+  fiscalDocument FiscalDocument? // NFS-e (spec 0047): nota fiscal desta fatura
 
   // Autonegociação (spec 0018 — M2): acordos onde esta fatura é a ORIGINAL
   // (renegociada) ou a NOVA (gerada pelo acordo).
@@ -730,6 +734,51 @@ model Referral {
   account          Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, status])
+}
+
+// NFS-e / Nota Fiscal de Serviço (spec 0047, F7). Config por tenant. Opt-in:
+// só quem presta serviço com nota liga. `apiKey` cifrada em repouso.
+model FiscalSetting {
+  id              String   @id @default(uuid())
+  enabled         Boolean  @default(false)
+  provider        String   @default("mock") // mock | nfeio
+  apiKey          String?  // cifrada (AES-256-GCM) — nunca retornada
+  webhookSecret   String?  // cifrada — valida a assinatura do webhook do provider
+  companyId       String?  // id da empresa no provider
+  cityServiceCode String?  // código de serviço municipal padrão
+  autoEmitOnPaid  Boolean  @default(false) // emitir automaticamente ao receber
+  createdAt       DateTime @default(now())
+  lastUpdate      DateTime @updatedAt
+
+  tenantId        String   @unique
+  account         Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+// Nota fiscal de uma fatura (1:1). Ciclo: pending → processing → issued | error;
+// issued → cancelled. Guarda os links de PDF/XML do provider.
+model FiscalDocument {
+  id          String   @id @default(uuid())
+  status      String   @default("pending") // pending | processing | issued | error | cancelled
+  provider    String   @default("mock")
+  providerId  String?  // id da nota no provider
+  number      String?  // número da NFS-e emitida
+  pdfUrl      String?
+  xmlUrl      String?
+  message     String?  // flowMessage / motivo do erro
+  amountCents Int
+  createdAt   DateTime @default(now())
+  issuedAt    DateTime?
+  cancelledAt DateTime?
+
+  invoiceId   String   @unique
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  clientId    String
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  tenantId    String
+  account     Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@index([providerId])
 }
 
 // Prova de aceite do contrato pelo cliente (append-only).
