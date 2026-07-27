@@ -570,7 +570,9 @@ model OfferProduct {
 
 *Maior ROI pelo menor esforço — a página já existe.*
 
-## F16 · Indique e Ganhe (indicação)
+## F16 · Indique e Ganhe (indicação) — ✅ v1 ENTREGUE (spec 0046)
+_Cada `Client` tem `referralCode` (link `/indicar/:code`). Captura pública (`POST /api/public/referrals/:code`, tenant pelo código) cria o amigo (lead atribuído) + `Referral` pending. No **1º pagamento** do indicado (webhook PAID → `ReferralService.onInvoicePaid`) converte e credita os dois (`rewardCents`/`rewardWho`, config `ReferralSetting`) em `Client.referralCreditCents`. O crédito abate a **próxima fatura** no `InvoiceService` (`netAfterCredit`, puro) — trava anti-cobrança-zero. Painel: Configurações → Indique e Ganhe + botão 🎁 na lista de Clientes. Follow-up **F16.1**: crédito %, ranking, campanhas._
+
 - **Descrição:** o cliente indica um amigo; os dois ganham bônus; o dono ganha
   **cliente novo quase de graça**.
 - **Cenário:** a Maria manda o link; a amiga assina; as duas ganham 15% no próximo mês.

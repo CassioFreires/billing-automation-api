@@ -17,8 +17,10 @@ import {
   resolvePaymentGatewayByName,
 } from '../apis/payment/index.js';
 import { PaymentSettingService } from './payment-setting.service.js';
+import { ReferralService } from './referral.service.js';
 import { CreateInvoiceDTO, UpdateInvoiceStatusDTO } from '../dtos/createInvoice.dto.js';
 import { canTransitionInvoice, effectiveInvoiceStatus } from '../domain/status.js';
+import { netAfterCredit } from '../domain/referral.js';
 import { InteractionType } from '../domain/interaction.js';
 import { runWithTenant } from '../context/tenant-context.js';
 
@@ -37,6 +39,7 @@ export class InvoiceService {
   private clients: ClientRepository;
   private recovery: RecoveryCaseRepository;
   private health: HealthService;
+  private referrals: ReferralService;
 
   constructor(deps?: {
     invoiceRepository?: InvoiceRepository;
@@ -46,6 +49,7 @@ export class InvoiceService {
     clients?: ClientRepository;
     recovery?: RecoveryCaseRepository;
     health?: HealthService;
+    referrals?: ReferralService;
   }) {
     this.invoiceRepository = deps?.invoiceRepository ?? new InvoiceRepository();
     this.injectedGateway = deps?.gateway;
@@ -54,6 +58,29 @@ export class InvoiceService {
     this.clients = deps?.clients ?? new ClientRepository();
     this.recovery = deps?.recovery ?? new RecoveryCaseRepository();
     this.health = deps?.health ?? new HealthService();
+    this.referrals = deps?.referrals ?? new ReferralService();
+  }
+
+  /**
+   * Indique e Ganhe (spec 0046): abate o crédito de indicação do cliente sobre o
+   * valor bruto. TRAVA anti-cobrança-zero: só aplica quando sobra valor POSITIVO;
+   * senão o crédito fica guardado para uma fatura maior. Retorna o valor a cobrar,
+   * quanto de crédito foi usado e (se usado) um item negativo p/ reconciliar.
+   */
+  private async applyReferralCredit(
+    clientId: string,
+    gross: Prisma.Decimal
+  ): Promise<{ charge: Prisma.Decimal; usedCents: number; creditItem?: { description: string; quantity: number; unitPrice: Prisma.Decimal } }> {
+    const creditCents = await this.referrals.availableCredit(clientId).catch(() => 0);
+    if (!creditCents) return { charge: gross, usedCents: 0 };
+    const grossCents = Math.round(gross.toNumber() * 100);
+    const { netCents, usedCents } = netAfterCredit(grossCents, creditCents);
+    if (usedCents === 0 || netCents <= 0) return { charge: gross, usedCents: 0 };
+    return {
+      charge: new Prisma.Decimal(netCents / 100),
+      usedCents,
+      creditItem: { description: 'Crédito indicação', quantity: 1, unitPrice: new Prisma.Decimal(-(usedCents / 100)) },
+    };
   }
 
   /**
@@ -106,20 +133,24 @@ export class InvoiceService {
       ? items.map((it) => it.description).join(', ')
       : 'Cobrança';
 
+    // Indique e Ganhe (0046): abate o crédito de indicação, se houver.
+    const credit = await this.applyReferralCredit(data.clientId, total);
+    const finalItems = credit.creditItem ? [...items, credit.creditItem] : items;
+
     // Reserva a fatura ANTES de cobrar (sem dados de gateway). Assim, se o
     // gateway falhar, desfazemos a reserva e não fica cobrança órfã.
     const reserved = await this.invoiceRepository.create({
       clientId: data.clientId,
-      value: total,
+      value: credit.charge,
       dueDate: data.dueDate,
-      items,
+      items: finalItems,
     });
 
     try {
       const gateway = await this.gatewayForTenant();
       const charge = await gateway.createCharge({
         reference,
-        amount: total.toNumber(),
+        amount: credit.charge.toNumber(),
         dueDate: data.dueDate,
         description,
       });
@@ -131,6 +162,8 @@ export class InvoiceService {
         checkoutUrl: charge.checkoutUrl,
       });
 
+      // Consome o crédito só após a cobrança criada com sucesso.
+      if (credit.usedCents > 0) await this.referrals.consumeCredit(data.clientId, credit.usedCents).catch(() => {});
       await this.recordLinkCreated(invoice);
       return invoice;
     } catch (error) {
@@ -212,13 +245,21 @@ export class InvoiceService {
     // barra corridas (ex.: cron + /subscriptions/run manual ao mesmo tempo):
     // só um insert vence; o perdedor cai no P2002 e NÃO chama o gateway —
     // eliminando a cobrança duplicada.
+    // Indique e Ganhe (0046): abate o crédito de indicação, se houver.
+    const gross = new Prisma.Decimal(input.amount);
+    const credit = await this.applyReferralCredit(input.clientId, gross);
+    const items: { description: string; quantity: number; unitPrice: number | Prisma.Decimal }[] = [
+      { description: input.description, quantity: 1, unitPrice: input.amount },
+    ];
+    if (credit.creditItem) items.push(credit.creditItem);
+
     let reserved: { id: string };
     try {
       reserved = await this.invoiceRepository.create({
         clientId: input.clientId,
-        value: input.amount,
+        value: credit.charge,
         dueDate: input.dueDate,
-        items: [{ description: input.description, quantity: 1, unitPrice: input.amount }],
+        items,
         subscriptionId: input.subscriptionId,
         period: input.period,
       });
@@ -237,7 +278,7 @@ export class InvoiceService {
       const gateway = await this.gatewayForTenant();
       const charge = await gateway.createCharge({
         reference,
-        amount: input.amount,
+        amount: credit.charge.toNumber(),
         dueDate: input.dueDate,
         description: input.description,
       });
@@ -249,6 +290,7 @@ export class InvoiceService {
         checkoutUrl: charge.checkoutUrl,
       });
 
+      if (credit.usedCents > 0) await this.referrals.consumeCredit(input.clientId, credit.usedCents).catch(() => {});
       await this.recordLinkCreated(invoice);
       return { created: true, invoice };
     } catch (error) {
@@ -291,6 +333,8 @@ export class InvoiceService {
       const inv = invoice as { clientId?: string; tenantId?: string };
       if (inv.clientId && inv.tenantId) {
         await this.health.recomputeForClient(inv.clientId, inv.tenantId).catch(() => {});
+        // Indique e Ganhe (spec 0046): 1º pagamento do indicado converte a indicação.
+        await this.referrals.onInvoicePaid(inv.clientId, inv.tenantId).catch(() => {});
       }
     }
 
