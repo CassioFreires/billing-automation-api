@@ -45,6 +45,8 @@ model Account {
   offerPurchases OfferPurchase[] // Loja no Pagamento (spec 0044)
   winbackSetting WinbackSetting? // Winback (spec 0045)
   winbackCases WinbackCase[] // Winback (spec 0045)
+  referralSetting ReferralSetting? // Indique e Ganhe (spec 0046)
+  referrals Referral[] // Indique e Ganhe (spec 0046)
 }
 
 // Assinatura do PRÓPRIO SaaS (spec 0020): a Adimplo cobra o tenant. 1:1 com
@@ -256,6 +258,12 @@ model Client {
   accessEvents   AccessEvent[] // Conexão IoT (spec 0043): log de transições de acesso
   offerPurchases OfferPurchase[] // Loja no Pagamento (spec 0044): add-ons comprados no checkout
   winbackCases  WinbackCase[] // Winback (spec 0045): casos de reativação
+  // Indique e Ganhe (spec 0046, F16)
+  referralCode        String?  @unique // código de indicação do cliente
+  referredByClientId  String?  // quem indicou este cliente (atribuição)
+  referralCreditCents Int      @default(0) // crédito acumulado p/ abater na próxima fatura
+  referralsMade       Referral[] @relation("Referrer")
+  referralAsReferred  Referral?  @relation("Referred")
 
   tenantId  String
   account   Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -688,6 +696,38 @@ model WinbackCase {
   client       Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
   tenantId     String
   account      Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+}
+
+// Indique e Ganhe (spec 0046, F16). Config da campanha de indicação por tenant.
+model ReferralSetting {
+  id          String   @id @default(uuid())
+  enabled     Boolean  @default(false)
+  rewardCents Int      @default(1000) // crédito por pessoa (default R$ 10,00)
+  rewardWho   String   @default("both") // both | referred | referrer
+  createdAt   DateTime @default(now())
+  lastUpdate  DateTime @updatedAt
+
+  tenantId    String   @unique
+  account     Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+// Uma indicação: quem indicou → quem foi indicado. Converte quando o indicado
+// paga a 1ª fatura. 1 por indicado (@unique).
+model Referral {
+  id               String   @id @default(uuid())
+  status           String   @default("pending") // pending | converted
+  rewardCents      Int      @default(0) // total concedido (snapshot na conversão)
+  createdAt        DateTime @default(now())
+  convertedAt      DateTime?
+
+  referrerClientId String
+  referrer         Client   @relation("Referrer", fields: [referrerClientId], references: [id], onDelete: Cascade)
+  referredClientId String   @unique
+  referred         Client   @relation("Referred", fields: [referredClientId], references: [id], onDelete: Cascade)
+  tenantId         String
+  account          Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, status])
 }

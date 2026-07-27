@@ -356,6 +356,16 @@ Estado de acesso do cliente **derivado** do pagamento (calculado na leitura, sem
   puro) + enfileira mensagem (Elo). Reusa o padrão do RecoveryService (0033).
 - API dono: `GET/PUT /api/winback/settings`, `GET /api/winback/summary`.
 
+### Indique e Ganhe (spec 0046 — F16)
+- **Client** ganha: `referralCode` (único), `referredByClientId`, `referralCreditCents`.
+- **ReferralSetting** (por tenant): `enabled`, `rewardCents`, `rewardWho` (both|referred|referrer).
+- **Referral** (1 por indicado): `referrerClientId` → `referredClientId`, `status`
+  (pending|converted), `rewardCents`.
+- Captura pública (`/indicar/:code` → `POST /api/public/referrals/:code`) cria o amigo
+  (lead) + Referral. **Conversão** no 1º pagamento do indicado (webhook PAID) credita
+  os dois; o crédito abate a **próxima fatura** (`netAfterCredit`, puro; anti-cobrança-zero).
+- API dono: `GET/PUT /api/referrals/settings`, `GET /api/referrals`, `/summary`, `/code/:clientId`.
+
 ## Máquinas de estado
 
 ### Status do Cliente
