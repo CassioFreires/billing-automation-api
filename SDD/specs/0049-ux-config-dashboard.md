@@ -18,8 +18,11 @@ dono: "intuitiva, organizada, mínimo de scroll, mas com todos os detalhes".
 - **Configurações → navegação por seções (abas):** uma nav lateral agrupa os cards
   por área; só a seção ativa aparece → mínimo scroll, organizado, intuitivo. Nada de
   detalhe é removido — só reorganizado.
-- **Dashboard → densidade:** menos margem/padding, títulos menores, cards mais flat,
-  KPIs compactos (2 colunas no mobile).
+- **Dashboard → navegação + densidade:** além de compactar (margens/paddings menores,
+  títulos menores, cards flat, KPIs 2 col no mobile), o dashboard virou **por abas**
+  (era muita coisa empilhada): **Visão geral** (KPIs + valor recuperado + atalho de
+  recuperação) · **Lista do Dia** (F3) · **Previsão de caixa** (F4). Só uma seção
+  pesada por vez.
 
 ## 3. Mudanças
 
