@@ -6,7 +6,8 @@ function make() {
   const invoices = { findForPortal: vi.fn() };
   // Contrato (spec 0040): mock hermético — sem contrato ativo por padrão.
   const contract = { getForClient: vi.fn().mockResolvedValue(null), accept: vi.fn() };
-  const service = new PortalService({ clients: clients as any, invoices: invoices as any, contract: contract as any });
+  const brand = { getColorByTenant: vi.fn().mockResolvedValue('#14a08a') };
+  const service = new PortalService({ clients: clients as any, invoices: invoices as any, contract: contract as any, brand: brand as any });
   return { service, clients, invoices, contract };
 }
 

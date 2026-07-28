@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { ReferralRepository } from '../repositories/referral.repository.js';
 import { runWithTenant } from '../context/tenant-context.js';
+import { BrandRepository } from '../repositories/brand.repository.js';
 import { rewardFor, clampReward, normalizeWho } from '../domain/referral.js';
 
 export class ReferralError extends Error {}
@@ -76,7 +77,8 @@ export class ReferralService {
     if (!ref) throw new ReferralError(RE.CODE_NOT_FOUND);
     return runWithTenant(ref.tenantId, async () => {
       const settings = await this.repo.getSettings();
-      return { referrerName: ref.name, enabled: settings.enabled, rewardCents: settings.rewardCents };
+      const brandColor = await new BrandRepository().getColor();
+      return { referrerName: ref.name, enabled: settings.enabled, rewardCents: settings.rewardCents, brandColor };
     });
   }
 

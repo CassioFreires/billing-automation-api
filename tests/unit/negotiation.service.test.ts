@@ -43,6 +43,7 @@ function makeDeps(overrides: any = {}) {
     paymentSettings: paymentSettings as any,
     gateway: gateway as any,
     recovery: recovery as any,
+    brand: { getColor: vi.fn().mockResolvedValue('#14a08a') } as any,
   });
   return { service, invoiceRepository, agreements, gateway, recovery };
 }
