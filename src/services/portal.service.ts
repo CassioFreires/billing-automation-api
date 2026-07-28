@@ -1,6 +1,7 @@
 import { ClientRepository } from '../repositories/cliente.repositorie.js';
 import { InvoiceRepository } from '../repositories/invoice.repository.js';
 import { ContractService, type ContractView } from './contract.service.js';
+import { BrandRepository } from '../repositories/brand.repository.js';
 
 const OPEN_STATUSES = new Set(['PENDING', 'OVERDUE']);
 
@@ -19,6 +20,7 @@ export interface PortalView {
   history: PortalInvoice[];
   totals: { openCount: number; openValue: number };
   contract: ContractView | null; // Contrato no Celular (spec 0040)
+  brandColor: string; // White-label (spec 0050): cor de marca do tenant
 }
 
 /**
@@ -30,11 +32,13 @@ export class PortalService {
   private clients: ClientRepository;
   private invoices: InvoiceRepository;
   private contract: ContractService;
+  private brand: BrandRepository;
 
-  constructor(deps?: { clients?: ClientRepository; invoices?: InvoiceRepository; contract?: ContractService }) {
+  constructor(deps?: { clients?: ClientRepository; invoices?: InvoiceRepository; contract?: ContractService; brand?: BrandRepository }) {
     this.clients = deps?.clients ?? new ClientRepository();
     this.invoices = deps?.invoices ?? new InvoiceRepository();
     this.contract = deps?.contract ?? new ContractService();
+    this.brand = deps?.brand ?? new BrandRepository();
   }
 
   async getByToken(token: string, appBaseUrl: string): Promise<PortalView | null> {
@@ -66,6 +70,7 @@ export class PortalService {
         openValue: Math.round(open.reduce((s, i) => s + i.value, 0) * 100) / 100,
       },
       contract,
+      brandColor: await this.brand.getColorByTenant(client.tenantId),
     };
   }
 

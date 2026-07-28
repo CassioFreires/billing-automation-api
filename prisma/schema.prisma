@@ -49,6 +49,19 @@ model Account {
   referrals Referral[] // Indique e Ganhe (spec 0046)
   fiscalSetting FiscalSetting? // NFS-e (spec 0047)
   fiscalDocuments FiscalDocument[] // NFS-e (spec 0047)
+  brandSetting BrandSetting? // White-label (spec 0050)
+}
+
+// White-label (spec 0050, Fase 3). Cor de marca por tenant — recolore o painel e
+// as páginas públicas (Elo/Portal/indicação). 1:1 com Account.
+model BrandSetting {
+  id         String   @id @default(uuid())
+  brandColor String   @default("#14a08a") // hex da cor primária da marca do tenant
+  createdAt  DateTime @default(now())
+  lastUpdate DateTime @updatedAt
+
+  tenantId   String   @unique
+  account    Account  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 // Assinatura do PRÓPRIO SaaS (spec 0020): a Adimplo cobra o tenant. 1:1 com

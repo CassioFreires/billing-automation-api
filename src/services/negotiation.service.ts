@@ -6,6 +6,7 @@ import { InteractionEventRepository } from '../repositories/interaction-event.re
 import { RecoveryCaseRepository } from '../repositories/recovery-case.repository.js';
 import { NegotiationSettingService } from './negotiation-setting.service.js';
 import { PaymentSettingService } from './payment-setting.service.js';
+import { BrandRepository } from '../repositories/brand.repository.js';
 import {
   PaymentGatewayProvider,
   resolvePaymentGatewayForTenant,
@@ -40,6 +41,7 @@ export class NegotiationService {
   private paymentSettings: PaymentSettingService;
   private injectedGateway?: PaymentGatewayProvider;
   private recovery: RecoveryCaseRepository;
+  private brand: BrandRepository;
 
   constructor(deps?: {
     invoiceRepository?: InvoiceRepository;
@@ -49,6 +51,7 @@ export class NegotiationService {
     paymentSettings?: PaymentSettingService;
     gateway?: PaymentGatewayProvider;
     recovery?: RecoveryCaseRepository;
+    brand?: BrandRepository;
   }) {
     this.invoiceRepository = deps?.invoiceRepository ?? new InvoiceRepository();
     this.agreements = deps?.agreements ?? new AgreementRepository();
@@ -57,6 +60,7 @@ export class NegotiationService {
     this.paymentSettings = deps?.paymentSettings ?? new PaymentSettingService();
     this.injectedGateway = deps?.gateway;
     this.recovery = deps?.recovery ?? new RecoveryCaseRepository();
+    this.brand = deps?.brand ?? new BrandRepository();
   }
 
   private async gatewayForTenant(): Promise<PaymentGatewayProvider> {
@@ -115,6 +119,8 @@ export class NegotiationService {
         reliefAvailable,
         options,
         activeAgreement: activeAgreement ?? null,
+        // White-label (spec 0050): cor de marca do tenant p/ recolorir a página.
+        brandColor: await this.brand.getColor(),
       };
     });
   }

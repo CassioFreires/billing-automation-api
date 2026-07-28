@@ -18,6 +18,7 @@ import { offerRouter, publicOfferRouter } from './routers/offer.router.js';
 import { winbackRouter } from './routers/winback.router.js';
 import { referralRouter, publicReferralRouter } from './routers/referral.router.js';
 import { fiscalRouter, publicFiscalRouter } from './routers/fiscal.router.js';
+import { brandRouter } from './routers/brand.router.js';
 import { publicAgreementRouter } from './routers/agreement.router.js';
 import { publicPortalRouter } from './routers/portal.router.js';
 import { billingRouter } from './routers/billing.router.js';
@@ -74,6 +75,8 @@ appRouter.use('/winback', winbackRouter);
 appRouter.use('/referrals', referralRouter);
 // NFS-e / Nota Fiscal (spec 0047, F7): config + emitir/cancelar do dono (JWT).
 appRouter.use('/fiscal', fiscalRouter);
+// White-label (spec 0050): cor de marca do dono (JWT).
+appRouter.use('/brand', brandRouter);
 // Autonegociação PÚBLICA (spec 0018 — M2): sem JWT, tenant resolvido pela fatura.
 appRouter.use('/public/agreements', publicAgreementRouter);
 // Vitrine PÚBLICA da Loja no Pagamento (spec 0044): sem JWT, tenant pela fatura.
