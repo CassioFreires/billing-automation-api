@@ -47,5 +47,9 @@ dono: "intuitiva, organizada, mínimo de scroll, mas com todos os detalhes".
 ## 5. Notas
 
 Nav responsiva: vira barra horizontal rolável no mobile, coluna fixa (sticky) no
-desktop. Follow-up: aplicar a mesma densidade/flatness às demais telas de módulo
-(Clientes, Faturas, Assinaturas) num próximo passe de consistência.
+desktop.
+
+**Passe de consistência (mesmo PR):** a densidade/flatness foi aplicada também em
+Clientes, Faturas, Assinaturas, Recuperações, Equipe e Plano — título
+`text-3xl/extrabold → text-2xl/bold`, `mt-12 → mt-10`, `space-y-8 → space-y-6`,
+`rounded-2xl → rounded-xl`. App inteiro com a mesma cara enxuta.
