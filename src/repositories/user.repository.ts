@@ -82,6 +82,11 @@ export class UserRepository {
     return prisma.user.count({ where: { tenantId, role: 'OWNER' } });
   }
 
+  /** Total de usuários (assentos ocupados) do tenant — limite de assentos (spec 0053). */
+  countByTenant(tenantId: string) {
+    return prisma.user.count({ where: { tenantId } });
+  }
+
   /** Cria a conta (tenant) + usuário dono + trial de plataforma, atomicamente (RN-U3). */
   async createAccountWithOwner(input: {
     accountName: string;

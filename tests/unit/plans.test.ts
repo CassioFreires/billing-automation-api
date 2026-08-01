@@ -43,7 +43,8 @@ describe('resolveEntitlements (spec 0020)', () => {
     const e = resolveEntitlements({ plan: 'free', status: 'active', trialEndsAt: null, currentPeriodEnd: null }, NOW);
     expect(e.canWrite).toBe(true);
     expect(e.plan).toBe('free');
-    expect(e.maxInvoicesPerMonth).toBe(20);
+    expect(e.maxInvoicesPerMonth).toBe(30);
+    expect(e.maxSeats).toBe(1);
   });
 
   it('past_due / canceled / sem registro → bloqueado', () => {

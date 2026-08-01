@@ -22,14 +22,14 @@ describe('AdminService.getMetrics', () => {
   it('MRR soma apenas planos pagos ativos e vigentes', async () => {
     const { service, repo } = make();
     repo.allSubscriptions.mockResolvedValue([
-      { plan: 'pro', status: 'active', trialEndsAt: null, currentPeriodEnd: future }, // 19900
+      { plan: 'pro', status: 'active', trialEndsAt: null, currentPeriodEnd: future }, // 9700
       { plan: 'essencial', status: 'active', trialEndsAt: null, currentPeriodEnd: future }, // 4900
       { plan: 'pro', status: 'active', trialEndsAt: null, currentPeriodEnd: new Date(Date.now() - 1000) }, // vencido → não conta
       { plan: 'free', status: 'active', trialEndsAt: null, currentPeriodEnd: null }, // free → não conta
       { plan: 'pro', status: 'trialing', trialEndsAt: future, currentPeriodEnd: null }, // trial → não conta MRR
     ]);
     const m = await service.getMetrics(NOW);
-    expect(m.mrrCents).toBe(19900 + 4900);
+    expect(m.mrrCents).toBe(9700 + 4900);
     expect(m.totalTenants).toBe(5);
     expect(m.byStatus.active).toBe(4);
     expect(m.byStatus.trialing).toBe(1);

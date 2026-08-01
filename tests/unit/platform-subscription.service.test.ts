@@ -16,12 +16,14 @@ function make() {
     listByTenant: vi.fn(),
   };
   const tenantInvoices = { countCreatedThisMonth: vi.fn() };
+  const users = { countByTenant: vi.fn().mockResolvedValue(1) }; // assentos usados (spec 0053)
   const service = new PlatformSubscriptionService({
     subs: subs as any,
     invoices: invoices as any,
     tenantInvoices: tenantInvoices as any,
+    users: users as any,
   });
-  return { service, subs, invoices, tenantInvoices };
+  return { service, subs, invoices, tenantInvoices, users };
 }
 
 const future = new Date(Date.now() + 5 * 86400000);
@@ -57,7 +59,7 @@ describe('PlatformSubscriptionService.checkout', () => {
     // Mock gateway devolve PIX (sem checkout hospedado).
     expect(res.pixCopyPaste).toBeTruthy();
     expect(invoices.create).toHaveBeenCalledWith(
-      expect.objectContaining({ plan: 'pro', amountCents: 19900 })
+      expect.objectContaining({ plan: 'pro', amountCents: 9700 })
     );
   });
 

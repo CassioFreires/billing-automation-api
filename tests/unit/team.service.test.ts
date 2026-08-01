@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { TeamService } from '../../src/services/team.service.js';
 
-function make() {
+function make(maxSeats = 3, seatsUsed = 0) {
   const users = {
     findByEmail: vi.fn(),
     createMember: vi.fn(),
@@ -9,10 +9,13 @@ function make() {
     updateRole: vi.fn(),
     deleteById: vi.fn(),
     countOwners: vi.fn(),
+    countByTenant: vi.fn().mockResolvedValue(seatsUsed),
     listByTenant: vi.fn(),
   };
-  const service = new TeamService({ users: users as any });
-  return { service, users };
+  // Limite de assentos (spec 0053) — plano com `maxSeats` assentos inclusos.
+  const platform = { entitlementsForCurrentTenant: vi.fn().mockResolvedValue({ maxSeats }) };
+  const service = new TeamService({ users: users as any, platform: platform as any });
+  return { service, users, platform };
 }
 
 const OWNER = { id: 'owner1', role: 'OWNER', tenantId: 't1' };
@@ -39,6 +42,15 @@ describe('TeamService.invite', () => {
     await expect(
       service.invite(ADMIN, { name: 'Bia', email: 'bia@x.com', password: 'segredo123', role: 'MEMBER' })
     ).rejects.toMatchObject({ code: 'EMAIL_TAKEN' });
+    expect(users.createMember).not.toHaveBeenCalled();
+  });
+
+  it('bloqueia quando estoura os assentos do plano (spec 0053)', async () => {
+    // Plano inclui 1 assento e já há 1 usuário → convidar estoura.
+    const { service, users } = make(1, 1);
+    await expect(
+      service.invite(ADMIN, { name: 'Bia', email: 'bia@x.com', password: 'segredo123', role: 'MEMBER' })
+    ).rejects.toMatchObject({ code: 'SEAT_LIMIT' });
     expect(users.createMember).not.toHaveBeenCalled();
   });
 });
