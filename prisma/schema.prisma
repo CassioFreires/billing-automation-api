@@ -50,6 +50,25 @@ model Account {
   fiscalSetting FiscalSetting? // NFS-e (spec 0047)
   fiscalDocuments FiscalDocument[] // NFS-e (spec 0047)
   brandSetting BrandSetting? // White-label (spec 0050)
+  moduleEntitlements ModuleEntitlement[] // Modularização (spec 0051)
+}
+
+// Titularidade de MÓDULO por tenant (spec 0051 — modularização). Camada comercial:
+// diz se o tenant TEM direito a um add-on (fiscal|access|growth|recovery), distinta do
+// `*Setting.enabled` (o tenant ligar o que já possui). Linha presente sobrepõe o default
+// do plano; ausência ⇒ vale o default do plano vigente. Concedido pelo super-admin.
+model ModuleEntitlement {
+  id         String   @id @default(uuid())
+  moduleKey  String // fiscal | access | growth | recovery
+  granted    Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  lastUpdate DateTime @updatedAt
+
+  tenantId String
+  account  Account @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, moduleKey])
+  @@index([tenantId])
 }
 
 // White-label (spec 0050, Fase 3). Cor de marca por tenant — recolore o painel e

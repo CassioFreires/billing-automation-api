@@ -44,6 +44,16 @@ export class PlatformSubscriptionService {
     return resolveEntitlements(sub, now, (sub as { account?: { status?: string } } | null)?.account?.status);
   }
 
+  /**
+   * Entitlements de um tenant EXPLÍCITO (console do admin — sem contexto ALS).
+   * Suspensão é uma dimensão separada da titularidade de módulos, por isso não
+   * entra aqui (o plano efetivo continua valendo p/ os defaults de módulo).
+   */
+  async entitlementsForTenant(tenantId: string, now: Date = new Date()): Promise<Entitlements> {
+    const sub = await this.subs.findByTenantId(tenantId);
+    return resolveEntitlements(sub, now);
+  }
+
   /** true se emitir mais uma fatura estoura a quota do plano (spec 0020). */
   async isInvoiceQuotaExceeded(now: Date = new Date()): Promise<boolean> {
     const ent = await this.entitlementsForCurrentTenant(now);

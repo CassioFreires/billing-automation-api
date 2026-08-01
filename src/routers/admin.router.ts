@@ -20,6 +20,9 @@ adminRouter.get('/tenants/:id', c.tenant);
 adminRouter.post('/tenants/:id/suspend', c.suspend);
 adminRouter.post('/tenants/:id/activate', c.activate);
 adminRouter.post('/tenants/:id/plan', c.changePlan);
+// Modularização (spec 0051): titularidade de add-ons por tenant.
+adminRouter.get('/tenants/:id/modules', c.modules);
+adminRouter.put('/tenants/:id/modules', c.setModule);
 adminRouter.post('/tenants/:id/impersonate', c.impersonate);
 
 export { adminRouter };

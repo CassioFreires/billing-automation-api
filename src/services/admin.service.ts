@@ -1,10 +1,11 @@
 import { AdminRepository } from '../repositories/admin.repository.js';
 import { AuthService } from './auth.service.js';
+import { ModuleEntitlementService, ModuleError } from './module-entitlement.service.js';
 import { PLANS, PlanId, isPlanId, nextPeriodEnd, resolveEntitlements } from '../domain/plans.js';
 
 /** Erros de domínio do painel admin (mapeados p/ HTTP no controller). */
 export class AdminError extends Error {
-  constructor(public code: 'INVALID_PLAN' | 'NOT_FOUND') {
+  constructor(public code: 'INVALID_PLAN' | 'NOT_FOUND' | 'INVALID_MODULE') {
     super(code);
   }
 }
@@ -12,10 +13,12 @@ export class AdminError extends Error {
 export class AdminService {
   private repo: AdminRepository;
   private auth: AuthService;
+  private modules: ModuleEntitlementService;
 
-  constructor(deps?: { repo?: AdminRepository; auth?: AuthService }) {
+  constructor(deps?: { repo?: AdminRepository; auth?: AuthService; modules?: ModuleEntitlementService }) {
     this.repo = deps?.repo ?? new AdminRepository();
     this.auth = deps?.auth ?? new AuthService();
+    this.modules = deps?.modules ?? new ModuleEntitlementService();
   }
 
   /** Métricas de negócio: MRR, contagem por status, trials expirando. */
@@ -104,6 +107,31 @@ export class AdminService {
       meta: { plan },
     });
     return sub;
+  }
+
+  /** Módulos (spec 0051) de um tenant: efetivos + origem (plano/grant). */
+  async listModules(tenantId: string) {
+    // Confirma que o tenant existe (404 coerente com getTenant).
+    const a = await this.repo.getTenant(tenantId);
+    if (!a) throw new AdminError('NOT_FOUND');
+    return this.modules.describeForTenant(tenantId);
+  }
+
+  /** Concede/revoga um add-on p/ o tenant + auditoria (spec 0051). */
+  async setModule(adminEmail: string, tenantId: string, moduleKey: string, granted: boolean) {
+    try {
+      const result = await this.modules.setGrant(tenantId, moduleKey, granted);
+      await this.repo.createAudit({
+        adminEmail,
+        action: 'set_module',
+        targetTenantId: tenantId,
+        meta: { moduleKey, granted },
+      });
+      return result;
+    } catch (e) {
+      if (e instanceof ModuleError) throw new AdminError('INVALID_MODULE');
+      throw e;
+    }
   }
 
   /** Impersona o tenant (token curto) + auditoria. */
