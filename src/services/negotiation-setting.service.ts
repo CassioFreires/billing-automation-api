@@ -2,7 +2,7 @@ import { NegotiationSettingRepository } from '../repositories/negotiation-settin
 import { UpdateNegotiationSettingsDTO } from '../dtos/negotiationSettings.dto.js';
 import { NegotiationRules } from '../domain/negotiation.js';
 import { DEFAULT_HESITATION_OPENS } from '../domain/interaction.js';
-import { PlatformSubscriptionService } from './platform-subscription.service.js';
+import { ModuleEntitlementService } from './module-entitlement.service.js';
 
 /** Regras default quando o tenant ainda não configurou (alívio DESLIGADO). */
 const DEFAULTS = {
@@ -17,7 +17,7 @@ const DEFAULTS = {
   deferFeePercent: 0,
 };
 
-/** Botão de Alívio exige plano com o recurso (spec 0020). */
+/** Botão de Alívio exige o módulo `recovery` (spec 0051; antes: recurso Pro, spec 0020). */
 export class NegotiationFeatureError extends Error {
   constructor() {
     super('PLAN_FEATURE_REQUIRED');
@@ -26,14 +26,14 @@ export class NegotiationFeatureError extends Error {
 
 export class NegotiationSettingService {
   private repository: NegotiationSettingRepository;
-  private platform: PlatformSubscriptionService;
+  private modules: ModuleEntitlementService;
 
   constructor(deps?: {
     repository?: NegotiationSettingRepository;
-    platform?: PlatformSubscriptionService;
+    modules?: ModuleEntitlementService;
   }) {
     this.repository = deps?.repository ?? new NegotiationSettingRepository();
-    this.platform = deps?.platform ?? new PlatformSubscriptionService();
+    this.modules = deps?.modules ?? new ModuleEntitlementService();
   }
 
   /** Config "crua" do tenant (com defaults) — para a tela de Configurações. */
@@ -59,10 +59,10 @@ export class NegotiationSettingService {
   }
 
   async update(data: UpdateNegotiationSettingsDTO) {
-    // Botão de Alívio é recurso do plano Pro (spec 0020). Só bloqueia ao LIGAR.
+    // Botão de Alívio exige o módulo `recovery` (spec 0051). Só bloqueia ao LIGAR.
     if (data.enabled) {
-      const ent = await this.platform.entitlementsForCurrentTenant();
-      if (!ent.features.reliefButton) throw new NegotiationFeatureError();
+      const hasRecovery = await this.modules.has('recovery');
+      if (!hasRecovery) throw new NegotiationFeatureError();
     }
     return this.repository.upsert({
       enabled: data.enabled,

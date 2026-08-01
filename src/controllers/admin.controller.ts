@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { AdminService, AdminError } from '../services/admin.service.js';
 import { PlatformAdminService, PlatformAdminAuthError } from '../services/platform-admin.service.js';
-import { validateAdminChangePlan, validateAdminLogin } from '../dtos/admin.dto.js';
+import { validateAdminChangePlan, validateAdminLogin, validateAdminSetModule } from '../dtos/admin.dto.js';
 
 interface AdminIdentity {
   id: string;
@@ -102,6 +102,33 @@ export class AdminController {
         return;
       }
       res.status(400).json({ error: error?.message ?? 'Erro ao mudar plano' });
+    }
+  };
+
+  /** Lista os add-ons do tenant (efetivos + origem) — spec 0051. */
+  modules = async (req: Request, res: Response): Promise<void> => {
+    try {
+      res.json(await this.service.listModules(String(req.params.id)));
+    } catch (error: any) {
+      if (error instanceof AdminError && error.code === 'NOT_FOUND') {
+        res.status(404).json({ error: 'Tenant não encontrado' });
+        return;
+      }
+      res.status(500).json({ error: error?.message ?? 'Erro ao ler módulos' });
+    }
+  };
+
+  /** Concede/revoga um add-on p/ o tenant — spec 0051. */
+  setModule = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { moduleKey, granted } = validateAdminSetModule(req.body);
+      res.json(await this.service.setModule(adminOf(req).email, String(req.params.id), moduleKey, granted));
+    } catch (error: any) {
+      if (error instanceof AdminError && error.code === 'INVALID_MODULE') {
+        res.status(400).json({ error: 'Módulo inválido' });
+        return;
+      }
+      res.status(400).json({ error: error?.message ?? 'Erro ao alterar módulo' });
     }
   };
 

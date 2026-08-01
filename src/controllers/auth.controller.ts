@@ -1,13 +1,19 @@
 import { Request, Response } from 'express';
 import { AuthService } from '../services/auth.service.js';
+import { ModuleEntitlementService } from '../services/module-entitlement.service.js';
+import { PlatformSubscriptionService } from '../services/platform-subscription.service.js';
 import { loginSchema } from '../dtos/login.dto.js';
 import { registerSchema } from '../dtos/register.dto.js';
 
 export class AuthController {
   private authService: AuthService;
+  private modules: ModuleEntitlementService;
+  private platform: PlatformSubscriptionService;
 
   constructor() {
     this.authService = new AuthService();
+    this.modules = new ModuleEntitlementService();
+    this.platform = new PlatformSubscriptionService();
   }
 
   register = async (req: Request, res: Response): Promise<void> => {
@@ -29,12 +35,20 @@ export class AuthController {
     }
   };
 
-  /** Perfil do usuário autenticado (spec 0030). Requer jwtAuth. */
+  /**
+   * Perfil do usuário autenticado (spec 0030) + capacidades do tenant (spec 0051):
+   * `plan` e `modules` (add-ons efetivamente concedidos). Bootstrap único do front
+   * p/ decidir o que liberar/bloquear. Requer jwtAuth (contexto de tenant).
+   */
   me = async (req: Request, res: Response): Promise<void> => {
     try {
       const auth = (req as Request & { auth?: { sub?: string } }).auth;
       const profile = await this.authService.getProfile(String(auth?.sub ?? ''));
-      res.status(200).json(profile);
+      const [ent, modules] = await Promise.all([
+        this.platform.entitlementsForCurrentTenant(),
+        this.modules.effectiveModules(),
+      ]);
+      res.status(200).json({ ...profile, plan: ent.plan, modules });
     } catch {
       res.status(404).json({ error: 'Usuário não encontrado' });
     }

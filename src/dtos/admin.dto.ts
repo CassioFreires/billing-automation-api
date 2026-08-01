@@ -20,3 +20,15 @@ export type AdminChangePlanDTO = z.infer<typeof adminChangePlanSchema>;
 export function validateAdminChangePlan(payload: unknown): AdminChangePlanDTO {
   return adminChangePlanSchema.parse(payload);
 }
+
+/** Concessão/revogação de módulo pelo super-admin (spec 0051). */
+export const adminSetModuleSchema = z.object({
+  moduleKey: z.enum(['fiscal', 'access', 'growth', 'recovery']),
+  granted: z.boolean(),
+});
+
+export type AdminSetModuleDTO = z.infer<typeof adminSetModuleSchema>;
+
+export function validateAdminSetModule(payload: unknown): AdminSetModuleDTO {
+  return adminSetModuleSchema.parse(payload);
+}

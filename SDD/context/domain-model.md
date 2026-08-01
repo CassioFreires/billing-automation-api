@@ -377,6 +377,25 @@ Estado de acesso do cliente **derivado** do pagamento (calculado na leitura, sem
   em `src/domain/fiscal.ts`. Nem toda cobrança emite nota — seletivo por fatura.
 - API dono: `GET/PUT /api/fiscal/settings`, `GET /api/fiscal/documents`, `POST .../emit|cancel`.
 
+### Modularização / Entitlements (spec 0051) — venda por módulo
+- **ModuleEntitlement** (1:N por tenant, `@@unique([tenantId, moduleKey])`): `moduleKey`
+  (`fiscal|access|growth|recovery`), `granted`. Camada de **titularidade** — diz se o
+  tenant TEM direito ao add-on, distinta do `*Setting.enabled` (o tenant LIGAR o que
+  possui). São ortogonais: entitlement é o portão externo, `enabled` é o interno.
+- **Núcleo** (sempre disponível, não é add-on): clientes, faturas, assinaturas, cobrança,
+  régua, portal, recuperação de pagamento falho (F1), contrato e white-label.
+- **4 add-ons vendáveis**: `fiscal` (NFS-e), `access` (Liga/Desliga + IoT), `growth`
+  (Winback + Indique + Loja), `recovery` (Botão de Alívio + Retenção).
+- Titularidade efetiva = grant explícito (se existe linha) senão default do plano
+  (`pro`/trial: todos; free/essencial: nenhum) — puro em `src/domain/modules.ts`
+  (`resolveModules`). Grandfather na migration: toda conta existente recebeu os 4.
+- Enforcement: `requireModule(key)` nos routers de add-on → `402 MODULE_NOT_ENABLED`
+  (isenta conta de serviço e rotas públicas/webhook). Front lê `modules` de `GET /auth/me`
+  e mostra os add-ons não contratados **bloqueados com upsell** (`<ModuleGate>`). Concessão
+  é do super-admin: `GET/PUT /api/admin/tenants/:id/modules` (com auditoria `set_module`).
+- Botão de Alívio migrou o gate de `PlanFeatures.reliefButton` (spec 0020) para o módulo
+  `recovery`.
+
 ## Máquinas de estado
 
 ### Status do Cliente

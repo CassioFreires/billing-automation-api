@@ -1,17 +1,19 @@
 import { Router } from 'express';
 import { jwtAuth } from '../middlewares/auth.middleware.js';
+import { requireModule } from '../middlewares/require-module.middleware.js';
 import { linkLimiter, agreementLimiter } from '../middlewares/rate-limit.middleware.js';
 import { ReferralController } from '../controllers/referral.controller.js';
 
 const controller = new ReferralController();
 
-/** Indique e Ganhe (spec 0046, F16) — dono (JWT). */
+/** Indique e Ganhe (spec 0046, F16) — dono (JWT). Gate do módulo `growth` (spec 0051). */
 export const referralRouter = Router();
-referralRouter.get('/settings', jwtAuth, controller.getSettings);
-referralRouter.put('/settings', jwtAuth, controller.updateSettings);
-referralRouter.get('/summary', jwtAuth, controller.summary);
-referralRouter.get('/code/:clientId', jwtAuth, controller.code);
-referralRouter.get('/', jwtAuth, controller.list);
+const mod = requireModule('growth');
+referralRouter.get('/settings', jwtAuth, mod, controller.getSettings);
+referralRouter.put('/settings', jwtAuth, mod, controller.updateSettings);
+referralRouter.get('/summary', jwtAuth, mod, controller.summary);
+referralRouter.get('/code/:clientId', jwtAuth, mod, controller.code);
+referralRouter.get('/', jwtAuth, mod, controller.list);
 
 /**
  * Link PÚBLICO de indicação (sem JWT — tenant resolvido pelo código).
