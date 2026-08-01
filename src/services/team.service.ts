@@ -1,6 +1,8 @@
 import bcrypt from 'bcryptjs';
 import { UserRepository } from '../repositories/user.repository.js';
 import { InviteMemberDTO } from '../dtos/team.dto.js';
+import { PlatformSubscriptionService } from './platform-subscription.service.js';
+import { isOverSeatLimit } from '../domain/plans.js';
 
 const BCRYPT_ROUNDS = 10;
 
@@ -27,9 +29,11 @@ export interface Actor {
  */
 export class TeamService {
   private users: UserRepository;
+  private platform: PlatformSubscriptionService;
 
-  constructor(deps?: { users?: UserRepository }) {
+  constructor(deps?: { users?: UserRepository; platform?: PlatformSubscriptionService }) {
     this.users = deps?.users ?? new UserRepository();
+    this.platform = deps?.platform ?? new PlatformSubscriptionService();
   }
 
   list(tenantId: string) {
@@ -37,6 +41,18 @@ export class TeamService {
   }
 
   async invite(actor: Actor, data: InviteMemberDTO) {
+    // Limite de assentos do plano (spec 0053): bloqueia ao estourar os inclusos.
+    const [ent, seats] = await Promise.all([
+      this.platform.entitlementsForCurrentTenant(),
+      this.users.countByTenant(actor.tenantId),
+    ]);
+    if (isOverSeatLimit(seats, ent)) {
+      throw new TeamError(
+        'SEAT_LIMIT',
+        `Seu plano inclui ${ent.maxSeats} usuário(s). Faça upgrade para adicionar mais.`
+      );
+    }
+
     const existing = await this.users.findByEmail(data.email);
     if (existing) throw new TeamError('EMAIL_TAKEN', 'Este e-mail já está cadastrado.');
 

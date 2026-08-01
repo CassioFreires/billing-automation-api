@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { PlatformSubscriptionRepository } from '../repositories/platform-subscription.repository.js';
 import { PlatformInvoiceRepository } from '../repositories/platform-invoice.repository.js';
 import { InvoiceRepository } from '../repositories/invoice.repository.js';
+import { UserRepository } from '../repositories/user.repository.js';
 import { resolvePlatformGateway, resolvePaymentGatewayByName } from '../apis/payment/index.js';
 import { WebhookRequest } from '../apis/payment/types.js';
 import { runWithTenant, requireTenantId } from '../context/tenant-context.js';
@@ -27,15 +28,18 @@ export class PlatformSubscriptionService {
   private subs: PlatformSubscriptionRepository;
   private invoices: PlatformInvoiceRepository;
   private tenantInvoices: InvoiceRepository;
+  private users: UserRepository;
 
   constructor(deps?: {
     subs?: PlatformSubscriptionRepository;
     invoices?: PlatformInvoiceRepository;
     tenantInvoices?: InvoiceRepository;
+    users?: UserRepository;
   }) {
     this.subs = deps?.subs ?? new PlatformSubscriptionRepository();
     this.invoices = deps?.invoices ?? new PlatformInvoiceRepository();
     this.tenantInvoices = deps?.tenantInvoices ?? new InvoiceRepository();
+    this.users = deps?.users ?? new UserRepository();
   }
 
   /** Entitlements do tenant atual (usado por middleware, quota e feature gates). */
@@ -70,6 +74,7 @@ export class PlatformSubscriptionService {
       (sub as { account?: { status?: string } } | null)?.account?.status
     );
     const invoicesThisMonth = await this.tenantInvoices.countCreatedThisMonth(now);
+    const seatsUsed = await this.users.countByTenant(requireTenantId());
 
     return {
       plan: sub?.plan ?? 'free',
@@ -81,6 +86,8 @@ export class PlatformSubscriptionService {
         invoicesThisMonth,
         maxInvoicesPerMonth: ent.maxInvoicesPerMonth,
         overQuota: isOverInvoiceQuota(invoicesThisMonth, ent),
+        seatsUsed,
+        maxSeats: ent.maxSeats,
       },
       catalog: Object.values(PLANS),
     };

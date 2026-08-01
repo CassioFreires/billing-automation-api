@@ -14,7 +14,11 @@ function actorOf(req: Request): Actor {
 
 function mapError(error: any, res: Response) {
   if (error instanceof TeamError) {
-    const status = error.code === 'EMAIL_TAKEN' ? 409 : error.code === 'NOT_FOUND' ? 404 : 400;
+    const status =
+      error.code === 'EMAIL_TAKEN' ? 409 :
+      error.code === 'NOT_FOUND' ? 404 :
+      error.code === 'SEAT_LIMIT' ? 402 : // paywall: estourou assentos do plano (spec 0053)
+      400;
     return res.status(status).json({ error: error.message, code: error.code });
   }
   return res.status(400).json({ error: error?.message ?? 'Erro na gestão de equipe' });

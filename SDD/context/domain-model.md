@@ -396,6 +396,15 @@ Estado de acesso do cliente **derivado** do pagamento (calculado na leitura, sem
 - Botão de Alívio migrou o gate de `PlanFeatures.reliefButton` (spec 0020) para o módulo
   `recovery`.
 
+### Planos do Núcleo & assentos (spec 0053)
+- Catálogo (`src/domain/plans.ts`): `free` "Núcleo Grátis" (R$0 · 30 faturas/mês · **1
+  assento**), `essencial` "Núcleo Essencial" (R$49 · 200 faturas · **2 assentos**), `pro`
+  "Núcleo Pro" (R$97 · ilimitado · **3 assentos**). Módulos são vendidos à parte (0051).
+- `Entitlements.maxSeats` = assentos do plano efetivo (trial vale Pro). Convidar acima do
+  incluído → `402 SEAT_LIMIT` no `POST /team` (só bloqueia o convite; não remove quem já
+  existe). `GET /billing/plan` devolve `usage.seatsUsed`/`usage.maxSeats`.
+- Assento extra: `EXTRA_SEAT_PRICE_CENTS` (R$19) — informativo; cobrança avulsa é follow-up.
+
 ## Máquinas de estado
 
 ### Status do Cliente

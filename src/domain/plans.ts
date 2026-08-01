@@ -33,34 +33,42 @@ export interface PlanDef {
   priceCents: number;
   /** Limite de faturas emitidas por mês. `null` = ilimitado. */
   maxInvoicesPerMonth: number | null;
+  /** Assentos (usuários) INCLUSOS no plano. Acima disso, cobra assento extra (spec 0053). */
+  maxSeats: number;
   features: PlanFeatures;
   /** Marca "Adimplo" nas cobranças (plano gratuito). */
   adimploBranding: boolean;
 }
 
-/** Catálogo. Preços em centavos (BRL). Ajuste livre. */
+/** Preço do assento (usuário) adicional além dos inclusos, em centavos (spec 0053). */
+export const EXTRA_SEAT_PRICE_CENTS = 1900;
+
+/** Catálogo do Núcleo (base). Preços em centavos (BRL). Módulos são à parte (spec 0051). */
 export const PLANS: Record<PlanId, PlanDef> = {
   free: {
     id: 'free',
-    label: 'Free',
+    label: 'Núcleo Grátis',
     priceCents: 0,
-    maxInvoicesPerMonth: 20,
+    maxInvoicesPerMonth: 30,
+    maxSeats: 1,
     features: { reliefButton: false },
     adimploBranding: true,
   },
   essencial: {
     id: 'essencial',
-    label: 'Essencial',
+    label: 'Núcleo Essencial',
     priceCents: 4900,
     maxInvoicesPerMonth: 200,
+    maxSeats: 2,
     features: { reliefButton: false },
     adimploBranding: false,
   },
   pro: {
     id: 'pro',
-    label: 'Pro',
-    priceCents: 19900,
+    label: 'Núcleo Pro',
+    priceCents: 9700,
     maxInvoicesPerMonth: null,
+    maxSeats: 3,
     features: { reliefButton: true },
     adimploBranding: false,
   },
@@ -87,6 +95,8 @@ export interface Entitlements {
   /** Pode executar ações de escrita? (false = paywall). */
   canWrite: boolean;
   maxInvoicesPerMonth: number | null;
+  /** Assentos (usuários) inclusos no plano efetivo (spec 0053). */
+  maxSeats: number;
   features: PlanFeatures;
   /** Motivo do bloqueio, quando `canWrite` é false. */
   reason?: 'TRIAL_EXPIRED' | 'PLAN_EXPIRED' | 'SUSPENDED';
@@ -96,6 +106,7 @@ const READONLY_FALLBACK: Omit<Entitlements, 'reason'> = {
   plan: 'free',
   canWrite: false,
   maxInvoicesPerMonth: PLANS.free.maxInvoicesPerMonth,
+  maxSeats: PLANS.free.maxSeats,
   features: PLANS.free.features,
 };
 
@@ -126,6 +137,7 @@ export function resolveEntitlements(
         plan: 'pro',
         canWrite: true,
         maxInvoicesPerMonth: PLANS.pro.maxInvoicesPerMonth,
+        maxSeats: PLANS.pro.maxSeats,
         features: PLANS.pro.features,
       };
     }
@@ -140,6 +152,7 @@ export function resolveEntitlements(
         plan: 'free',
         canWrite: true,
         maxInvoicesPerMonth: PLANS.free.maxInvoicesPerMonth,
+        maxSeats: PLANS.free.maxSeats,
         features: PLANS.free.features,
       };
     }
@@ -148,6 +161,7 @@ export function resolveEntitlements(
         plan,
         canWrite: true,
         maxInvoicesPerMonth: PLANS[plan].maxInvoicesPerMonth,
+        maxSeats: PLANS[plan].maxSeats,
         features: PLANS[plan].features,
       };
     }
@@ -163,6 +177,11 @@ export function resolveEntitlements(
 export function isOverInvoiceQuota(invoicesThisMonth: number, ent: Entitlements): boolean {
   if (ent.maxInvoicesPerMonth === null) return false;
   return invoicesThisMonth >= ent.maxInvoicesPerMonth;
+}
+
+/** true se adicionar mais um usuário estoura os assentos inclusos no plano (spec 0053). */
+export function isOverSeatLimit(currentSeats: number, ent: Entitlements): boolean {
+  return currentSeats >= ent.maxSeats;
 }
 
 /** Fim do próximo período mensal a partir de `from` (renovação da assinatura). */
