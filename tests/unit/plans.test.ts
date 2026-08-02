@@ -30,7 +30,7 @@ describe('resolveEntitlements (spec 0020)', () => {
     expect(e.canWrite).toBe(true);
     expect(e.plan).toBe('essencial');
     expect(e.features.reliefButton).toBe(false);
-    expect(e.maxInvoicesPerMonth).toBe(200);
+    expect(e.maxInvoicesPerMonth).toBe(500);
   });
 
   it('active pago com período vencido → bloqueado (PLAN_EXPIRED)', () => {

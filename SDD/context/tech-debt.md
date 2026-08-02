@@ -16,6 +16,30 @@ _(nenhum item aberto no momento)_
 
 ## 🟠 Altos
 
+### D-24 · Follow-ups da auditoria (spec 0054) — pendentes
+Varredura de 6 frentes (pagamento, idempotência, transações, segurança, workers, preços).
+**Já corrigidos** em 0054: cobrança órfã (rollback só antes da cobrança existir, nos 4 fluxos),
+crédito de indicação atômico (double-spend/credit), winback cobrança-dupla (claim atômico),
+RBAC (OWNER/ADMIN em settings/credenciais/plano/IoT/delete-cliente), raw body p/ assinatura
+de webhook, `fetch` com timeout (WhatsApp/InfinitePay), try/catch por tenant nos sweeps.
+**Ainda abertos (por severidade):**
+- 🔴 **Webhook de plataforma forjável** — `confirmPayment` confia no provider da URL + segredo
+  global; dá pra ativar Pro sem pagar. Corrigir: segredo próprio da plataforma + conferir o
+  valor pago vs `PlatformInvoice.amountCents`. (Latente: gateway de plataforma ainda é `mock`.)
+- 🟠 **Estorno/chargeback engolido** — após PAID, refund vira `FAILED` e a transição é barrada →
+  fatura fica "paga" pra sempre. Falta transição PAID→REFUNDED/CHARGEBACK + reabrir recuperação.
+- 🟠 **InfinitePay (gateway default) sem assinatura** no webhook; e provider escolhido pela URL
+  pode ser mais fraco que o do tenant. Resolver o tenant/provider ANTES de verificar.
+- 🟡 **`Payment` duplicado sem `eventId`** — dedup depende do eventId; usar `gatewayId` como
+  fallback de chave de idempotência (ou índice parcial em `Payment(invoiceId, source='gateway')`).
+- 🟡 **Sweeps sem single-flight lock** — dois runs concorrentes podem duplicar (mitigado agora
+  pelos claims atômicos de winback/recovery, mas falta um `pg_try_advisory_lock` por sweep).
+- 🟡 **Assinatura de plataforma sobrescreve o período** em vez de somar (`max(now, fim)+1mês`).
+- 🟡 **Conta de serviço** (`AUTH_USERNAME/PASSWORD`) fura todos os gates (plano/módulo/quota).
+- 🔵 **Loja: accept sem idempotência** (double-click gera 2 cobranças); entropia do código de
+  indicação (7→≥12 chars); pin de algoritmo no `jwt.verify`; CORS allowlist; remover log de PII
+  em `triggerNotification.dto.ts`; apagar `updateStatus` sem escopo de tenant (não usado).
+
 ### D-17 · Segredos por tenant em texto no banco — ✅ (WhatsApp) 2026-07-04
 - **Feito**: `WhatsappSetting.token` agora é **cifrado em repouso** (AES-256-GCM, `src/infrastructure/crypto.ts`, chave `ENCRYPTION_KEY`). Cifra no `upsert`, decifra no `findByTenant`; formato versionado `enc:v1:`, **tolerante a legado** (tokens antigos em texto seguem legíveis e são recifrados no próximo save). Testado (`tests/unit/crypto.test.ts`).
 - **Pendente**: quando o `PaymentSetting.mpAccessToken` (token do Mercado Pago) for de fato implementado/persistido, aplicar o **mesmo** `encryptSecret`/`decryptSecret`. O handle do InfinitePay é público (não precisa). Rotacionar tokens após onboarding real.

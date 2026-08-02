@@ -38,28 +38,28 @@ export const MODULES: Record<ModuleKey, ModuleDef> = {
     label: 'Nota Fiscal (NFS-e)',
     description: 'Emita NFS-e automaticamente quando a fatura é paga, com reemissão e cancelamento.',
     features: ['0047'],
-    priceCents: 4900,
+    priceCents: 6900, // reposicionamento de mercado (spec 0055)
   },
   access: {
     key: 'access',
     label: 'Controle de Acesso',
     description: 'Liga/desliga o acesso do cliente conforme o pagamento — inclusive catracas e IoT.',
     features: ['0042', '0043'],
-    priceCents: 3900,
+    priceCents: 8900, // integração de hardware — maior valor (spec 0055)
   },
   growth: {
     key: 'growth',
     label: 'Crescimento',
     description: 'Winback de inadimplentes, Indique e Ganhe e Loja no Pagamento (order-bump).',
     features: ['0044', '0045', '0046'],
-    priceCents: 3900,
+    priceCents: 6900,
   },
   recovery: {
     key: 'recovery',
     label: 'Recuperação',
     description: 'Botão de Alívio (autonegociação) e retenção no cancelamento com desconto/pausa.',
     features: ['0018', '0038'],
-    priceCents: 5900,
+    priceCents: 11900, // maior ROI (recupera receita) — suporta preço (spec 0055)
   },
 };
 

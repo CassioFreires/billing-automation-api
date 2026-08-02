@@ -397,9 +397,10 @@ Estado de acesso do cliente **derivado** do pagamento (calculado na leitura, sem
   `recovery`.
 
 ### Planos do Núcleo & assentos (spec 0053)
-- Catálogo (`src/domain/plans.ts`): `free` "Núcleo Grátis" (R$0 · 30 faturas/mês · **1
-  assento**), `essencial` "Núcleo Essencial" (R$49 · 200 faturas · **2 assentos**), `pro`
-  "Núcleo Pro" (R$97 · ilimitado · **3 assentos**). Módulos são vendidos à parte (0051).
+- Catálogo (`src/domain/plans.ts`, preços spec 0055): `free` "Núcleo Grátis" (R$0 · 30
+  faturas/mês · **1 assento**), `essencial` "Núcleo Essencial" (R$119 · 500 faturas · **2
+  assentos**), `pro` "Núcleo Pro" (R$229 · ilimitado · **3 assentos**). Módulos à parte
+  (0051): Fiscal R$69 · Acesso R$89 · Crescimento R$69 · Recuperação R$119. Assento extra R$34.
 - `Entitlements.maxSeats` = assentos do plano efetivo (trial vale Pro). Convidar acima do
   incluído → `402 SEAT_LIMIT` no `POST /team` (só bloqueia o convite; não remove quem já
   existe). `GET /billing/plan` devolve `usage.seatsUsed`/`usage.maxSeats`.
