@@ -55,16 +55,21 @@ export class NotificationSchedulerService {
     let enfileirados = 0;
 
     for (const tenantId of tenantIds) {
-      const count = await runWithTenant(tenantId, async () => {
-        const regua = await this.regua.get();
-        return regua.enabled && regua.steps.length > 0
-          ? this.runReguaForTenant(regua.steps, now)
-          : this.runLegacyForTenant();
-      });
+      // Isolamento por tenant (spec 0054): erro de um NÃO impede a cobrança dos demais.
+      try {
+        const count = await runWithTenant(tenantId, async () => {
+          const regua = await this.regua.get();
+          return regua.enabled && regua.steps.length > 0
+            ? this.runReguaForTenant(regua.steps, now)
+            : this.runLegacyForTenant();
+        });
 
-      if (count > 0) {
-        comVencidos++;
-        enfileirados += count;
+        if (count > 0) {
+          comVencidos++;
+          enfileirados += count;
+        }
+      } catch (err) {
+        console.error(`⚠️ Notificação: sweep do tenant ${tenantId} falhou (segue):`, err);
       }
     }
 

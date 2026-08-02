@@ -114,39 +114,41 @@ export class OfferService {
         items: [{ description: draft.description, quantity: 1, unitPrice: value }],
       });
 
+      // Só apaga a reserva se a cobrança NÃO chegou a ser criada (spec 0054).
+      let charge;
       try {
         const gateway = await this.gatewayForTenant();
-        const charge = await gateway.createCharge({
+        charge = await gateway.createCharge({
           reference: randomUUID(),
           amount: draft.value,
           dueDate: draft.dueDate,
           description: draft.description,
         });
-        const addon = await this.invoices.attachCharge(reserved.id, {
-          gatewayId: charge.gatewayId,
-          pixCopyPaste: charge.pixCopyPaste,
-          pixQrCode: charge.pixQrCode,
-          checkoutUrl: charge.checkoutUrl,
-        });
-        await this.repo.createPurchase({
-          offerId: offer.id,
-          invoiceId: addon.id,
-          clientId: invoice.clientId,
-          priceCents: offer.priceCents,
-        });
-        return {
-          newInvoice: {
-            id: addon.id,
-            value: Number(addon.value),
-            dueDate: addon.dueDate,
-            checkoutUrl: addon.checkoutUrl ?? null,
-            pixCopyPaste: addon.pixCopyPaste ?? null,
-          },
-        };
       } catch (error) {
         await this.invoices.deleteById(reserved.id).catch(() => {});
         throw error;
       }
+
+      // Cobrança criada — a partir daqui NÃO apagamos a fatura (evita cobrança órfã).
+      const addon = await this.invoices.attachCharge(reserved.id, {
+        gatewayId: charge.gatewayId,
+        pixCopyPaste: charge.pixCopyPaste,
+        pixQrCode: charge.pixQrCode,
+        checkoutUrl: charge.checkoutUrl,
+      });
+      // Registro da compra é best-effort: a fatura já existe e é conciliável pelo webhook.
+      await this.repo
+        .createPurchase({ offerId: offer.id, invoiceId: addon.id, clientId: invoice.clientId, priceCents: offer.priceCents })
+        .catch((err) => console.error('⚠️ Loja: falha ao registrar a compra (fatura segue válida):', err));
+      return {
+        newInvoice: {
+          id: addon.id,
+          value: Number(addon.value),
+          dueDate: addon.dueDate,
+          checkoutUrl: addon.checkoutUrl ?? null,
+          pixCopyPaste: addon.pixCopyPaste ?? null,
+        },
+      };
     });
   }
 }

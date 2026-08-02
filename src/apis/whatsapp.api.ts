@@ -1,4 +1,5 @@
 import { TriggerNotificationDTO } from '../dtos/triggerNotification.dto.js';
+import { fetchWithTimeout } from '../utils/fetch-timeout.js';
 
 /**
  * Seam de integração com WhatsApp.
@@ -111,7 +112,7 @@ export class CloudApiWhatsappProvider implements WhatsappProvider {
     const url = `${this.config.baseUrl}/${this.config.apiVersion}/${this.config.phoneNumberId}/messages`;
 
     try {
-      const res = await fetch(url, {
+      const res = await fetchWithTimeout(url, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${this.config.token}`,

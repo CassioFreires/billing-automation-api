@@ -116,7 +116,7 @@ describe('NegotiationService.accept (spec 0018 — M2)', () => {
     expect(gateway.createCharge).not.toHaveBeenCalled();
   });
 
-  it('corrida perdida no finalize → desfaz a nova reserva e devolve o acordo vigente', async () => {
+  it('corrida perdida no finalize → devolve o acordo vigente SEM apagar a fatura (evita cobrança órfã, spec 0054)', async () => {
     const existing = { id: 'agrRace' };
     const { service, invoiceRepository, agreements } = makeDeps({
       agreements: {
@@ -128,7 +128,8 @@ describe('NegotiationService.accept (spec 0018 — M2)', () => {
 
     const res = await service.accept('tok', { type: 'discount' } as any);
     expect(res).toEqual({ created: false, agreement: existing });
-    expect(invoiceRepository.deleteById).toHaveBeenCalledWith('new1');
+    // A cobrança já existe no gateway → NÃO apaga a fatura (ficaria órfã).
+    expect(invoiceRepository.deleteById).not.toHaveBeenCalled();
   });
 });
 

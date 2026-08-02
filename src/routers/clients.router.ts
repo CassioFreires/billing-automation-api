@@ -4,6 +4,7 @@ import { ClientController } from '../controllers/clients.controller.js';
 import { PortalController } from '../controllers/portal.controller.js';
 import { jwtAuth } from '../middlewares/auth.middleware.js';
 import { requireWriteAccess } from '../middlewares/require-plan.middleware.js';
+import { requireRole } from '../middlewares/require-role.middleware.js';
 
 const clientRouter = Router();
 
@@ -45,8 +46,10 @@ clientRouter.put(
   controller.update.bind(controller)
 );
 
+// Excluir/anonimizar cliente (LGPD) é destrutivo e irreversível → só OWNER/ADMIN (spec 0054).
 clientRouter.delete(
   '/:id',
+  requireRole('OWNER', 'ADMIN'),
   controller.delete.bind(controller)
 );
 
