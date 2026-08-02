@@ -56,6 +56,27 @@ export class WinbackRepository {
     });
   }
 
+  /**
+   * CLAIM atômico do caso antes de cobrar (spec 0054): flipa pending→sending de forma
+   * condicional. Só quem vence (count===1) gera a cobrança — evita cobrança dupla por
+   * sweeps concorrentes ou replay do cron.
+   */
+  async claimForSending(caseId: string): Promise<boolean> {
+    const r = await prisma.winbackCase.updateMany({
+      where: { id: caseId, tenantId: requireTenantId(), status: 'pending' },
+      data: { status: 'sending' },
+    });
+    return r.count === 1;
+  }
+
+  /** Devolve o caso a pending quando a cobrança NÃO chegou a ser criada (retry amanhã). */
+  async revertToPending(caseId: string) {
+    await prisma.winbackCase.updateMany({
+      where: { id: caseId, tenantId: requireTenantId(), status: 'sending' },
+      data: { status: 'pending' },
+    });
+  }
+
   async markSent(caseId: string, invoiceId: string, sentAt: Date) {
     return prisma.winbackCase.update({ where: { id: caseId }, data: { status: 'sent', invoiceId, sentAt } });
   }

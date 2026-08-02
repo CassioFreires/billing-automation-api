@@ -2,6 +2,7 @@
 
 import { randomUUID } from 'node:crypto';
 import { Prisma } from '@prisma/client';
+import { isUniqueViolation } from '../utils/prisma-errors.js';
 import { InvoiceRepository } from '../repositories/invoice.repository.js';
 import { InteractionEventRepository } from '../repositories/interaction-event.repository.js';
 import { RecoveryCaseRepository } from '../repositories/recovery-case.repository.js';
@@ -24,13 +25,6 @@ import { canTransitionInvoice, effectiveInvoiceStatus } from '../domain/status.j
 import { netAfterCredit } from '../domain/referral.js';
 import { InteractionType } from '../domain/interaction.js';
 import { runWithTenant } from '../context/tenant-context.js';
-
-/** Violação de unique (P2002) — usada para detectar corrida na reserva. */
-function isUniqueViolation(error: unknown): boolean {
-  return (
-    error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002'
-  );
-}
 
 export class InvoiceService {
   private invoiceRepository: InvoiceRepository;
@@ -71,7 +65,7 @@ export class InvoiceService {
    * senão o crédito fica guardado para uma fatura maior. Retorna o valor a cobrar,
    * quanto de crédito foi usado e (se usado) um item negativo p/ reconciliar.
    */
-  private async applyReferralCredit(
+  private async planReferralCredit(
     clientId: string,
     gross: Prisma.Decimal
   ): Promise<{ charge: Prisma.Decimal; usedCents: number; creditItem?: { description: string; quantity: number; unitPrice: Prisma.Decimal } }> {
@@ -85,6 +79,23 @@ export class InvoiceService {
       usedCents,
       creditItem: { description: 'Crédito indicação', quantity: 1, unitPrice: new Prisma.Decimal(-(usedCents / 100)) },
     };
+  }
+
+  /**
+   * RESERVA o crédito de indicação de forma ATÔMICA antes de cobrar (spec 0054):
+   * debita condicionalmente e só devolve o plano com desconto se a reserva venceu.
+   * `reserved` = centavos efetivamente debitados (para refund em caso de falha).
+   * Elimina o double-spend de duas faturas concorrentes do mesmo cliente.
+   */
+  private async reserveReferralCredit(
+    clientId: string,
+    gross: Prisma.Decimal
+  ): Promise<{ charge: Prisma.Decimal; usedCents: number; reserved: number; creditItem?: { description: string; quantity: number; unitPrice: Prisma.Decimal } }> {
+    const plan = await this.planReferralCredit(clientId, gross);
+    if (plan.usedCents === 0) return { ...plan, reserved: 0 };
+    const ok = await this.referrals.tryReserveCredit(clientId, plan.usedCents).catch(() => false);
+    if (!ok) return { charge: gross, usedCents: 0, reserved: 0 }; // não reservou → cobra cheio
+    return { ...plan, reserved: plan.usedCents };
   }
 
   /**
@@ -137,12 +148,11 @@ export class InvoiceService {
       ? items.map((it) => it.description).join(', ')
       : 'Cobrança';
 
-    // Indique e Ganhe (0046): abate o crédito de indicação, se houver.
-    const credit = await this.applyReferralCredit(data.clientId, total);
+    // Indique e Ganhe (0046): RESERVA o crédito de indicação de forma atômica (0054).
+    const credit = await this.reserveReferralCredit(data.clientId, total);
     const finalItems = credit.creditItem ? [...items, credit.creditItem] : items;
 
-    // Reserva a fatura ANTES de cobrar (sem dados de gateway). Assim, se o
-    // gateway falhar, desfazemos a reserva e não fica cobrança órfã.
+    // Reserva a fatura ANTES de cobrar (sem dados de gateway).
     const reserved = await this.invoiceRepository.create({
       clientId: data.clientId,
       value: credit.charge,
@@ -150,31 +160,32 @@ export class InvoiceService {
       items: finalItems,
     });
 
+    // Só a criação da cobrança pode ser desfeita apagando a fatura (a cobrança
+    // ainda não existe). Falhas DEPOIS disso NÃO apagam a fatura — senão a cobrança
+    // criada no gateway ficaria órfã (cliente paga e o webhook não acha a fatura).
+    let charge;
     try {
       const gateway = await this.gatewayForTenant();
-      const charge = await gateway.createCharge({
+      charge = await gateway.createCharge({
         reference,
         amount: credit.charge.toNumber(),
         dueDate: data.dueDate,
         description,
       });
-
-      const invoice = await this.invoiceRepository.attachCharge(reserved.id, {
-        gatewayId: charge.gatewayId,
-        pixCopyPaste: charge.pixCopyPaste,
-        pixQrCode: charge.pixQrCode,
-        checkoutUrl: charge.checkoutUrl,
-      });
-
-      // Consome o crédito só após a cobrança criada com sucesso.
-      if (credit.usedCents > 0) await this.referrals.consumeCredit(data.clientId, credit.usedCents).catch(() => {});
-      await this.recordLinkCreated(invoice);
-      return invoice;
     } catch (error) {
-      // Gateway falhou → desfaz a reserva para permitir um retry limpo.
       await this.invoiceRepository.deleteById(reserved.id).catch(() => {});
+      if (credit.reserved > 0) await this.referrals.refundCredit(data.clientId, credit.reserved).catch(() => {});
       throw error;
     }
+
+    const invoice = await this.invoiceRepository.attachCharge(reserved.id, {
+      gatewayId: charge.gatewayId,
+      pixCopyPaste: charge.pixCopyPaste,
+      pixQrCode: charge.pixQrCode,
+      checkoutUrl: charge.checkoutUrl,
+    });
+    await this.recordLinkCreated(invoice);
+    return invoice;
   }
 
   /**
@@ -251,7 +262,7 @@ export class InvoiceService {
     // eliminando a cobrança duplicada.
     // Indique e Ganhe (0046): abate o crédito de indicação, se houver.
     const gross = new Prisma.Decimal(input.amount);
-    const credit = await this.applyReferralCredit(input.clientId, gross);
+    const credit = await this.reserveReferralCredit(input.clientId, gross);
     const items: { description: string; quantity: number; unitPrice: number | Prisma.Decimal }[] = [
       { description: input.description, quantity: 1, unitPrice: input.amount },
     ];
@@ -268,6 +279,8 @@ export class InvoiceService {
         period: input.period,
       });
     } catch (error) {
+      // Perdeu a corrida da competência (unique) ou erro → devolve o crédito reservado.
+      if (credit.reserved > 0) await this.referrals.refundCredit(input.clientId, credit.reserved).catch(() => {});
       if (isUniqueViolation(error)) {
         const now = await this.invoiceRepository.findBySubscriptionPeriod(
           input.subscriptionId,
@@ -278,29 +291,31 @@ export class InvoiceService {
       throw error;
     }
 
+    let charge;
     try {
       const gateway = await this.gatewayForTenant();
-      const charge = await gateway.createCharge({
+      charge = await gateway.createCharge({
         reference,
         amount: credit.charge.toNumber(),
         dueDate: input.dueDate,
         description: input.description,
       });
-
-      const invoice = await this.invoiceRepository.attachCharge(reserved.id, {
-        gatewayId: charge.gatewayId,
-        pixCopyPaste: charge.pixCopyPaste,
-        pixQrCode: charge.pixQrCode,
-        checkoutUrl: charge.checkoutUrl,
-      });
-
-      if (credit.usedCents > 0) await this.referrals.consumeCredit(input.clientId, credit.usedCents).catch(() => {});
-      await this.recordLinkCreated(invoice);
-      return { created: true, invoice };
     } catch (error) {
+      // Cobrança ainda não criada → seguro apagar a reserva e devolver o crédito.
       await this.invoiceRepository.deleteById(reserved.id).catch(() => {});
+      if (credit.reserved > 0) await this.referrals.refundCredit(input.clientId, credit.reserved).catch(() => {});
       throw error;
     }
+
+    // Cobrança criada — a partir daqui NÃO apagamos a fatura (evita cobrança órfã).
+    const invoice = await this.invoiceRepository.attachCharge(reserved.id, {
+      gatewayId: charge.gatewayId,
+      pixCopyPaste: charge.pixCopyPaste,
+      pixQrCode: charge.pixQrCode,
+      checkoutUrl: charge.checkoutUrl,
+    });
+    await this.recordLinkCreated(invoice);
+    return { created: true, invoice };
   }
 
   /**

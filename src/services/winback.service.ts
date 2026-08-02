@@ -7,6 +7,7 @@ import { PaymentSettingService } from './payment-setting.service.js';
 import { NotificationService } from './notication.service.js';
 import { PaymentGatewayProvider, resolvePaymentGatewayForTenant } from '../apis/payment/index.js';
 import { runWithTenant } from '../context/tenant-context.js';
+import { isUniqueViolation } from '../utils/prisma-errors.js';
 import {
   isDueForWinback, winbackChargeValue, buildWinbackMessage,
   clampWinbackDays, clampWinbackDiscount,
@@ -83,10 +84,16 @@ export class WinbackService {
     const tenantIds = await this.accounts.findActiveTenantIds();
     const total: WinbackRunResult = { tenants: tenantIds.length, enrolled: 0, sent: 0, skipped: 0 };
     for (const tenantId of tenantIds) {
-      const r = await runWithTenant(tenantId, () => this.sweepTenant(now));
-      total.enrolled += r.enrolled;
-      total.sent += r.sent;
-      total.skipped += r.skipped;
+      // Isolamento por tenant (spec 0054): o erro de um tenant NÃO derruba a varredura
+      // dos demais (senão o tenant #3 tira a cobrança dos tenants #4..N naquele dia).
+      try {
+        const r = await runWithTenant(tenantId, () => this.sweepTenant(now));
+        total.enrolled += r.enrolled;
+        total.sent += r.sent;
+        total.skipped += r.skipped;
+      } catch (err) {
+        console.error(`⚠️ Winback: sweep do tenant ${tenantId} falhou (segue):`, err);
+      }
     }
     return total;
   }
@@ -96,9 +103,17 @@ export class WinbackService {
     if (!settings.enabled) return { enrolled: 0, sent: 0, skipped: 0 };
 
     // (a) Inscreve assinaturas canceladas ainda sem caso — o relógio começa agora.
+    // Guarda contra corrida: dois sweeps concorrentes veem a mesma sub → o 2º cai no
+    // unique de `subscriptionId` e é ignorado (não derruba o sweep).
     const canceled = await this.repo.findCanceledSubsWithoutCase();
+    let enrolled = 0;
     for (const sub of canceled) {
-      await this.repo.createCase({ subscriptionId: sub.id, clientId: sub.clientId, eligibleAt: now });
+      try {
+        await this.repo.createCase({ subscriptionId: sub.id, clientId: sub.clientId, eligibleAt: now });
+        enrolled++;
+      } catch (err) {
+        if (!isUniqueViolation(err)) throw err;
+      }
     }
 
     // (b) Dispara os casos cuja janela venceu.
@@ -117,29 +132,44 @@ export class WinbackService {
         skipped++;
         continue;
       }
+
+      // CLAIM atômico antes de cobrar (spec 0054): só quem vence gera a cobrança —
+      // elimina a cobrança dupla ao cliente cancelado por sweeps concorrentes/replay.
+      const claimed = await this.repo.claimForSending(c.id);
+      if (!claimed) continue; // outro run já pegou este caso
+
+      const description = `Volta ${c.subscription.description}`;
+      const decimal = new Prisma.Decimal(value);
+
+      // Fase 1: reservar fatura + criar cobrança. Se falhar aqui, a cobrança NÃO
+      // existe → limpa a reserva e devolve o caso a pending (retry amanhã).
+      let reserved: { id: string };
+      let charge;
       try {
-        const description = `Volta ${c.subscription.description}`;
-        const decimal = new Prisma.Decimal(value);
-        const reserved = await this.invoices.create({
+        reserved = await this.invoices.create({
           clientId: c.clientId,
           value: decimal,
           dueDate: now,
           items: [{ description, quantity: 1, unitPrice: decimal }],
         });
         const gateway = await this.gatewayForTenant();
-        const charge = await gateway.createCharge({
-          reference: randomUUID(),
-          amount: value,
-          dueDate: now,
-          description,
-        });
+        charge = await gateway.createCharge({ reference: randomUUID(), amount: value, dueDate: now, description });
+      } catch (err) {
+        console.error('⚠️ Winback: falha ao criar cobrança (retry amanhã):', err);
+        await this.repo.revertToPending(c.id).catch(() => {});
+        skipped++;
+        continue;
+      }
+
+      // Fase 2: cobrança JÁ existe no gateway → nunca mais apagar a fatura nem
+      // re-cobrar. Mesmo se anexar/notificar falhar, marcamos como enviado.
+      try {
         const invoice = await this.invoices.attachCharge(reserved.id, {
           gatewayId: charge.gatewayId,
           pixCopyPaste: charge.pixCopyPaste,
           pixQrCode: charge.pixQrCode,
           checkoutUrl: charge.checkoutUrl,
         });
-
         const dto: TriggerNotificationDTO = {
           id: invoice.id,
           status: invoice.status,
@@ -151,15 +181,14 @@ export class WinbackService {
           message: buildWinbackMessage(c.client?.name ?? '', value, settings.discountPercent, settings.message),
         };
         await this.notifications.queueOverdueInvoices([dto]);
-
         await this.repo.markSent(c.id, invoice.id, now);
-        sent++;
       } catch (err) {
-        console.error('⚠️ Winback: falha ao disparar caso (segue):', err);
-        skipped++;
+        console.error('⚠️ Winback: cobrança criada mas pós-processo falhou (marca enviado p/ não re-cobrar):', err);
+        await this.repo.markSent(c.id, reserved.id, now).catch(() => {});
       }
+      sent++;
     }
 
-    return { enrolled: canceled.length, sent, skipped };
+    return { enrolled, sent, skipped };
   }
 }
