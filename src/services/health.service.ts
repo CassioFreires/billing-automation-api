@@ -29,7 +29,12 @@ export class HealthService {
     const tenantIds = await this.accounts.findActiveTenantIds();
     let updated = 0;
     for (const tenantId of tenantIds) {
-      updated += await runWithTenant(tenantId, () => this.recomputeAllForTenant(now));
+      // Isolamento por tenant (spec 0054): erro de um NÃO derruba a varredura dos demais.
+      try {
+        updated += await runWithTenant(tenantId, () => this.recomputeAllForTenant(now));
+      } catch (err) {
+        console.error(`⚠️ Radar: sweep do tenant ${tenantId} falhou (segue):`, err);
+      }
     }
     return { tenants: tenantIds.length, updated };
   }

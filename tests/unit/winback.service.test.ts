@@ -12,6 +12,8 @@ function makeMocks() {
       findCanceledSubsWithoutCase: vi.fn().mockResolvedValue([]),
       createCase: vi.fn().mockResolvedValue({}),
       findDueCases: vi.fn().mockResolvedValue([]),
+      claimForSending: vi.fn().mockResolvedValue(true), // claim atômico (spec 0054)
+      revertToPending: vi.fn().mockResolvedValue(undefined),
       markSent: vi.fn().mockResolvedValue({}),
       markSkipped: vi.fn().mockResolvedValue({}),
       summary: vi.fn(),
@@ -67,6 +69,24 @@ describe('WinbackService (spec 0045 — F5)', () => {
     expect(dto).toMatchObject({ id: 'wb-inv-1', phone: '11999999999', clientName: 'Ana', value: 90 });
     expect(dto.message).toContain('Ana');
     expect(m.repo.markSent).toHaveBeenCalledWith('wc1', 'wb-inv-1', now);
+  });
+
+  it('não cobra quando o claim atômico falha (outro sweep já pegou) — anti-cobrança-dupla (spec 0054)', async () => {
+    m.repo.findDueCases.mockResolvedValue([dueCase()]);
+    m.repo.claimForSending.mockResolvedValue(false); // corrida perdida
+    const r = await svc(m).runAllTenants(now);
+    expect(r.sent).toBe(0);
+    expect(m.invoices.create).not.toHaveBeenCalled();
+    expect(m.gateway.createCharge).not.toHaveBeenCalled();
+  });
+
+  it('cobrança falha antes de criar → devolve o caso a pending (retry) e não deixa fatura órfã', async () => {
+    m.repo.findDueCases.mockResolvedValue([dueCase()]);
+    m.gateway.createCharge.mockRejectedValue(new Error('gateway down'));
+    const r = await svc(m).runAllTenants(now);
+    expect(r.skipped).toBe(1);
+    expect(m.repo.revertToPending).toHaveBeenCalledWith('wc1');
+    expect(m.repo.markSent).not.toHaveBeenCalled();
   });
 
   it('pula caso sem telefone (não cobra, marca skipped)', async () => {

@@ -13,10 +13,10 @@ function makeMocks() {
       createReferredClient: vi.fn().mockResolvedValue({ id: 'amigo1', name: 'Amigo' }),
       createReferral: vi.fn().mockResolvedValue({ id: 'r1' }),
       findPendingByReferred: vi.fn().mockResolvedValue({ id: 'r1', referrerClientId: 'ref1', referredClientId: 'amigo1' }),
-      markConverted: vi.fn().mockResolvedValue({}),
-      addCredit: vi.fn().mockResolvedValue(undefined),
+      convertAndCredit: vi.fn().mockResolvedValue(true),
       getClientCredit: vi.fn(),
-      consumeCredit: vi.fn(),
+      tryReserveCredit: vi.fn().mockResolvedValue(true),
+      refundCredit: vi.fn().mockResolvedValue(undefined),
       list: vi.fn(),
       summary: vi.fn(),
     },
@@ -65,26 +65,26 @@ describe('ReferralService (spec 0046 — F16)', () => {
     await expect(svc(m).capture('XXX', { name: 'A', phone: '11999999999' })).rejects.toBeInstanceOf(ReferralError);
   });
 
-  it('onInvoicePaid converte e credita os dois (rewardWho=both)', async () => {
+  it('onInvoicePaid converte e credita os dois de forma atômica (rewardWho=both)', async () => {
     await svc(m).onInvoicePaid('amigo1', 't1', new Date('2026-07-24'));
-    expect(m.repo.addCredit).toHaveBeenCalledWith('ref1', 1000); // indicador
-    expect(m.repo.addCredit).toHaveBeenCalledWith('amigo1', 1000); // indicado
-    expect(m.repo.markConverted).toHaveBeenCalledWith('r1', 2000, expect.any(Date));
+    // Conversão + crédito num único passo condicional (spec 0054) — sem double-credit.
+    expect(m.repo.convertAndCredit).toHaveBeenCalledWith(
+      expect.objectContaining({ referralId: 'r1', referrerClientId: 'ref1', referredClientId: 'amigo1', toReferrer: 1000, toReferred: 1000 })
+    );
   });
 
   it('onInvoicePaid só credita o indicado quando rewardWho=referred', async () => {
     m.repo.getSettings.mockResolvedValue({ enabled: true, rewardCents: 1500, rewardWho: 'referred' });
     await svc(m).onInvoicePaid('amigo1', 't1');
-    expect(m.repo.addCredit).toHaveBeenCalledTimes(1);
-    expect(m.repo.addCredit).toHaveBeenCalledWith('amigo1', 1500);
-    expect(m.repo.markConverted).toHaveBeenCalledWith('r1', 1500, expect.any(Date));
+    expect(m.repo.convertAndCredit).toHaveBeenCalledWith(
+      expect.objectContaining({ toReferrer: 0, toReferred: 1500 })
+    );
   });
 
   it('onInvoicePaid não faz nada sem indicação pendente', async () => {
     m.repo.findPendingByReferred.mockResolvedValue(null);
     await svc(m).onInvoicePaid('qualquer', 't1');
-    expect(m.repo.addCredit).not.toHaveBeenCalled();
-    expect(m.repo.markConverted).not.toHaveBeenCalled();
+    expect(m.repo.convertAndCredit).not.toHaveBeenCalled();
   });
 
   it('updateSettings clampa recompensa e normaliza o público', async () => {

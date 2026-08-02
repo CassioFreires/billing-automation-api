@@ -6,6 +6,7 @@ import {
   WebhookRequest,
   WebhookResult,
 } from './types.js';
+import { fetchWithTimeout } from '../../utils/fetch-timeout.js';
 
 /**
  * Integração com o InfinitePay via Checkout (link de pagamento).
@@ -145,7 +146,7 @@ export class InfinitePayGateway implements PaymentGatewayProvider {
       if (args.slug) params.set('slug', args.slug);
 
       const url = `${this.apiBaseUrl()}/invoices/public/checkout/payment_check/${args.handle}?${params.toString()}`;
-      const res = await fetch(url);
+      const res = await fetchWithTimeout(url); // timeout: não pendurar o webhook (spec 0054)
       if (!res.ok) return null;
 
       const data = (await res.json()) as { success?: boolean; paid?: boolean };

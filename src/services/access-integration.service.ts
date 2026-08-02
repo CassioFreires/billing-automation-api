@@ -133,10 +133,15 @@ export class AccessIntegrationService {
     const tenantIds = await this.accounts.findActiveTenantIds();
     const total: SweepResult = { tenants: tenantIds.length, transitions: 0, sent: 0, failed: 0 };
     for (const tenantId of tenantIds) {
-      const r = await runWithTenant(tenantId, () => this.runForTenant(tenantId, now));
-      total.transitions += r.transitions;
-      total.sent += r.sent;
-      total.failed += r.failed;
+      // Isolamento por tenant (spec 0054): erro de um NÃO derruba a varredura dos demais.
+      try {
+        const r = await runWithTenant(tenantId, () => this.runForTenant(tenantId, now));
+        total.transitions += r.transitions;
+        total.sent += r.sent;
+        total.failed += r.failed;
+      } catch (err) {
+        console.error(`⚠️ Acesso: sweep do tenant ${tenantId} falhou (segue):`, err);
+      }
     }
     return total;
   }

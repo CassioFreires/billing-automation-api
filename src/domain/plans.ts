@@ -40,8 +40,8 @@ export interface PlanDef {
   adimploBranding: boolean;
 }
 
-/** Preço do assento (usuário) adicional além dos inclusos, em centavos (spec 0053). */
-export const EXTRA_SEAT_PRICE_CENTS = 1900;
+/** Preço do assento (usuário) adicional além dos inclusos, em centavos (spec 0053/0055). */
+export const EXTRA_SEAT_PRICE_CENTS = 3400;
 
 /** Catálogo do Núcleo (base). Preços em centavos (BRL). Módulos são à parte (spec 0051). */
 export const PLANS: Record<PlanId, PlanDef> = {
@@ -57,8 +57,8 @@ export const PLANS: Record<PlanId, PlanDef> = {
   essencial: {
     id: 'essencial',
     label: 'Núcleo Essencial',
-    priceCents: 4900,
-    maxInvoicesPerMonth: 200,
+    priceCents: 11900, // reposicionamento de mercado (spec 0055)
+    maxInvoicesPerMonth: 500,
     maxSeats: 2,
     features: { reliefButton: false },
     adimploBranding: false,
@@ -66,7 +66,7 @@ export const PLANS: Record<PlanId, PlanDef> = {
   pro: {
     id: 'pro',
     label: 'Núcleo Pro',
-    priceCents: 9700,
+    priceCents: 22900, // carro-chefe; ~abaixo da Vindi Pro (R$499) (spec 0055)
     maxInvoicesPerMonth: null,
     maxSeats: 3,
     features: { reliefButton: true },

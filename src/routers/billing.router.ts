@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { BillingController } from '../controllers/billing.controller.js';
 import { jwtAuth } from '../middlewares/auth.middleware.js';
+import { requireRole } from '../middlewares/require-role.middleware.js';
 
 const billingRouter = Router();
 const controller = new BillingController();
@@ -13,6 +14,7 @@ billingRouter.post('/webhook/:provider', controller.handleWebhook);
 billingRouter.use(jwtAuth);
 billingRouter.get('/plan', controller.getPlan);
 billingRouter.get('/invoices', controller.listInvoices);
-billingRouter.post('/checkout', controller.checkout);
+// Trocar de plano (gera cobrança da plataforma) é ação de gestão → OWNER/ADMIN (spec 0054).
+billingRouter.post('/checkout', requireRole('OWNER', 'ADMIN'), controller.checkout);
 
 export { billingRouter };

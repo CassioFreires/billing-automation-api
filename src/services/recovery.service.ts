@@ -68,10 +68,15 @@ export class RecoveryService {
     let lost = 0;
 
     for (const tenantId of tenantIds) {
-      const res = await runWithTenant(tenantId, () => this.sweepTenant(now));
-      opened += res.opened;
-      advanced += res.advanced;
-      lost += res.lost;
+      // Isolamento por tenant (spec 0054): erro de um NÃO derruba a varredura dos demais.
+      try {
+        const res = await runWithTenant(tenantId, () => this.sweepTenant(now));
+        opened += res.opened;
+        advanced += res.advanced;
+        lost += res.lost;
+      } catch (err) {
+        console.error(`⚠️ Recovery: sweep do tenant ${tenantId} falhou (segue):`, err);
+      }
     }
 
     return { tenants: tenantIds.length, opened, advanced, lost };

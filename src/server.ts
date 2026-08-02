@@ -32,7 +32,10 @@ const app = express();
 app.set('trust proxy', 1);
 
 app.use(helmet()); // headers de segurança (HSTS, no-sniff, etc.)
-app.use(express.json());
+// Captura o corpo CRU (spec 0054): os webhooks assinados por byte-stream (Stripe,
+// Pagar.me, PagBank, NFE.io) verificam o HMAC sobre os bytes exatos. Sem isto, o
+// verificador cai no JSON.stringify(req.body) reserializado e a assinatura NUNCA bate.
+app.use(express.json({ verify: (req, _res, buf) => { (req as express.Request & { rawBody?: Buffer }).rawBody = buf; } }));
 app.use(cors());
 app.use(serializeDecimal); // Decimal → number na saída (mantém contrato da API)
 

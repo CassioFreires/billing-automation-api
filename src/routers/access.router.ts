@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { jwtAuth } from '../middlewares/auth.middleware.js';
 import { requireModule } from '../middlewares/require-module.middleware.js';
+import { requireRole } from '../middlewares/require-role.middleware.js';
 import { accessApiKeyAuth } from '../middlewares/access-api-key.middleware.js';
 import { AccessController } from '../controllers/access.controller.js';
 import { AccessIntegrationController } from '../controllers/access-integration.controller.js';
@@ -12,21 +13,23 @@ export const accessRouter = Router();
 const controller = new AccessController();
 const integration = new AccessIntegrationController();
 const mod = requireModule('access');
+// Gerir a integração (chave de API da catraca, webhook) é sensível → OWNER/ADMIN (spec 0054).
+const manage = requireRole('OWNER', 'ADMIN');
 
 // F12 — Liga/Desliga (dono, JWT).
 accessRouter.get('/settings', jwtAuth, mod, controller.getSettings);
-accessRouter.put('/settings', jwtAuth, mod, controller.updateSettings);
+accessRouter.put('/settings', jwtAuth, mod, manage, controller.updateSettings);
 accessRouter.get('/clients', jwtAuth, mod, controller.listClients);
 accessRouter.post('/clients/:id/override', jwtAuth, mod, controller.setOverride);
 
-// F13 — Conexão IoT: config da integração pelo dono (JWT).
+// F13 — Conexão IoT: config da integração pelo dono (JWT). Chave/webhook = OWNER/ADMIN.
 accessRouter.get('/integration', jwtAuth, mod, integration.getIntegration);
-accessRouter.put('/integration', jwtAuth, mod, integration.setEnabled);
-accessRouter.post('/integration/api-key/rotate', jwtAuth, mod, integration.rotateApiKey);
-accessRouter.post('/integration/api-key/revoke', jwtAuth, mod, integration.revokeApiKey);
-accessRouter.put('/integration/webhook', jwtAuth, mod, integration.setWebhook);
-accessRouter.delete('/integration/webhook', jwtAuth, mod, integration.clearWebhook);
-accessRouter.post('/integration/webhook/test', jwtAuth, mod, integration.testWebhook);
+accessRouter.put('/integration', jwtAuth, mod, manage, integration.setEnabled);
+accessRouter.post('/integration/api-key/rotate', jwtAuth, mod, manage, integration.rotateApiKey);
+accessRouter.post('/integration/api-key/revoke', jwtAuth, mod, manage, integration.revokeApiKey);
+accessRouter.put('/integration/webhook', jwtAuth, mod, manage, integration.setWebhook);
+accessRouter.delete('/integration/webhook', jwtAuth, mod, manage, integration.clearWebhook);
+accessRouter.post('/integration/webhook/test', jwtAuth, mod, manage, integration.testWebhook);
 accessRouter.get('/events', jwtAuth, mod, integration.listEvents);
 
 // F13 — PULL: a catraca pergunta se libera. Autentica por API key (x-api-key),

@@ -59,7 +59,7 @@ describe('PlatformSubscriptionService.checkout', () => {
     // Mock gateway devolve PIX (sem checkout hospedado).
     expect(res.pixCopyPaste).toBeTruthy();
     expect(invoices.create).toHaveBeenCalledWith(
-      expect.objectContaining({ plan: 'pro', amountCents: 9700 })
+      expect.objectContaining({ plan: 'pro', amountCents: 22900 })
     );
   });
 
@@ -108,7 +108,7 @@ describe('PlatformSubscriptionService.getStatus', () => {
     tenantInvoices.countCreatedThisMonth.mockResolvedValue(5);
     const status = await runWithTenant('t1', () => service.getStatus());
     expect(status.usage.invoicesThisMonth).toBe(5);
-    expect(status.usage.maxInvoicesPerMonth).toBe(200);
+    expect(status.usage.maxInvoicesPerMonth).toBe(500);
     expect(status.usage.overQuota).toBe(false);
     expect(status.catalog.length).toBe(3);
   });

@@ -120,9 +120,16 @@ export class ReferralService {
 
       const toReferrer = rewardFor(settings, 'referrer');
       const toReferred = rewardFor(settings, 'referred');
-      if (toReferrer > 0) await this.repo.addCredit(referral.referrerClientId, toReferrer);
-      if (toReferred > 0) await this.repo.addCredit(referral.referredClientId, toReferred);
-      await this.repo.markConverted(referral.id, toReferrer + toReferred, now);
+      // Conversão + crédito ATÔMICOS e condicionais (spec 0054): só a 1ª chamada
+      // que vence a corrida credita — nada de double-credit em pagamentos paralelos.
+      await this.repo.convertAndCredit({
+        referralId: referral.id,
+        referrerClientId: referral.referrerClientId,
+        referredClientId: referral.referredClientId,
+        toReferrer,
+        toReferred,
+        at: now,
+      });
     });
   }
 
@@ -131,8 +138,17 @@ export class ReferralService {
     return this.repo.getClientCredit(clientId);
   }
 
-  /** Consome crédito após a cobrança criada com sucesso. */
-  async consumeCredit(clientId: string, cents: number): Promise<void> {
-    if (cents > 0) await this.repo.consumeCredit(clientId, cents);
+  /**
+   * Reserva (debita) crédito de forma atômica ANTES de cobrar (spec 0054). Retorna se
+   * conseguiu — o InvoiceService só aplica o desconto quando a reserva vence.
+   */
+  async tryReserveCredit(clientId: string, cents: number): Promise<boolean> {
+    if (cents <= 0) return true;
+    return this.repo.tryReserveCredit(clientId, cents);
+  }
+
+  /** Devolve crédito reservado quando a cobrança falha depois da reserva (rollback). */
+  async refundCredit(clientId: string, cents: number): Promise<void> {
+    if (cents > 0) await this.repo.refundCredit(clientId, cents);
   }
 }

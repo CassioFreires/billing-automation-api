@@ -166,46 +166,49 @@ export class NegotiationService {
         items: [{ description, quantity: 1, unitPrice: finalValue }],
       });
 
+      // Só apaga a reserva se a cobrança NÃO chegou a ser criada (spec 0054).
+      let charge;
       try {
         const gateway = await this.gatewayForTenant();
-        const charge = await gateway.createCharge({
+        charge = await gateway.createCharge({
           reference: randomUUID(),
           amount: terms.finalValue,
           dueDate: new Date(terms.newDueDate),
           description,
         });
-
-        const newInvoice = await this.invoiceRepository.attachCharge(reserved.id, {
-          gatewayId: charge.gatewayId,
-          pixCopyPaste: charge.pixCopyPaste,
-          pixQrCode: charge.pixQrCode,
-          checkoutUrl: charge.checkoutUrl,
-        });
-
-        const result = await this.agreements.finalize({
-          tenantId: invoice.tenantId,
-          clientId: invoice.clientId,
-          originalInvoiceId: invoice.id,
-          newInvoiceId: newInvoice.id,
-          type: dto.type,
-          terms,
-        });
-
-        // Corrida perdida (RN-NEG3): desfaz a nova reserva e devolve o acordo vigente.
-        if (result.conflict) {
-          await this.invoiceRepository.deleteById(newInvoice.id).catch(() => {});
-          return { created: false, agreement: result.agreement };
-        }
-
-        // Acordo aceito supersede a original → fecha o caso de recuperação, se
-        // houver (spec 0033, RN-3306). Best-effort; idempotente no repositório.
-        await this.recovery.closeByInvoiceId(invoice.id, 'agreement').catch(() => {});
-
-        return { created: true, agreement: result.agreement };
       } catch (error) {
         await this.invoiceRepository.deleteById(reserved.id).catch(() => {});
         throw error;
       }
+
+      // Cobrança criada — a partir daqui NÃO apagamos a fatura (evita cobrança órfã).
+      const newInvoice = await this.invoiceRepository.attachCharge(reserved.id, {
+        gatewayId: charge.gatewayId,
+        pixCopyPaste: charge.pixCopyPaste,
+        pixQrCode: charge.pixQrCode,
+        checkoutUrl: charge.checkoutUrl,
+      });
+
+      const result = await this.agreements.finalize({
+        tenantId: invoice.tenantId,
+        clientId: invoice.clientId,
+        originalInvoiceId: invoice.id,
+        newInvoiceId: newInvoice.id,
+        type: dto.type,
+        terms,
+      });
+
+      // Corrida perdida (RN-NEG3): a cobrança JÁ existe no gateway; NÃO apagamos a
+      // fatura (senão viraria órfã) — ela fica conciliável se for paga. Devolve o vigente.
+      if (result.conflict) {
+        return { created: false, agreement: result.agreement };
+      }
+
+      // Acordo aceito supersede a original → fecha o caso de recuperação, se
+      // houver (spec 0033, RN-3306). Best-effort; idempotente no repositório.
+      await this.recovery.closeByInvoiceId(invoice.id, 'agreement').catch(() => {});
+
+      return { created: true, agreement: result.agreement };
     });
   }
 

@@ -72,21 +72,60 @@ export class ReferralRepository {
     return prisma.referral.findFirst({ where: { tenantId: requireTenantId(), referredClientId, status: 'pending' } });
   }
 
-  async markConverted(id: string, rewardCents: number, at: Date) {
-    return prisma.referral.update({ where: { id }, data: { status: 'converted', rewardCents, convertedAt: at } });
-  }
-
   async getClientCredit(clientId: string): Promise<number> {
     const c = await prisma.client.findFirst({ where: { id: clientId, tenantId: requireTenantId() }, select: { referralCreditCents: true } });
     return c?.referralCreditCents ?? 0;
   }
 
-  async addCredit(clientId: string, cents: number) {
-    await prisma.client.update({ where: { id: clientId }, data: { referralCreditCents: { increment: cents } } });
+  /**
+   * Conversão + crédito ATÔMICOS e idempotentes (spec 0054). Flipa pending→converted
+   * de forma condicional (`updateMany where status:'pending'`) e só credita os dois
+   * lados se ESTA chamada venceu a corrida (count===1). Webhooks/pagamentos
+   * concorrentes do mesmo indicado não creditam em dobro.
+   */
+  async convertAndCredit(input: {
+    referralId: string;
+    referrerClientId: string;
+    referredClientId: string;
+    toReferrer: number;
+    toReferred: number;
+    at: Date;
+  }): Promise<boolean> {
+    return prisma.$transaction(async (tx) => {
+      const flip = await tx.referral.updateMany({
+        where: { id: input.referralId, status: 'pending' },
+        data: { status: 'converted', rewardCents: input.toReferrer + input.toReferred, convertedAt: input.at },
+      });
+      if (flip.count !== 1) return false; // já convertida (corrida/replay) → não credita de novo
+      if (input.toReferrer > 0) {
+        await tx.client.update({ where: { id: input.referrerClientId }, data: { referralCreditCents: { increment: input.toReferrer } } });
+      }
+      if (input.toReferred > 0) {
+        await tx.client.update({ where: { id: input.referredClientId }, data: { referralCreditCents: { increment: input.toReferred } } });
+      }
+      return true;
+    });
   }
 
-  async consumeCredit(clientId: string, cents: number) {
-    await prisma.client.update({ where: { id: clientId }, data: { referralCreditCents: { decrement: cents } } });
+  /**
+   * Reserva (debita) crédito de forma ATÔMICA e condicional (spec 0054): só debita se
+   * o saldo cobre (`gte`), escopo por tenant. Retorna se conseguiu — evita o
+   * double-spend de duas faturas concorrentes do mesmo cliente.
+   */
+  async tryReserveCredit(clientId: string, cents: number): Promise<boolean> {
+    const r = await prisma.client.updateMany({
+      where: { id: clientId, tenantId: requireTenantId(), referralCreditCents: { gte: cents } },
+      data: { referralCreditCents: { decrement: cents } },
+    });
+    return r.count === 1;
+  }
+
+  /** Devolve crédito reservado (rollback quando a cobrança falha depois da reserva). */
+  async refundCredit(clientId: string, cents: number) {
+    await prisma.client.updateMany({
+      where: { id: clientId, tenantId: requireTenantId() },
+      data: { referralCreditCents: { increment: cents } },
+    });
   }
 
   /** Indicações do tenant, com nomes, para o painel. */
